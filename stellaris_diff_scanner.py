@@ -1,0 +1,300 @@
+"""
+Stellaris Diff Scanner (Optimized with Rename Block Caching)
+------------------------------------------------------------
+Compares two Stellaris game folders and detects changes to modding definitions.
+
+MIT License
+Copyright (c) 2025 FirePrince
+Permission is hereby granted...
+
+Features:
+- Outputs diff and summary files: Lists of added/removed items in traits, techs, triggers, effects, civics, governments, modifiers.
+    - Skips subfolders and only scans top-level .txt files (except modifiers, which merges multiple folders).
+- Rename detection with RapidFuzz: scripted_triggers, scripted_effects, modifiers, and traits via content similarity (~75%).
+    - Uses block cache for rename-detection to speed up comparisons.
+
+Install: pip install rapidfuzz
+
+Author: FirePrince with ChatGPT guidance
+GitHub: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
+Used by https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/modupdater-v4.0.py
+"""
+
+import os
+import re
+# import difflib # slow
+from rapidfuzz import fuzz
+import logging
+import argparse
+
+# Example usage
+old_version_folder = "../Stellaris3.14/"
+new_version_folder = "../Stellaris4.0/"
+# Add/Remove more categories if needed
+rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers" } # "starbase_buildings", "jobs" , "starbase_modules"
+scan_events = True # False #  Event ID tracking
+debug = False # True # 
+
+# Configure basic logging - this can be overridden by argparse later
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compare two Stellaris directories and list modding diffs")
+    parser.add_argument("old", nargs="?", help="Path to the old version of Stellaris")
+    parser.add_argument("new", nargs="?", help="Path to the new version of Stellaris")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--events", action="store_true", help="Enable event ID scanning")
+    return parser.parse_args()
+
+def write_if_not_empty(path, file, lines, info):
+    if lines:
+        with open(os.path.join(path, file), 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+        logging.info(f"{info} written to: {file}")
+
+def extract_keys(folder, compiled_pattern):
+    keys = {}
+    if not os.path.exists(folder):
+        return keys
+
+    for file in os.listdir(folder):
+        path = os.path.join(folder, file)
+        if os.path.isfile(path) and file.endswith(".txt"):
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                matches = compiled_pattern.findall(content)
+                for match in matches:
+                    keys[match] = file
+    return keys
+
+def extract_event_ids(folder):
+    """
+    Scans Stellaris event files (non-recursive) for event IDs.
+    Returns a dict[event_id] = filename
+    """
+    event_ids = {}
+    if not os.path.exists(folder):
+        return event_ids
+
+    event_block_pattern = re.compile(r'^\w*?event = \{', re.MULTILINE)
+    id_pattern = re.compile(r'^\tid = ([\w.\-]+)', re.MULTILINE)
+
+    for file in os.listdir(folder):
+        if not file.endswith(".txt"):
+            continue
+        path = os.path.join(folder, file)
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        for match in event_block_pattern.finditer(content):
+            block_start = match.end()
+            block_slice = content[block_start:block_start + 300]
+            id_match = id_pattern.search(block_slice)
+            if id_match:
+                event_id = id_match.group(1)
+                event_ids[event_id] = file
+
+    return event_ids
+
+def extract_all_blocks(folder, pattern):
+    blocks = {}
+    if not os.path.exists(folder):
+        return blocks
+
+    for file in os.listdir(folder):
+        path = os.path.join(folder, file)
+        if not os.path.isfile(path) or not file.endswith(".txt"):
+            continue
+
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        for match in pattern.finditer(content):
+            key = match.group(1)
+            start = match.end()
+            end_idx = content.find("\n}\n", start)
+            if end_idx == -1:
+                end_idx = len(content)
+            block_text = content[start:end_idx].strip()
+            blocks[key] = (block_text, file)
+    return blocks
+
+def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshold=0.75):
+    renames = []
+    matched_new_keys = set()
+    logging.info(f"Starting renamed block detection: {len(removed_keys)} removed keys, {len(added_keys)} added keys")
+    for old_key in removed_keys:
+        if old_key not in old_dict:
+            continue
+        old_body = old_dict[old_key][0]
+        best_match = None
+        best_ratio = threshold
+        for new_key in added_keys:
+            if new_key in matched_new_keys or new_key not in new_dict:
+                continue
+            new_body = new_dict[new_key][0]
+            ratio = fuzz.ratio(old_body, new_body) / 100
+            if ratio > best_ratio:
+                best_match = new_key
+                best_ratio = ratio
+
+        if best_match:
+            best_ratio = round(best_ratio * 100, 2)
+            old_file = old_dict[old_key][1]
+            new_file = new_dict[best_match][1]
+            renames.append((old_key, best_match, best_ratio, old_file, new_file))
+            matched_new_keys.add(best_match)
+            logging.info(f"Potentially renamed: {old_key} -> {best_match} ({best_ratio}%)")
+            if debug: print(f"Compare\nOLD ===:\n{new_dict[best_match][0]}\nNEW ===:\n{old_body}")
+
+    logging.info(f"Renamed block detection completed: {len(renames)} potentially renamed pairs found")
+    return renames
+
+def write_diffs(old_items, new_items, category, old_path, new_path, summary_lines, renamed_pairs=None):
+    if renamed_pairs:
+        renamed_old_keys = {old for old, _, _, _, _ in renamed_pairs}
+        renamed_new_keys = {new for _, new, _, _, _ in renamed_pairs}
+        old_items = [i for i in old_items if i not in renamed_old_keys]
+        new_items = [i for i in new_items if i not in renamed_new_keys]
+
+    added = sorted(set(new_items) - set(old_items))
+    removed = sorted(set(old_items) - set(new_items))
+
+    # write_if_not_empty(old_path, f"{category}_list_old.txt", old_items, category)
+    # write_if_not_empty(new_path, f"{category}_list_new.list", new_items, category)
+    write_if_not_empty(new_path, f"{category}_diff_added.list", added, category)
+    write_if_not_empty(old_path, f"{category}_diff_removed.list", removed, category)
+
+    logging.info(f"[{category.upper()}] Added: {len(added)}, Removed: {len(removed)}")
+    summary_lines.append(f"{category.upper()}:")
+    summary_lines.append(f"  Added:   {len(added)}")
+    summary_lines.append(f"  Removed: {len(removed)}\n")
+
+def compare_stellaris_data(old_path, new_path, debug=False, events=False):
+    summary_lines = ["Stellaris Diff Summary\n======================\n"]
+
+    category_configs = {
+        "traits":      (re.compile(r'^(trait_\w+) = \{', re.MULTILINE), "common/traits"),
+        "techs":       (re.compile(r'^(tech_\w+) = \{', re.MULTILINE), "common/technology"),
+        "triggers":    (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/scripted_triggers"),
+        "effects":     (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/scripted_effects"),
+        "jobs":        (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/pop_jobs"),
+        "buildings":   (re.compile(r'^(building_\w+) = \{', re.MULTILINE), "common/buildings"),
+        "starbase_buildings": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_buildings"),
+        "starbase_modules": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_modules"),
+        "civics":      (re.compile(r'^((?:civic|origin)_\w+) = \{', re.MULTILINE), "common/governments/civics"),
+        "governments": (re.compile(r'^(gov_\w+) = \{', re.MULTILINE), "common/governments"),
+    }
+
+    for cat, (pattern, subpath) in category_configs.items():
+        logging.info(f"Processing category: {cat.upper()}")
+        old_dir = os.path.join(old_path, subpath)
+        new_dir = os.path.join(new_path, subpath)
+
+        old_keys = extract_keys(old_dir, pattern)
+        new_keys = extract_keys(new_dir, pattern)
+
+        old_items = set(old_keys.keys())
+        new_items = set(new_keys.keys())
+
+        renamed = None
+        if cat in rename_chk_cats:
+            old_blocks_all = extract_all_blocks(old_dir, pattern)
+            new_blocks_all = extract_all_blocks(new_dir, pattern)
+
+            removed = old_items - new_items
+            added = new_items - old_items
+
+            old_blocks = {k: old_blocks_all[k] for k in removed if k in old_blocks_all}
+            new_blocks = {k: new_blocks_all[k] for k in added if k in new_blocks_all}
+
+            renamed = detect_renamed_blocks(old_blocks, new_blocks, removed, added)
+
+            with open(os.path.join(old_path, f"{cat}_renamed.txt"), 'w', encoding='utf-8') as f:
+                for old, new, ratio, old_file, new_file in renamed:
+                    f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
+
+        write_diffs(old_items, new_items, cat, old_path, new_path, summary_lines, renamed)
+
+    # Modifiers (multi-folder)
+    modifier_paths = [
+        "common/opinion_modifiers",
+        "common/planet_modifiers",
+        "common/scripted_modifiers",
+        "common/static_modifiers",
+    ]
+    pattern = re.compile(r'^(\w+) = \{', re.MULTILINE)
+    old_mod_dirs = [os.path.join(old_path, p) for p in modifier_paths]
+    new_mod_dirs = [os.path.join(new_path, p) for p in modifier_paths]
+
+    old_keys = {}
+    new_keys = {}
+    for d in old_mod_dirs:
+        old_keys.update(extract_keys(d, pattern))
+    for d in new_mod_dirs:
+        new_keys.update(extract_keys(d, pattern))
+
+    old_items = set(old_keys.keys())
+    new_items = set(new_keys.keys())
+
+    renamed = None
+    if "modifiers" in rename_chk_cats:
+        old_blocks_all = {}
+        new_blocks_all = {}
+        for d in old_mod_dirs:
+            old_blocks_all.update(extract_all_blocks(d, pattern))
+        for d in new_mod_dirs:
+            new_blocks_all.update(extract_all_blocks(d, pattern))
+
+        removed = old_items - new_items
+        added = new_items - old_items
+
+        old_blocks = {k: old_blocks_all[k] for k in removed if k in old_blocks_all}
+        new_blocks = {k: new_blocks_all[k] for k in added if k in new_blocks_all}
+
+        renamed = detect_renamed_blocks(old_blocks, new_blocks, removed, added)
+
+        with open(os.path.join(old_path, "modifiers_renamed.txt"), 'w', encoding='utf-8') as f:
+            for old, new, ratio, old_file, new_file in renamed:
+                f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
+
+    write_diffs(old_items, new_items, "modifiers", old_path, new_path, summary_lines, renamed)
+
+    if scan_events:
+        logging.info("Processing category: EVENTS")
+        event_dir_old = os.path.join(old_path, "events")
+        event_dir_new = os.path.join(new_path, "events")
+
+        old_event_ids = extract_event_ids(event_dir_old)
+        new_event_ids = extract_event_ids(event_dir_new)
+
+        old_ids = set(old_event_ids.keys())
+        new_ids = set(new_event_ids.keys())
+
+        write_diffs(old_ids, new_ids, "events", old_path, new_path, summary_lines)
+
+    # Write summary
+    write_if_not_empty(old_path, "summary_diff.txt", summary_lines, "📋 Summary")
+
+    
+# compare_stellaris_data(old_version_folder, new_version_folder)
+if __name__ == "__main__":
+    args = parse_args()
+
+    # Check if run from CLI or fallback to default/test values
+    if args.old and args.new:
+        old_path = args.old
+        new_path = args.new
+    else:
+        print("No arguments provided, using default test paths...")
+        old_path = old_version_folder
+        new_path = new_version_folder
+
+    if args.debug:
+        debug = args.debug
+    if args.events:
+        scan_events = args.events
+
+    compare_stellaris_data(old_path, new_path, debug, scan_events)
