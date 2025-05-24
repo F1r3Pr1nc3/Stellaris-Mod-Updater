@@ -42,14 +42,15 @@ You can enable additional functionality using either config variables or command
 - `-h` (`--help`) — Prints available options and descriptions
 - `-c` (`--code_cosmetic`) — enables cosmetic formatting changes in the code output 
 - `-m` (`--mergerofrules`) — forces to apply compatibility for the [Merger of Rules](https://steamcommunity.com/workshop/filedetails/2807759164)(MoR) - otherwise it detects automatically
-- `-ut` (`--only_upto_version`):
+- `-ut` (`--ACTUAL_STELLARIS_VERSION_FLOAT`):
   - Specifies the maximum Stellaris version to which the updater should apply changes.
-  - Example: `only_upto_version = 3.6`
+  - Example: `-ut = 3.6`
 - `-w` (`--only_warning`) — only output warnings instead of making changes.
 - `-a` (`--only_actual`) — speeds up the search to only the last relevant version.
 - `-k` (`--keep_default_country_trigger`) — keeps trigger like `is_country_type = default` vanilla.
 - `-o` (`--also_old`) — Beta: some pre 2.3 stuff. 
-- `-input` — the mod path manually ()
+- `-input` (`--mod_path`) — path to the mod directory
+- `-output` (`--mod_outpath`) — (optional) output path for the updated
 
 These can be set directly in the script or passed as arguments when launching.
 
