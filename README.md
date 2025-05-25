@@ -41,7 +41,7 @@ You can enable additional functionality using either config variables or command
 
 - `-h` (`--help`) — Prints available options and descriptions
 - `-c` (`--code_cosmetic`) — enables cosmetic formatting changes in the code output 
-- `-m` (`--mergerofrules`) — forces to apply compatibility for the [Merger of Rules](https://steamcommunity.com/workshop/filedetails/2807759164)(MoR) - otherwise it detects automatically
+- `-m` (`--mergerofrules`) — forces compatibility for [The Merger of Rules](https://steamcommunity.com/workshop/filedetails/2807759164) (MoR) - otherwise automatically detection (slower)
 - `-ut` (`--ACTUAL_STELLARIS_VERSION_FLOAT`):
   - Specifies the maximum Stellaris version to which the updater should apply changes.
   - Example: `-ut = 3.6`
