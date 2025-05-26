@@ -11,7 +11,7 @@ import logging
 import argparse
 
 # @Author: FirePrince
-# @Revision: 2025/05/25
+# @Revision: 2025/05/26
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -83,6 +83,9 @@ no_trigger_folder = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+
 def multiply_by_hundred(m):
     return f"{m.group(1)} {int(m.group(2))*100}"
 
+# def multiply_by_hundred_float(m):
+#     return f"{m.group(1)} {int(float(m.group(2))*100)}"
+
 # TODO !? # SUPPORT name="~~Scripted Trigger Undercoat" id="2868680633" dropped due performance reasons
 # 00_undercoat_triggers.txt
 # undercoat_triggers = {
@@ -101,6 +104,10 @@ actuallyTargets = {
     "targets3": {},  # Simple syntax (only one-liner)
     "targets4": {},  # Multiline syntax # key (pre match without group or one group): arr (search, replace) or str (if no group or one group) # re flags=re.I|re.M|re.A
 }
+
+# TODO
+# Loc yml job replacement
+
 
 v4_0 = {
     # Used list_traits_diff.py script for changed traits
@@ -239,7 +246,8 @@ v4_0 = {
         # Modifier trigger
         r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % planet_modifier: multiply_by_hundred,
         # Modifier effect
-        r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer)\w+?)_add =)\s*(-?[1-9]\d?)\b" % planet_modifier: multiply_by_hundred,
+        r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?[1-9]\d?)\b" % planet_modifier: multiply_by_hundred,
+        # r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % planet_modifier: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
     },
     "targets4": {
         r"\bevery_owned_pop_group = {\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
