@@ -11,7 +11,7 @@ import logging
 import argparse
 
 # @Author: FirePrince
-# @Revision: 2025/05/26
+# @Revision: 2025/05/28
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.11' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.14' # @last supported sub-version
 # Default values
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
@@ -126,10 +126,9 @@ v4_0 = {
         [r"^\s+[^#]*?\bhas_trade_route\b", "REMOVED in v4.0"],
         [r"^\s+[^#]*?\bnum_trade_routes\b", "REMOVED in v4.0"],
         [r"^\s+[^#]*?\btrade_income\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_intercepted_percentage\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_intercepted_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_protected_percentage\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_protected_value\b", "REMOVED in v4.0"],
+        [r"^\s+[^#]*?\btrade_intercepted_(value|percentage)\b", "REMOVED in v4.0"],
+        [r"^\s+[^#]*?\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
+        [r"^\s+[^#]*?\bstarbase_trade_protection(_range)?_add\b", "REMOVED in v4.0"],
         [r"^\s+[^#]*?\btrade_route_value\b", "REMOVED in v4.0"],
         [r"^\s+[^#]*?\btrading_value\b", "REMOVED in v4.0"],
         [r"^\s+[^#]*?\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
@@ -188,6 +187,7 @@ v4_0 = {
         r"\btrait_frozen_planet_preference\b": "trait_cold_planet_preference",
         r"\btrait_cyborg_climate_adjustment_frozen\b": "trait_cyborg_climate_adjustment_cold",
         r"\b(count_owned_pop)\b": r"\1_amount",
+        r"(\s+)add_trait_no_notify = \"?(\w+)\"?\b": r"\1add_trait = {\n\1\ttrait = \2\n\1\tshow_message = no\n\1}",
         r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
         r"\b((?:any|every|ordered)_owned_pop) =": r"\1_group =",
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
@@ -199,6 +199,7 @@ v4_0 = {
         r"^(\s+)(potential_crossbreeding_chance =)": ("common/traits", r"\1# \2"),
         r"^(\s+)(ship_piracy_suppression_add =)": ("common/ship_sizes", r"\1# \2"),
         r"\s+standard_trade_routes_module = {}": ("common/country_types", ""),
+        r"\s+collects_trade = (yes|no)": ("common/starbase_levels", ""),
         r"^\s+[^#]*?\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
         r"^(\s+)(ignores_favorite =)": ("common/pop_jobs", r"\1# \2"),
         r"\bnum_(sapient_pop|pop)s\b":  r"\1_amount",
@@ -292,6 +293,9 @@ v4_0 = {
             )],
     },
 }
+# if code_cosmetic and not only_warning:
+#     v4_0["targets4"][r"\badd_trait = (\{\s+trait = (\w+)\s+\})"] = [r"\{\s+trait = (\w+)\s+\}", r"\1"]
+
 
 v3_13 = {
     "targetsR": [
@@ -2575,23 +2579,23 @@ def modfix(file_list):
                             new_main_ver,
                         )
                 # Mod version
-                pattern = re.compile(r'version="v?(.*?)"\n')
+                pattern = re.compile(r'\bversion="v?(.*?)"(?=\n)')
                 m = pattern.search(out) # old mod version
                 if m:
                     m = m.group(1)
-                    if re.search(m, r"\.\d+$"):
+                    print("Old Mod-version = %s" % m)
+                    if re.search(r"\.\d+$", m):
                         if  (
                             m.startswith(old_main_ver) and old_main_ver != new_main_ver
                             or m.startswith(new_main_ver) and m.replace(r"\.\d+$", "") != FULL_STELLARIS_VERSION
                         ):
                             out = pattern.sub(r'version="%s"' % (FULL_STELLARIS_VERSION + ".0"), out)
-                        elif (
-                            m[0 : len(old_main_ver)] != new_main_ver
-                            or m.replace(r"\.\d+$", "") != FULL_STELLARIS_VERSION
-                        ):
-                            print(m, FULL_STELLARIS_VERSION, len(FULL_STELLARIS_VERSION), flush=True)
+                        elif m.replace(r"\.\d+$", "") != FULL_STELLARIS_VERSION:
+                            # print(m, FULL_STELLARIS_VERSION, len(FULL_STELLARIS_VERSION))
                             out = out.replace(m, FULL_STELLARIS_VERSION + ".0")
                             out = out.replace(old_main_ver, FULL_STELLARIS_VERSION)
+                    else: print("No proper mod version found", re.search(r"\.\d+$", m))
+                else: print("No mod version exists")
                 # Mod name
                 pattern_name = re.compile(r'name="(.*?)"\n')
                 pattern = pattern_name.search(out)
