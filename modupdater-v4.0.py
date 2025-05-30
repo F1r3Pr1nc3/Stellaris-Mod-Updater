@@ -11,7 +11,7 @@ import logging
 import argparse
 
 # @Author: FirePrince
-# @Revision: 2025/05/28
+# @Revision: 2025/05/30
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -1970,7 +1970,7 @@ def extract_scripted_triggers():
     Scans the mod's 'common/scripted_triggers' directory and extracts the names
     of defined scripted triggers.
     """
-    custom_triggers = set()
+    custom_triggers = {}
     triggers_dir = os.path.join(mod_path + "/common/scripted_triggers")
     print(triggers_dir)
 
@@ -1992,7 +1992,7 @@ def extract_scripted_triggers():
                 if found_in_file:
                     logger.debug(f"Found potential triggers in {filepath}: {found_in_file}")
                     for trigger_name in found_in_file:
-                        custom_triggers.add(trigger_name)
+                        custom_triggers[trigger_name] = filepath
         except Exception as e:
             logger.error(f"Error reading or parsing scripted triggers from {filepath}: {e}")
 
@@ -2083,7 +2083,7 @@ def apply_merger_of_rules(targets3, targets4):
         for trigger in merger_triggers:
             if trigger in triggers_in_mod:
                 if len(merger_triggers[trigger]) == 3:
-                    tar4[merger_triggers[trigger][0]] = merger_triggers[trigger][1]
+                    tar4[merger_triggers[trigger][0]] = merger_triggers[trigger][1] # (, merger_triggers[trigger][1][1])
                 else:
                     tar3[merger_triggers[trigger][0]] = merger_triggers[trigger][1]
 
@@ -2234,7 +2234,7 @@ def modfix(file_list):
                 out = ""
                 changed = False
                 for i, line in enumerate(file_contents):
-                    if len(line) > 8:
+                    if len(line) > 8 and not re.match(r"\s*#", line):
                         # for line in file_contents:
                         # if subfolder in "prescripted_countries":
                         #	print(line.strip().encode(errors='replace'))
@@ -2289,7 +2289,7 @@ def modfix(file_list):
                         # for pattern, repl in tar3.items(): old dict way
                         for pattern in tar3:  # new list way
                             repl = pattern[1]
-                            pattern = pattern[0]
+                            pattern = pattern[0] # id
                             folder = None
                             # check valid folder
                             rt = False
@@ -2297,14 +2297,9 @@ def modfix(file_list):
                             if isinstance(repl, dict):
                                 # is a 3 tuple
                                 file, repl = list(repl.items())[0]
-
                                 if debug_mode:
-                                    print(
-                                        "tar3",
-                                        line.strip().encode(errors="replace"),
-                                    )
-                                    print(pattern, repl, file, file=log_file)
-                                    print(pattern, repl, file, file=sys.stdout)
+                                    print("tar3", line.strip().encode(errors="replace"))
+                                    print(pattern, repl, file)
 
                                 if file in basename:
                                     if debug_mode:
