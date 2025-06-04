@@ -9,18 +9,15 @@ from tkinter import filedialog
 from tkinter import messagebox
 import logging
 import argparse
+import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/01
+# @Revision: 2025/06/04
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
 # @TODO: replace in *.YML ?
 # @TODO: extended support The Merger of Rules ?
-
-# Configure basic logging - this can be overridden by argparse later
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.14' # @last supported sub-version
@@ -34,7 +31,6 @@ debug_mode = 0  # without writing file=log_file
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
 keep_default_country_trigger = 0
 mod_outpath = ""  # if you don't want to overwrite the original
-# output_log = 0  # TODO
 log_file = "modupdater.log"
 
 def parse_arguments():
@@ -137,7 +133,6 @@ actuallyTargets = {
 # TODO
 # Loc yml job replacement
 
-
 v4_0 = {
     # Used list_traits_diff.py script for changed traits
     "targetsR": [
@@ -216,9 +211,6 @@ v4_0 = {
         r"\btrait_frozen_planet_preference\b": "trait_cold_planet_preference",
         r"\btrait_cyborg_climate_adjustment_frozen\b": "trait_cyborg_climate_adjustment_cold",
         r"\b(count_owned_pop)\b": r"\1_amount",
-        r"\badd_trait_no_notify = \"?(\w+)\"?\b": r"add_trait = { trait = \1 show_message = no }",
-        r"(?<!modify_species)(?<!change_species_characteristics)( = \{[^{}#]*?\badd_trait = )\"?(\w+)\"?\b([^{}#}]*?)": r"\1{ trait = \2\3 }", # cheap no look behind
-
         r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
         r"\b((?:any|every|ordered)_owned_pop) =": r"\1_group =",
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
@@ -433,7 +425,6 @@ if code_cosmetic and not only_warning:
     v3_12["targets4"][
         r"(?:is_country_type = (?:(?:awakened_)?synth_queen(?:_storm)?\s*?)){3}"
     ] = (NO_TRIGGER_FOLDER, "is_synth_queen_country_type = yes")
-
 
 # """== 3.11 Quick stats ==
 # the effect 'give_breakthrough_tech_option_or_progress_effect' has been introduced
@@ -1644,8 +1635,13 @@ def _apply_version_data_to_targets(source_data_dict):
     if "targets4" in source_data_dict:
         actuallyTargets["targets4"].update(source_data_dict["targets4"])
 
-# Since v4.0
-def transform_add_trait(basename, lines, changed):
+targets_trait = {
+    re.compile(r"\badd_trait = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 }",
+    re.compile(r"\badd_trait_no_notify = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 show_message = no }",
+}
+
+# Since v4.0 ,
+def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
     """
     Transforms lines of a Stellaris script, replacing all occurrences of:
         add_trait = trait_name
@@ -1655,8 +1651,7 @@ def transform_add_trait(basename, lines, changed):
     'change_species_characteristics = {' block.
     """
     # Patterns for detecting the start of excluded blocks and the trait assignment
-    block_start_pattern = re.compile(r'\b(modify_species|change_species_characteristics) = \{')
-    trait_pattern = re.compile(r'\badd_trait = (\w+)\b')
+    # block_start_pattern = re.compile(r'\b(modify_species|change_species_characteristics) = \{')
 
     skip_block = False
     block_depth = 0
@@ -1667,11 +1662,12 @@ def transform_add_trait(basename, lines, changed):
             continue
 
         # Detect block start
-        if block_start_pattern.match(stripped):
-            skip_block = True
-            block_depth = 1
+        # if block_start_pattern.match(stripped):
+        if (stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {')):
+            if not stripped.endswith('}'):
+                skip_block = True
+                block_depth = 1
             continue
-
         # Handle lines inside skipped blocks
         if skip_block:
             block_depth += stripped.count('{')
@@ -1682,34 +1678,44 @@ def transform_add_trait(basename, lines, changed):
         if len(stripped) < 18:
             continue
 
+        # r"(?<!modify_species)(?<!change_species_characteristics)( = \{[^{}#]*?\badd_trait = )\"?(\w+)\"?\b([^{}#}]*?)": r"\1{ trait = \2\3 }", # cheap no look behind
+
         # Apply transformation if not inside skipped block
-        if trait_pattern.match(stripped):
-            line = trait_pattern.sub(r'add_trait = { trait = \1 }', line)
-            lines[i] = line
-            changed = True
-            print(
-                "\t# Updated file: %s on %s (at line %i) with %s\n"
-                % (
-                    basename.encode(errors="replace"),
-                    stripped.encode(errors="replace"),
-                    i,
-                    line.strip().encode(errors="replace"),
-                ),
-                file=log_file
-            )
-            print(
-                "\tUpdated file: %s on %s (at line %i) with %s\n"
-                % (
-                    basename.encode(errors="replace"),
-                    stripped.encode(errors="replace"),
-                    i,
-                    line.strip().encode(errors="replace"),
-                ),
-                file=sys.stdout
-            )
+        # Only single liner supported
+        if "add_trait" in stripped and not 'add_trait = {' in stripped:
+            if stripped.startswith('add_trait') and not stripped.endswith('}'):
+               if stripped.startswith('add_trait_no_notify'):
+                   lines[i] = f'add_trait = {{ trait = {line[22:]} show_message = no }}'
+               else:
+                   lines[i] = f'add_trait = {{ trait = {line[12:]} }}'
+               changed = True
+               logger.info(
+                   "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
+                   % (
+                       basename,
+                       stripped,
+                       i,
+                       line.strip(),
+                   )
+                )
+            else:
+                for tar, repl in targets_trait.items():
+                    line = tar.sub(repl, line)
+                    if lines[i] != line:
+                        lines[i] = line
+                        changed = True
+                        logger.info(
+                           "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
+                           % (
+                               basename,
+                               stripped,
+                               i,
+                               line.strip(),
+                           )
+                        )
+                        break
 
     return lines, changed
-
 
 def do_code_cosmetic():
     global targets3, targets4
@@ -2101,10 +2107,10 @@ def apply_merger_of_rules(targets3, targets4):
                 else:
                     tar3[merger_triggers[trigger][0]] = { triggers_in_mod[trigger]: merger_triggers[trigger][1][1] }  # merger_triggers[trigger][1]
 
-                print(f"Enabling conversion for MoR trigger: {trigger}")
+                logger.info(f"Enabling conversion for MoR trigger: {trigger}")
             elif trigger in merger_reverse_triggers:
                 tar3[merger_reverse_triggers[trigger][0]] = merger_reverse_triggers[trigger][1]
-                print(f"Removing nonexistent MoR trigger: {trigger}")
+                logger.info(f"Removing nonexistent MoR trigger: {trigger}")
 
     ### Pre-Compile regexps
     tar3 = [(re.compile(k, flags=0), tar3[k]) for k in tar3]
@@ -2117,9 +2123,7 @@ def apply_merger_of_rules(targets3, targets4):
     return (targets3, targets4)
 
 def parse_dir():
-    global mod_path, mod_outpath, log_file #, targets3, targets4
-    if debug_mode:
-        global start_time
+    global mod_path, mod_outpath, log_file, start_time #, targets3, targets4
 
     files = []
     mod_path = os.path.normpath(mod_path)
@@ -2148,15 +2152,36 @@ def parse_dir():
     else:
         mod_outpath = os.path.normpath(mod_outpath)
 
-    if debug_mode:
-        logging.debug("\tLoading folder", mod_path)
-        start_time = datetime.datetime.now()
+    # Using the custom formatter
+    # Prevent adding multiple handlers if this setup code is run more than once
+    if logger.handlers or logger.hasHandlers():
+        print("Logger handler already exists")
+        logger.handlers.clear()
 
-    # Open the log file in append mode
-    log_file = os.path.join(mod_path, log_file)
-    if os.path.exists(log_file):
-        os.remove(log_file)
-    log_file = open(log_file, "w", encoding="utf-8", errors="ignore")
+    # Create a handler for sys.stdout
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.setFormatter(SafeFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+    if log_file and log_file != "":
+        # Open the log file in append mode
+        log_file = os.path.join(mod_path, log_file)
+        if os.path.exists(log_file):
+            os.remove(log_file)
+        # log_file = open(log_file, "w", encoding="utf-8", errors="ignore")
+        # Create a handler for your existing log_file object
+        log_file = logging.FileHandler(log_file, mode='a', encoding='utf-8', errors='replace')
+        # We use StreamHandler because log_file is an already open file stream
+        # log_file = logging.StreamHandler(log_file)
+        log_file.setLevel(logging.DEBUG)
+        log_file.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logger.addHandler(log_file)
+    logger.addHandler(stdout_handler)
+
+    if debug_mode:
+        logger.setLevel(logging.DEBUG)
+        logging.debug("\tLoading folder %s" % mod_path)
+    start_time = datetime.datetime.now()
 
     # if os.path.isfile(mod_path + os.sep + 'descriptor.mod'):
     if os.path.exists(os.path.join(mod_path, "descriptor.mod")):
@@ -2176,11 +2201,14 @@ def parse_dir():
                 and next(files, -1) == -1
                 and debug_mode
             ):
-                print("# Empty folder", mod_path, file=log_file)
-                print("Empty folder", mod_path, file=sys.stdout)
+                # print("# Empty folder", mod_path, file=log_file)
+                # print("Empty folder", mod_path, file=sys.stdout)
+                logger.info("Empty folder %s" % mod_path)
+
             else:
-                print("# We have clear a sub-folder", file=log_file)
-                print("We have clear a sub-folder", file=sys.stdout)
+                # print("# We have clear a sub-folder", file=log_file)
+                # print("We have clear a sub-folder", file=sys.stdout)
+                logger.info("We have clear a sub-folder")
                 modfix(files)
         else:
             # We have a main-folder?
@@ -2188,8 +2216,9 @@ def parse_dir():
                 if os.path.exists(os.path.join(_f, "descriptor.mod")):
                     mod_path = _f
                     mod_outpath = os.path.join(mod_outpath, _f)
-                    print(mod_path, file=log_file)
-                    print(mod_path, file=sys.stdout)
+                    # print(mod_path, file=log_file)
+                    # print(mod_path, file=sys.stdout)
+                    logger.info(mod_path)
                     # files = glob.glob(mod_path + "/**", recursive=True)  # '\\*.txt'
                     files = glob.glob(mod_path + "/common/**", recursive=True)
                     files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
@@ -2199,8 +2228,9 @@ def parse_dir():
                     files = glob.glob(mod_path + "/common/*.txt", recursive=True)
                     files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
                     if next(iter(files), -1) != -1:
-                        print("# We have probably a mod sub-folder", file=log_file)
-                        print("We have probably a mod sub-folder", file=sys.stdout)
+                        # print("# We have probably a mod sub-folder", file=log_file)
+                        # print("We have probably a mod sub-folder", file=sys.stdout)
+                        logger.info("We have probably a mod sub-folder")
                         modfix(files)
 
 def modfix(file_list):
@@ -2215,7 +2245,7 @@ def modfix(file_list):
         if os.path.isfile(_file) and _file.endswith(".txt"):
             subfolder = os.path.relpath(_file, mod_path)
             file_contents = ""
-            logging.debug("\tCheck file:", _file.encode(errors="replace"))
+            logging.debug("\tCheck file: %s" % _file)
             with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
                 # out = txtfile.read() # full_fille
                 # try:
@@ -2275,27 +2305,25 @@ def modfix(file_list):
                             if rt:
                                 rt = re.search(rt, line)  # , flags=re.I
                             if rt:
-                                print(
-                                    "# WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
-                                    % (
-                                        msg,
-                                        rt.group(0).encode(errors="replace"),
-                                        i,
-                                        basename.encode(errors="replace"),
-                                    ),
-                                    file=log_file,
-                                    flush=True
-                                )
-                                print(
+                                # print(
+                                #     "# WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
+                                #     % (
+                                #         msg,
+                                #         rt.group(0),
+                                #         i,
+                                #         basename,
+                                #     ),
+                                #     file=log_file,
+                                #
+                                # )
+                                logger.info(
                                     " WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
                                     % (
                                         msg,
-                                        rt.group(0).encode(errors="replace"),
+                                        rt.group(0),
                                         i,
-                                        basename.encode(errors="replace"),
-                                    ),
-                                    file=sys.stdout,
-                                    flush=True
+                                        basename,
+                                    )
                                 )
 
                         # for pattern, repl in tar3.items(): old dict way
@@ -2310,14 +2338,14 @@ def modfix(file_list):
                                 # is a 3 tuple
                                 file, repl = list(repl.items())[0]
                                 if debug_mode:
-                                    print("tar3", line.strip().encode(errors="replace"))
+                                    print("tar3", line.strip())
                                     print(pattern, repl, file)
                                 if isinstance(repl, str):
                                     if file != basename:
                                         rt = True
                                 elif file in basename:
                                     if debug_mode:
-                                        print("\tFILE match:", file, basename.encode(errors="replace"))
+                                        print("\tFILE match:", file, basename)
                                     folder, repl, rt = repl
                                 else:
                                     folder, rt, repl = repl
@@ -2366,27 +2394,25 @@ def modfix(file_list):
                                     # line = line.replace(t, r)
                                     if line != rt:
                                         changed = True
-                                        print(
-                                            "\t# Updated file: %s on %s (at line %i) with %s\n"
-                                            % (
-                                                basename.encode(errors="replace"),
-                                                rt.strip().encode(errors="replace"),
-                                                i,
-                                                line.strip().encode(errors="replace"),
-                                            ),
-                                            file=log_file,
-                                            flush=True
-                                        )
-                                        print(
+                                        # print(
+                                        #     "\t# Updated file: %s on %s (at line %i) with %s\n"
+                                        #     % (
+                                        #         basename,
+                                        #         rt.strip(),
+                                        #         i,
+                                        #         line.strip(),
+                                        #     ),
+                                        #     file=log_file,
+                                        #
+                                        # )
+                                        logger.info(
                                             "\tUpdated file: %s on %s (at line %i) with %s\n"
                                             % (
-                                                basename.encode(errors="replace"),
-                                                rt.strip().encode(errors="replace"),
+                                                basename,
+                                                rt.strip(),
                                                 i,
-                                                line.strip().encode(errors="replace"),
-                                            ),
-                                            file=sys.stdout,
-                                            flush=True
+                                                line.strip(),
+                                            )
                                         )
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), line.strip().encode(errors='replace'))
 
@@ -2394,7 +2420,7 @@ def modfix(file_list):
                 if "inline_scripts" not in subfolder:
                     if line[-1][0] != "\n" and not line.lstrip().startswith("#"): # and line.strip()
                         out += "\n"
-                        print("Added needed empty line at end.", i, line, len(line), flush=True)
+                        print("Added needed empty line at end.", i, line, len(line))
                         changed = True
                     if out.startswith('\n'):
                         out = out.replace('\n', '', 1)
@@ -2465,7 +2491,7 @@ def modfix(file_list):
                                 # print(pattern, file, type(file), replace, type(basename))
                                 if file != basename:
                                     rt = True
-                                # else: print("\tEXCLUDED:", pattern, "from", basename.encode(errors="replace"))
+                                # else: print("\tEXCLUDED:", pattern, "from", basename)
                             else:
                                 rt = True
                             if rt:
@@ -2486,43 +2512,32 @@ def modfix(file_list):
                                     and tar in out
                                     and tar != replace
                                 ):
-                                    print("# Match:\n", tar, file=log_file, flush=True)
-                                    print("Match:\n", tar, file=sys.stdout, flush=True)
+                                    # print("# Match:\n", tar, file=log_file)
+                                    # print("Match:\n", tar, file=sys.stdout)
+                                    logger.info("Match:\n %s" % tar)
                                     if isinstance(tar, tuple):
                                         tar = tar[0]  # Take only first group
-                                        if debug_mode:
-                                            print("\tFROM GROUP1:\n", pattern)
+                                        logger.debug(f"\tFROM GROUP1:\n{pattern}")
                                     elif debug_mode:
                                         print("\tFROM:\n", pattern)
-                                    print("# Multiline replace:\n", replace, file=log_file, flush=True)
-                                    print("Multiline replace:\n", replace, file=sys.stdout, flush=True)
+                                    # print("# Multiline replace:\n", replace, file=log_file)
+                                    # print("Multiline replace:\n", replace, file=sys.stdout)
+                                    logger.info("Multiline replace:\n%s" % replace)
                                     out = out.replace(tar, replace)
                                     changed = True
                                 elif debug_mode:
-                                    print(
-                                        "DEBUG BLIND MATCH:",
-                                        tar,
-                                        repl,
-                                        type(repl),
-                                        replace,
-                                        flush=True
-                                    )
+                                    logger.debug(f"DEBUG BLIND MATCH: {tar} {repl} {type(repl)} {replace}")
 
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
                     out_file = os.path.join(structure, basename)
-                    print(
-                        "\t# WRITE FILE:",
-                        out_file.encode(errors="replace"),
-                        file=log_file,
-                        flush=True
-                    )
-                    print(
-                        "\tWRITE FILE:",
-                        out_file.encode(errors="replace"),
-                        file=sys.stdout,
-                        flush=True
-                    )
+                    # print(
+                    #     "\t# WRITE FILE:",
+                    #     out_file,
+                    #     file=log_file,
+                    #
+                    # )
+                    logger.info("\tWRITE FILE:%s" % out_file)
                     if not os.path.exists(structure):
                         os.makedirs(structure)
                         # print('Create folder:', subfolder)
@@ -2542,8 +2557,9 @@ def modfix(file_list):
         #   if not os.path.isdir(structure):
         #       os.mkdir(structure)
         # else: print("NO TXT?", _file)
-    if debug_mode:
-        print(datetime.datetime.now() - start_time)
+
+    logger.info(f"✅ Script completed in {(datetime.datetime.now() - start_time).total_seconds():.2f} seconds")
+
     ## Update mod descriptor
     _file = os.path.join(mod_path, "descriptor.mod")
     if not only_warning and os.path.exists(_file):
@@ -2554,17 +2570,9 @@ def modfix(file_list):
             new_main_ver = FULL_STELLARIS_VERSION[0:main_ver_len]
 
             # Main Version = 4.0 (main_ver_len = 3)
-            print(
-                r"# Main-version = %s (Sub-version = %s)"
-                % (new_main_ver, FULL_STELLARIS_VERSION[main_ver_len:]),
-                file=log_file,
-                flush=True
-            )
-            print(
+            logger.info(
                 r"Main Version = %s (Sub-version = %s)"
-                % (new_main_ver, FULL_STELLARIS_VERSION[main_ver_len:]),
-                file=sys.stdout,
-                flush=True
+                % (new_main_ver, FULL_STELLARIS_VERSION[main_ver_len:])
             )
             # Game version
             pattern = re.compile(r'supported_version="v?(.*?)"')
@@ -2620,19 +2628,15 @@ def modfix(file_list):
                     pattern = pattern.group(1)
 
                 # b'Freebooters Origin [3.14.\xe2\x98\xa0] (reborn)' version 3.14.1592653.0 on 'descriptor.mod' updated to 4.0.5!
-                print(
-                    pattern.encode(errors="replace"),
-                    "version %s on 'descriptor.mod' updated to %s!"
-                    % (m, FULL_STELLARIS_VERSION),
-                    file=log_file,
-                    flush=True
-                )
-                print(
-                    pattern.encode(errors="replace"),
-                    "version %s on 'descriptor.mod' updated to %s!"
-                    % (m, FULL_STELLARIS_VERSION),
-                    file=sys.stdout,
-                    flush=True
+                # print(
+                #     pattern,
+                #     "version %s on 'descriptor.mod' updated to %s!"
+                #     % (m, FULL_STELLARIS_VERSION),
+                #     file=log_file,
+                # )
+                logger.info(
+                    "%s version %s on 'descriptor.mod' updated to %s!"
+                    % (pattern, m, FULL_STELLARIS_VERSION)
                 )
                 if isinstance(pattern, str) and old_main_ver != new_main_ver and re.search(old_main_ver, pattern):
                     out = out.replace(pattern, pattern.replace(old_main_ver, new_main_ver))
@@ -2642,10 +2646,23 @@ def modfix(file_list):
                     out = out.replace('supported_version="', 'supported_version="v')
                 open(_file, "w", encoding="utf-8", errors="ignore").write(out.strip())
 
-    print("\n# Done!", mod_outpath.encode(errors="replace"), file=log_file, flush=True)
-    print("\nDone!", mod_outpath.encode(errors="replace"), file=sys.stdout, flush=True)
+    # print("\n# Done!", mod_outpath, file=log_file)
+    # print("\nDone!", mod_outpath, file=sys.stdout)
+    logger.info("# Done! %s" % mod_outpath)
+
+class SafeFormatter(logging.Formatter):
+    def format(self, record):
+        message = super().format(record)
+        # Only sanitize non-printables directly in the str
+        return message.encode('utf-8', errors='replace').decode('utf-8')
 
 if __name__ == "__main__":
+    # Configure basic logging - this can be overridden by argparse later
+    # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s' )
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)       # Ensure all levels pass through
+    logger.propagate = False             # Prevent double logging
+
     args = parse_arguments()
 
     if args.mod_path: mod_path = args.mod_path
@@ -2688,13 +2705,8 @@ if __name__ == "__main__":
             )
             mod_path = temp.value + "/Paradox Interactive/Stellaris/mod"
 
-    if debug_mode:
-        import datetime
-        logger.setLevel(logging.DEBUG)
-    # start_time = datetime.datetime.now()
-    start_time = 0
 
-    # print(datetime.datetime.now() - start_time)
+    start_time = 0
     # exit()
 
     # 3. Main logic
@@ -2788,5 +2800,5 @@ if __name__ == "__main__":
     parse_dir()  # mod_path, mod_outpath
     # input("\nPRESS ANY KEY TO EXIT!")
         # Close the log file
-    if hasattr(log_file, 'close') and callable(getattr(log_file, 'close')) and not hasattr(log_file, 'closed') and not log_file.closed:
-        log_file.close()
+    # if hasattr(log_file, 'close') and callable(getattr(log_file, 'close')) and not hasattr(log_file, 'closed') and not log_file.closed:
+    #     log_file.close()
