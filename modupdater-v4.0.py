@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/04
+# @Revision: 2025/06/05
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -1675,7 +1675,9 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
             if block_depth < 1:
                 skip_block = False
             continue
-        if len(stripped) < 18:
+
+        stripped_len = len(line.lstrip())
+        if stripped_len < 22:
             continue
 
         # r"(?<!modify_species)(?<!change_species_characteristics)( = \{[^{}#]*?\badd_trait = )\"?(\w+)\"?\b([^{}#}]*?)": r"\1{ trait = \2\3 }", # cheap no look behind
@@ -1683,19 +1685,22 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
         # Apply transformation if not inside skipped block
         # Only single liner supported
         if "add_trait" in stripped and not 'add_trait = {' in stripped:
-            if stripped.startswith('add_trait') and not stripped.endswith('}'):
-               if stripped.startswith('add_trait_no_notify'):
-                   lines[i] = f'add_trait = {{ trait = {line[22:]} show_message = no }}'
-               else:
-                   lines[i] = f'add_trait = {{ trait = {line[12:]} }}'
-               changed = True
-               logger.info(
+            if stripped.startswith('add_trait'): # and not stripped.endswith('}')
+
+                if stripped.startswith('add_trait ='):
+                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:-1]} }}\n'
+                    lines[i] = line
+                else:
+                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:-1]} show_message = no }}\n'
+                    lines[i] = line
+                changed = True
+                logger.info(
                    "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
                    % (
                        basename,
                        stripped,
                        i,
-                       line.strip(),
+                       line.lstrip(),
                    )
                 )
             else:
@@ -1710,7 +1715,7 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
                                basename,
                                stripped,
                                i,
-                               line.strip(),
+                               line.lstrip(),
                            )
                         )
                         break
@@ -2107,10 +2112,10 @@ def apply_merger_of_rules(targets3, targets4):
                 else:
                     tar3[merger_triggers[trigger][0]] = { triggers_in_mod[trigger]: merger_triggers[trigger][1][1] }  # merger_triggers[trigger][1]
 
-                logger.info(f"Enabling conversion for MoR trigger: {trigger}")
+                logger.debug(f"Enabling conversion for MoR trigger: {trigger}")
             elif trigger in merger_reverse_triggers:
                 tar3[merger_reverse_triggers[trigger][0]] = merger_reverse_triggers[trigger][1]
-                logger.info(f"Removing nonexistent MoR trigger: {trigger}")
+                logger.debug(f"Removing nonexistent MoR trigger: {trigger}")
 
     ### Pre-Compile regexps
     tar3 = [(re.compile(k, flags=0), tar3[k]) for k in tar3]
@@ -2161,7 +2166,7 @@ def parse_dir():
     # Create a handler for sys.stdout
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.INFO)
-    stdout_handler.setFormatter(SafeFormatter('%(asctime)s - %(levelname)s - %(message)s'))
+    stdout_handler.setFormatter(SafeFormatter('%(levelname)s - %(message)s'))
 
     if log_file and log_file != "":
         # Open the log file in append mode
@@ -2316,8 +2321,8 @@ def modfix(file_list):
                                 #     file=log_file,
                                 #
                                 # )
-                                logger.info(
-                                    " WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
+                                logger.warning(
+                                    "Potentially deprecated Syntax%s: %s in line %i file %s\n"
                                     % (
                                         msg,
                                         rt.group(0),
@@ -2325,6 +2330,7 @@ def modfix(file_list):
                                         basename,
                                     )
                                 )
+                                break # just one hit per line
 
                         # for pattern, repl in tar3.items(): old dict way
                         for pattern in tar3:  # new list way
@@ -2415,6 +2421,7 @@ def modfix(file_list):
                                             )
                                         )
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), line.strip().encode(errors='replace'))
+                                break # just one hit per line
 
                     out += line
                 if "inline_scripts" not in subfolder:
