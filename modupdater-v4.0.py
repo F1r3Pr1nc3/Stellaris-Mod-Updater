@@ -1688,10 +1688,10 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
             if stripped.startswith('add_trait'): # and not stripped.endswith('}')
 
                 if stripped.startswith('add_trait ='):
-                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:-1]} }}\n'
+                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
                     lines[i] = line
                 else:
-                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:-1]} show_message = no }}\n'
+                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
                     lines[i] = line
                 changed = True
                 logger.info(
@@ -2415,12 +2415,12 @@ def modfix(file_list):
                                             "\tUpdated file: %s on %s (at line %i) with %s\n"
                                             % (
                                                 basename,
-                                                rt.strip(),
+                                                rt.lstrip(),
                                                 i,
-                                                line.strip(),
+                                                line.lstrip(),
                                             )
                                         )
-                                        break # just one hit per line
+                                        # break # just one hit per line?
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), line.strip().encode(errors='replace'))
 
                     out += line
