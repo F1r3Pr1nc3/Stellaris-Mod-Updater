@@ -2420,8 +2420,8 @@ def modfix(file_list):
                                                 line.strip(),
                                             )
                                         )
+                                        break # just one hit per line
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), line.strip().encode(errors='replace'))
-                                break # just one hit per line
 
                     out += line
                 if "inline_scripts" not in subfolder:
