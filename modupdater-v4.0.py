@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/05
+# @Revision: 2025/06/06
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,7 +20,7 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.14' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.15' # @last supported sub-version
 # Default values
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
@@ -136,63 +136,63 @@ actuallyTargets = {
 v4_0 = {
     # Used list_traits_diff.py script for changed traits
     "targetsR": [
-        [r"^\s+[^#]*?\b(?:random|any)_pop\b", "REMOVED in v4.0: use any_owned_pop_group/any_species_pop_group"],
-        # [r"^\s+[^#]*?\bclear_pop_category\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bcreate_half_species\b", "REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bevery_galaxy_pop\b", "REMOVED in v4.0: use every_galaxy_species"], Too rare used
-        # [r"^\s+[^#]*?\b(%s)_pop\b" % VANILLA_PREFIXES, "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bremove_last_built_(building|district)\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\breset_decline\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bcan_work_job\b", "REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bcount_owned_pops\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_collected_system_trade_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_system_trade_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_trade_route\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bnum_trade_routes\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_income\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_intercepted_(value|percentage)\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bstarbase_trade_protection(_range)?_add\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrade_route_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrading_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bis_half_species\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
+        [r"\b(?:random|any)_pop\b", "REMOVED in v4.0: use any_owned_pop_group/any_species_pop_group"],
+        # [r"\bclear_pop_category\b", "REMOVED in v4.0"],
+        [r"\bcreate_half_species\b", "REMOVED in v4.0"],
+        # [r"\bevery_galaxy_pop\b", "REMOVED in v4.0: use every_galaxy_species"], Too rare used
+        # [r"\b(%s)_pop\b" % VANILLA_PREFIXES, "REMOVED in v4.0"],
+        [r"\bremove_last_built_(building|district)\b", "REMOVED in v4.0"],
+        [r"\breset_decline\b", "REMOVED in v4.0"],
+        [r"\bcan_work_job\b", "REMOVED in v4.0"],
+        # [r"\bcount_owned_pops\b", "REMOVED in v4.0"],
+        [r"\bhas_collected_system_trade_value\b", "REMOVED in v4.0"],
+        [r"\bhas_system_trade_value\b", "REMOVED in v4.0"],
+        [r"\bhas_trade_route\b", "REMOVED in v4.0"],
+        [r"\bnum_trade_routes\b", "REMOVED in v4.0"],
+        [r"\btrade_income\b", "REMOVED in v4.0"],
+        [r"\btrade_intercepted_(value|percentage)\b", "REMOVED in v4.0"],
+        [r"\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
+        [r"\bstarbase_trade_protection(_range)?_add\b", "REMOVED in v4.0"],
+        [r"\btrade_route_value\b", "REMOVED in v4.0"],
+        [r"\btrading_value\b", "REMOVED in v4.0"],
+        [r"\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
+        [r"\bis_half_species\b", "REMOVED in v4.0"],
+        [r"\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"],
+        [r"\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
         # Modifier
-        [r"^\s+[^#]*?\bbranch_office_value\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bdiplo_fed_xpboost\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhabitat_district_jobs_add\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhabitat_districts_building_slots_add\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bjob_preacher_trade_value_add\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bmanifesti_uslurp_mod\b", "REMOVED in v4.0"],
+        [r"\bbranch_office_value\b", "REMOVED in v4.0"],
+        [r"\bdiplo_fed_xpboost\b", "REMOVED in v4.0"],
+        [r"\bhabitat_district_jobs_add\b", "REMOVED in v4.0"],
+        [r"\bhabitat_districts_building_slots_add\b", "REMOVED in v4.0"],
+        [r"\bjob_preacher_trade_value_add\b", "REMOVED in v4.0"],
+        [r"\bmanifesti_uslurp_mod\b", "REMOVED in v4.0"],
         # Scripted Effects
-        [r"^\s+[^#]*?\barc_furnace_update_orbital_effect\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bassimilation_effect\b", "REMOVED in v4.0, compare set_assimilation_counter_variable"],
-        # [r"^\s+[^#]*?\bmake_pop_zombie\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bpop_diverge_ethic\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bsurveyor_update_orbital_effect\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btoxic_knights_order_habitat_setup\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bupdate_habitat_orbital_effect\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bwipe_pop_ethos\b", "REMOVED in v4.0"],
+        [r"\barc_furnace_update_orbital_effect\b", "REMOVED in v4.0"],
+        [r"\bassimilation_effect\b", "REMOVED in v4.0, compare set_assimilation_counter_variable"],
+        # [r"\bmake_pop_zombie\b", "REMOVED in v4.0"],
+        [r"\bpop_diverge_ethic\b", "REMOVED in v4.0"],
+        [r"\bsurveyor_update_orbital_effect\b", "REMOVED in v4.0"],
+        [r"\btoxic_knights_order_habitat_setup\b", "REMOVED in v4.0"],
+        [r"\bupdate_habitat_orbital_effect\b", "REMOVED in v4.0"],
+        [r"\bwipe_pop_ethos\b", "REMOVED in v4.0"],
         # Scripted Trigger
-        [r"^\s+[^#]*?\bbuildings_unemployed\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bcan_assemble_budding_pop\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bcan_assemble_clone_soldier_pop\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bcan_assemble_tiyanki_pop\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\benigmatic_modifier_jobs\b", "REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bhas_any_industry_district\b", "REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bhas_any_mining_district\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_refinery_designation\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bhas_research_job\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bjobs_any_research\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\btrait_(advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b", "REMOVED in v4.0"],
+        [r"\bbuildings_unemployed\b", "REMOVED in v4.0"],
+        [r"\bcan_assemble_budding_pop\b", "REMOVED in v4.0"],
+        [r"\bcan_assemble_clone_soldier_pop\b", "REMOVED in v4.0"],
+        [r"\bcan_assemble_tiyanki_pop\b", "REMOVED in v4.0"],
+        [r"\benigmatic_modifier_jobs\b", "REMOVED in v4.0"],
+        # [r"\bhas_any_industry_district\b", "REMOVED in v4.0"],
+        # [r"\bhas_any_mining_district\b", "REMOVED in v4.0"],
+        [r"\bhas_refinery_designation\b", "REMOVED in v4.0"],
+        [r"\bhas_research_job\b", "REMOVED in v4.0"],
+        [r"\bjobs_any_research\b", "REMOVED in v4.0"],
+        [r"\btrait_(advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b", "REMOVED in v4.0"],
         # Events
-        [r"^\s+[^#]*?\bid = (?:action\.(?:202[01]|6(?:4|5[05]?))|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bis_unemployed\b", "REMOVED in v4.0"],
-        # [r"^\s+[^#]*?\bpop_produces_resource\b", "REMOVED in v4.0"],
-        [r"^\s+[^#]*?\bunemploy_pop\b", "REMOVED in v4.0, use transfer_pop_amount"],
-        [r"^\s+[^#]*?\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
+        [r"\bid = (?:action\.(?:202[01]|6(?:4|5[05]?))|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
+        # [r"\bis_unemployed\b", "REMOVED in v4.0"],
+        # [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
+        [r"\bunemploy_pop\b", "REMOVED in v4.0, use transfer_pop_amount"],
+        [r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
 
     ],
     "targets3": {
@@ -215,7 +215,7 @@ v4_0 = {
         r"\b((?:any|every|ordered)_owned_pop) =": r"\1_group =",
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
         r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_hundred),
-        r"\b((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS)\s*=)\s*([1-9]\d?)\b":
+        r"\b((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS) =)\s*([1-9]\d?)\b":
             ("common/defines", multiply_by_hundred),
         r"^(\s+[^#]*?)\bbase_cap_amount\b": ("common/buildings", r"\1planet_limit"),
         r"\buse_ship_kill_target\b": ("common/component_templates", "use_ship_main_target"),
@@ -223,10 +223,10 @@ v4_0 = {
         r"^(\s+)(ship_piracy_suppression_add =)": ("common/ship_sizes", r"\1# \2"),
         r"\s+standard_trade_routes_module = {}": ("common/country_types", ""),
         r"\s+collects_trade = (yes|no)": ("common/starbase_levels", ""),
-        r"^\s+[^#]*?\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
+        r"\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
         r"^(\s+)(ignores_favorite =)": ("common/pop_jobs", r"\1# \2"),
         r"\bnum_(sapient_pop|pop)s\b":  r"\1_amount",
-        r"^\s+[^#]*?\bclear_pop_category = yes": "",
+        r"\bclear_pop_category = yes": "",
         r"\bkill_pop = yes": "kill_single_pop = yes", # "kill_pop_group = { pop_group = this amount = 100 }"
         # r"\bkill_pop = yes": "kill_all_pop = yes", # "kill_pop_group = { pop_group = this percentage = 1 }"
         r"\bpop_has_(ethic|trait|happiness)\b":  r"pop_group_has_\1",
@@ -319,7 +319,7 @@ v4_0 = {
 
 v3_13 = {
     "targetsR": [
-        # [r"^\s+[^#]*?\bhas_authority\b", "Replaced in v3.13 with scripted trigger"]
+        # [r"\bhas_authority\b", "Replaced in v3.13 with scripted trigger"]
         [r"^\s*?[^#]+\s+\b(?:%s)_(?:system|galaxy_(?:fleet|planet|pop|species))\b" % "every|count|ordered", "global command"] # VANILLA_PREFIXES
     ],
     "targets3": {
@@ -366,22 +366,11 @@ v3_13 = {
 # """
 v3_12 = {
     "targetsR": [
-        [
-            r"^\s+[^#]*?\bgenerate_cyborg_extra_treats\b", "Removed in v3.12, added in v3.6",
-        ],
-        [r"^\s+[^#]*?\bstations_produces_mult\b", "Removed in v3.12,"],
-        # [r"^\s+[^#]*?modifier = crucible_colony\b", "Removed in v3.12,"],
-        [
-            r"^\s+[^#]*?\bactivate_crisis_progression = yes\b",
-            "Since v.3.12 needs a crisis path",
-        ],
-        (
-            ["common/technology"],
-            [
-                r"^\s+[^#]*?\bresearch_leader\b",
-                "Leads to CTD in v3.12.3! Obsolete since v.3.8",
-            ],
-        ),
+        [r"\bgenerate_cyborg_extra_treats\b", "Removed in v3.12, added in v3.6"],
+        [r"\bstations_produces_mult\b", "Removed in v3.12,"],
+        # [r"modifier = crucible_colony\b", "Removed in v3.12,"],
+        [r"\bactivate_crisis_progression = yes\b", "Since v.3.12 needs a crisis path"],
+        [r"\bresearch_leader\b", ("common/technology", "Leads to CTD in v3.12.3! Obsolete since v.3.8")]
     ],
     "targets3": {
         r"\bset_gestalt_node_protrait_effect\b": "set_gestalt_node_portrait_effect",
@@ -437,11 +426,11 @@ if code_cosmetic and not only_warning:
 v3_11 = {
     "targetsR": [
         [
-            r"^\s+[^#]*?\btech_(society|physics|engineering)_\d",
+            r"\btech_(society|physics|engineering)_\d",
             "Removed in v3.11 after having their function made redundant",
         ],
-        # [r"^\s+[^#]*?\bplanet_researchers_upkeep_mult", "Removed in v3.11"], ??
-        [r"^\s+[^#]*?\bstation_uninhabitable_category", "Removed in v3.11"],
+        # [r"\bplanet_researchers_upkeep_mult", "Removed in v3.11"], ??
+        [r"\bstation_uninhabitable_category", "Removed in v3.11"],
     ],
     "targets3": {
         r"\bgive_next_tech_society_option_effect = yes": "give_next_breakthrough_effect = { AREA = society }",
@@ -497,51 +486,31 @@ if code_cosmetic and not only_warning:
 # """
 v3_10 = {
     "targetsR": [
-        [
-            r"^[^#]+?\w+(skill|weight|agent|frontier)_governor\b",
+        [r"\b\w+(skill|weight|agent|frontier)_governor\b",
             "Possibly renamed to '_official' in v3.10",
         ],
-        # [r"^[^#]+?\s+num_pops\b", "Can be possibly replaced with 'num_sapient_pops' in v3.10 (planet, country)"], # Not really recommended: needs to be more accurate
-        [r"^[^#]+?\s+trait_ruler_(explorer|world_shaper)", "Removed in v3.10"],  # TODO
-        [
-            r"^[^#]+?\s+leader_trait_inspiring",
+        # [r"\bnum_pops\b", "Can be possibly replaced with 'num_sapient_pops' in v3.10 (planet, country)"], # Not really recommended: needs to be more accurate
+        [r"\btrait_ruler_(explorer|world_shaper)", "Removed in v3.10"],  # TODO
+        [r"\bleader_trait_inspiring",
             "Removed in v3.10, possible replacing by leader_trait_crusader",
         ],  # TODO: needs to be more accurate
-        [
-            r"\s+kill_leader = \{ type",
-            "Probably outdated since 3.10",
-        ],  # TODO: needs to be more accurate
-        (
-            ["common/traits"],
-            [r"^[^#]+?\bai_categories", "Replaced in v3.10 with 'inline_script'"],
-        ),
-        (
-            ["common/traits"],
-            [
-                r"^[^#]+?\b(?:is_)?councilor_trait",
-                "Replaced in v3.10 with 'councilor_modifier' or 'force_councilor_trait = yes'",
-            ],
-        ),
-        (
-            ["common/traits"],
-            [
-                r"^[^#]+?\bselectable_weight = @class_trait_weight",
-                "Replaced in v3.10 with inline_script'",
-            ],
-        ),
-        (
-            ["common/traits", "common/governments/councilors"],
-            [
-                r"^\s+leader_class = \{\s*((?:admiral|general|governor)\s+){1,2}",
-                "Needs to be replaced with 'official' or 'commander' in v3.10",
-            ],
-        ),  # TODO
+        [r"\s+kill_leader = \{ type", "Probably outdated since 3.10", ],  # TODO: needs to be more accurate
+        [r"\bai_categories", (["common/traits"], "Replaced in v3.10 with 'inline_script'")],
+        [r"\b(?:is_)?councilor_trait", (["common/traits"],
+                            "Replaced in v3.10 with 'councilor_modifier' or 'force_councilor_trait = yes')")
+        ],
+        [r"\bselectable_weight = @class_trait_weight", (["common/traits"],
+                            "Replaced in v3.10 with inline_script'"),
+        ],
+        [r"^\s+leader_class = \{\s*((?:admiral|general|governor)\s+){1,2}", (["common/traits", "common/governments/councilors"],
+                            "Needs to be replaced with 'official' or 'commander' in v3.10"),
+        ],
     ],
     "targets3": {
-        r"\bcan_fill_specialist_job\s*=": "can_fill_specialist_job_trigger =",
+        r"\bcan_fill_specialist_job =": "can_fill_specialist_job_trigger =",
         r"\bleader_age = ": "leader_lifespan_add = ",
         r"^on_survey = \{": ("common/on_actions", "on_survey_planet = {"),
-        r"^[^#]+?councilor_trait = no\n?": ("common/traits", ""),
+        r"councilor_trait = no\n?": ("common/traits", ""),
         r"^([^#]+?\w+gray_)governor\b": r"\1official",
         r'(class|CLASS) = ("?)governor\b': r"\1 = \2official",
         r'(class|CLASS) = ("?)(?:admiral|general)\b': r"\1 = \2commander",
@@ -608,6 +577,7 @@ v3_10 = {
                         }[p2.group(1)]
                     ),
                     p.group(1),
+                    count=1,
                     flags=re.M | re.A,
                 )
             ),
@@ -622,13 +592,13 @@ v3_10 = {
 
 v3_9 = {
     "targetsR": [
-        # [r"^[^#]+?\sland_army\s", "Removed army parameter from v3.8 in v3.9:", ],  # only from 3.8
-        # [r"^[^#]+?\bhabitat_0\s", "Removed in v3.9: replaceable with 'major_orbital'", ],  # only from 3.8
-        [r"^[^#]+?\sdistrict_hab_cultural", "Removed in v3.9: replaceable with 'district_hab_housing'?", ],
-        [r"^[^#]+?\sdistrict_hab_commercial", "Removed in v3.9: replaceable with 'district_hab_energy'?", ],
-        [r"^[^#]+?\scol_habitat_leisure", "Removed in v3.9", ],
-        [r"^[^#]+?\sis_regular_empire_or_primitive\b", "Removed in v3.9.0 from 3.6: replaceable with OR = { is_regular_empire is_primitive = yes }?", ],  # only from 3.8
-        [r"^[^#]+?\sis_space_critter_country_type\b", "Removed in v3.9.2: possible replaceable with 'is_non_hostile_to_wraith'?", ],  # only from 3.8
+        # [r"\bland_army\s", "Removed army parameter from v3.8 in v3.9:"],  # only from 3.8
+        # [r"\bhabitat_0\s", "Removed in v3.9: replaceable with 'major_orbital'"],  # only from 3.8
+        [r"\bdistrict_hab_cultural", "Removed in v3.9: replaceable with 'district_hab_housing'?"],
+        [r"\bdistrict_hab_commercial", "Removed in v3.9: replaceable with 'district_hab_energy'?"],
+        [r"\bcol_habitat_leisure", "Removed in v3.9"],
+        [r"\bis_regular_empire_or_primitive\b", "Removed in v3.9.0 from 3.6: replaceable with OR = { is_regular_empire is_primitive = yes }?"],  # only from 3.8
+        [r"\bis_space_critter_country_type\b", "Removed in v3.9.2: possible replaceable with 'is_non_hostile_to_wraith'?"],  # only from 3.8
     ],
     "targets3": {
         # r'\bhabitat_0\b': 'major_orbital', # 'habitat_central_complex',
@@ -646,17 +616,14 @@ v3_9 = {
 # Galactic Paragons
 v3_8 = {
     "targetsR": [
-        # [r"^[^#]+?\ssector(?:\.| = \{ )leader\b", "Removed in v3.8: replaceable with planet?"],
-        [r"^[^#]+?\sclass = ruler\b", "Removed in v3.8: replaceable with ?"],
-        [
-            r"^[^#]+?\sleader_of_faction = [^\s]+",
-            "Removed in v3.8: replaceable with ?",
-        ],
-        [r"^[^#]+?\shas_mandate = [^\s]+", "Removed in v3.8: replaceable with ?"],
-        [r"^[^#]+?\spre_ruler_leader_class =", "Removed in v3.8: replaceable with ?"],
-        [r"^[^#]+?\sruler_skill_levels =", "Removed in v3.8: replaceable with ?"],
-        # [r"^[^#]+?\shas_chosen_trait_ruler =", "Replaced in v3.8.3 with 'has_chosen_one_leader_trait'"],
-        # [r"^[^#]+?\sis_specialist_researcher =", "Replaced trigger 3.8: is_specialist_researcher_(society|engineering|physics)"], scripted trigger now
+        # [r"\bsector(?:\.| = \{ )leader\b", "Removed in v3.8: replaceable with planet?"],
+        [r"\bclass = ruler\b", "Removed in v3.8: replaceable with ?"],
+        [r"\bleader_of_faction = [^\s]+", "Removed in v3.8: replaceable with ?"],
+        [r"\bhas_mandate = [^\s]+", "Removed in v3.8: replaceable with ?"],
+        [r"\bpre_ruler_leader_class =", "Removed in v3.8: replaceable with ?"],
+        [r"\bruler_skill_levels =", "Removed in v3.8: replaceable with ?"],
+        # [r"\bhas_chosen_trait_ruler =", "Replaced in v3.8.3 with 'has_chosen_one_leader_trait'"],
+        # [r"\bis_specialist_researcher =", "Replaced trigger 3.8: is_specialist_researcher_(society|engineering|physics)"], scripted trigger now
     ],
     "targets3": {
         r"\bsector(\.| = \{ )leader\b": r"sector\1sector_capital.leader",
@@ -792,16 +759,10 @@ v3_8 = {
 # """
 v3_7 = {
     "targetsR": [
-        [
-            r"^\s+[^#]*?\bid = primitive\.\d",
-            "Removed in v3.7: replaceable with 'preftl.xx' event",
-        ],
-        [r"^\s+[^#]*?\bremove_all_primitive_buildings =", "Removed in v3.7:"],
-        [r"^\s+[^#]*?\buplift_planet_mod_clear =", "Removed in v3.7:"],
-        [
-            r"^\s+[^#]*?\bcreate_primitive_armies =",
-            "Removed in v3.7: done via pop job now",
-        ],
+        [r"\bid = primitive\.\d", "Removed in v3.7: replaceable with 'preftl.xx' event"],
+        [r"\bremove_all_primitive_buildings =", "Removed in v3.7:"],
+        [r"\buplift_planet_mod_clear =", "Removed in v3.7:"],
+        [r"\bcreate_primitive_armies =", "Removed in v3.7: done via pop job now"],
     ],
     "targets3": {
         r'\bvariable_string = "([\w.:]+)"': r'variable_string = "[\1]"',  # set square brackets
@@ -829,15 +790,15 @@ v3_6 = {
     # - .lua replaced by .shader
     "targetsR": [
         [
-            r"^\s+[^#]*?\bhas_ascension_perk = ap_transcendence\b",
+            r"\bhas_ascension_perk = ap_transcendence\b",
             "Removed in v3.6: can be replaced with 'has_tradition = tr_psionics_finish'",
         ],
         [
-            r"^\s+[^#]*?\bhas_ascension_perk = ap_evolutionary_mastery\b",
+            r"\bhas_ascension_perk = ap_evolutionary_mastery\b",
             "Removed in v3.6: can be replaced with 'has_tradition = tr_genetics_resequencing'",
         ],
         [
-            r"^\s+[^#]*?\btech_genetic_resequencing\b",
+            r"\btech_genetic_resequencing\b",
             "Replaced in v3.6: with 'tr_genetics_resequencing'",
         ],
     ],
@@ -901,9 +862,9 @@ v3_5 = {
     "targets3": {
         r"\b(%s)_bordering_country\b" % VANILLA_PREFIXES: r"\1_country_neighbor_to_system",
         r"\bcountry_(?!base_)(%s)_produces_add\b" % RESOURCE_ITEMS: r"country_base_\1_produces_add",
-        r"\bhair(\s*=)": ("prescripted_countries", r"attachment\1"),
-        r"\bhair(_selector\s*=)": ("gfx/portraits/portraits", r"attachment\1"),
-        r"\bship_archeaological_site_clues_add\s*=": "ship_archaeological_site_clues_add =",
+        r"\bhair( =)": ("prescripted_countries", r"attachment\1"),
+        r"\bhair(_selector =)": ("gfx/portraits/portraits", r"attachment\1"),
+        r"\bship_archeaological_site_clues_add =": "ship_archaeological_site_clues_add =",
         r"\bfraction = \{": ("common/ai_budget", "weight = {"),
         r"\bstatic_m([ai][xn])(\s*)=\s*\{": ("common/ai_budget", r"desired_m\1\2=\2{"),
         r"^(\s+)([^#]*?\bbuildings_(?:simple_allow|no_\w+) = yes)": ("common/buildings", r"\1# \2", ),  # removed
@@ -933,22 +894,14 @@ For performance reason option
 """
 v3_4 = {
     "targetsR": [
-        (
-            "common/ship_sizes",
-            [
-                r"^\s+empire_limit = \{",
-                'v3.4: "empire_limit" has been replaces by "ai_ship_data" and "country_limits"',
-            ],
-        ),
-        (
-            "common/country_types",
-            [
-                r"^\s+(?:ship_data|army_data) = { = \{",
-                'v3.4: "ship_data & army_data" has been replaces by "ai_ship_data" and "country_limits"',
-            ],
-        ),
-        r"^\s+[^#]*?\b(fire_warning_sign|add_unity_times_empire_size) = yes",
-        r"^\s+[^#]*?\boverlord_has_(num_constructors|more_than_num_constructors|num_science_ships|more_than_num_science_ships)_in_orbit\b",
+        [r"^\s+empire_limit = \{", ("common/ship_sizes"
+                            'v3.4: "empire_limit" has been replaces by "ai_ship_data" and "country_limits"'),
+        ],
+        [r"^\s+(?:ship_data|army_data) = \{", ("common/country_types"
+                            'v3.4: "ship_data & army_data" has been replaces by "ai_ship_data" and "country_limits"'),
+        ],
+        r"\b(fire_warning_sign|add_unity_times_empire_size) = yes",
+        r"\boverlord_has_(num_constructors|more_than_num_constructors|num_science_ships|more_than_num_science_ships)_in_orbit\b",
     ],
     "targets3": {
         r"\bis_subject_type = vassal": "is_subject = yes",
@@ -1037,19 +990,12 @@ ethics  value -> base
 """
 v3_3 = {
     "targetsR": [
-        r"^[^#]+tech_repeatable_improved_edict_length",
-        r"(^\s+|[^#] )country_admin_cap_(add|mult)",
-        (
-            "common/buildings",
-            r"\sbuilding(_basic_income_check|_relaxed_basic_income_check|s_upgrade_allow)\s*=",
-        ),  # replaced buildings ai
-        (
-            "common/traits",
-            [
-                r"^\s+modification = (?:no|yes)\s*",
-                'v3.3: "modification" flag which has been deprecated. Use "species_potential_add", "species_possible_add" and "species_possible_remove" triggers instead.',
-            ],
-        ),
+        r"\btech_repeatable_improved_edict_length",
+        r"\bcountry_admin_cap_(add|mult)",
+        [r"\bbuilding(_basic_income_check|_relaxed_basic_income_check|s_upgrade_allow) =", ("common/buildings", "")],  # replaced buildings ai
+        [r"\bmodification = (?:no|yes)\s*", ("common/traits",
+                'v3.3: "modification" flag which has been deprecated. Use "species_potential_add", "species_possible_add" and "species_possible_remove" triggers instead.'),
+        ],
     ],
     "targets3": {
         r"\s+building(_basic_income_check|_relaxed_basic_income_check|s_upgrade_allow) = (?:yes|no)\n?": (
@@ -1060,7 +1006,7 @@ v3_3 = {
         r"\b(country_election_)influence_(cost_mult)": r"\1\2",
         r"\bwould_work_job": ("common/game_rules", "can_work_specific_job"),
         r"\bhas_civic = civic_reanimated_armies": "is_reanimator = yes",
-        # r"^(?:\t\t| {4,8})value\s*=": ("common/ethics", 'base ='), maybe too cheap
+        # r"^(?:\t\t| {4,8})value =": ("common/ethics", 'base ='), maybe too cheap
         # r"\bcountry_admin_cap_mult\b": ("common/**", 'empire_size_colonies_mult'),
         # r"\bcountry_admin_cap_add\b": ("common/**", 'country_edict_fund_add'),
         # r"\bcountry_edict_cap_add\b": ("common/**", 'country_power_projection_influence_produces_add'),
@@ -1077,7 +1023,7 @@ v3_3 = {
         },  # "modification" flag which has been deprecated. Use "species_potential_add", "species_possible_add" and "species_possible_remove" triggers instead.
     },
     "targets4": {
-        r"(?:random_weight|pop_attraction(_tag)?|country_attraction)\s+value\s*=": [
+        r"(?:random_weight|pop_attraction(_tag)?|country_attraction)\s+value =": [
             r"\bvalue\b",
             ("common/ethics", "base"),
         ],
@@ -1092,22 +1038,18 @@ v3_2 = {
     "targetsR": [
         [r"\bslot = 0", "v3.2: set_starbase_module = now starts with 1"],
         [r"\bany_pop\b", "use any_owned_pop/any_species_pop"],
-        [
-            r"[^# \t]\s+is_planet_class = pc_ringworld_habitable\b",
-            'v3.2: could possibly be replaced with "is_ringworld = yes"',
+        [r"[^# \t]\s+is_planet_class = pc_ringworld_habitable\b",
+            'v3.2: could possibly be replaced with "is_ringworld = yes"'
         ],
-        # r"\sadd_tech_progress_effect = ", # replaced with add_tech_progress
-        # r"\sgive_scaled_tech_bonus_effect = ", # replaced with add_monthly_resource_mult
-        ("common/districts", r"\sdistricts_build_district\b"),  # scripted trigger
-        (
-            "common/pop_jobs",
-            r"\s(drone|worker|specialist|ruler)_job_check_trigger\b",
-        ),  # scripted trigger
-        [r"^\s+[^#]*?\bspecies_planet_slave_percentage\b", "REMOVED in v3.2"],
+        # r"\badd_tech_progress_effect = ", # replaced with add_tech_progress
+        # r"\bgive_scaled_tech_bonus_effect = ", # replaced with add_monthly_resource_mult
+        [r"\bdistricts_build_district\b", ("common/districts", "REMOVED in v3.2")],  # scripted trigger
+        [r"\b(drone|worker|specialist|ruler)_job_check_trigger\b", ("common/pop_jobs", "REMOVED in v3.2")],
+        [r"\bspecies_planet_slave_percentage\b", "REMOVED in v3.2"],
     ],
     "targets3": {
         # r"\bis_planet_class = pc_ringworld_habitable\b": "is_ringworld = yes",
-        r"\s+free_guarantee_days = \d+": "",
+        r"\bfree_guarantee_days = \d+": "",
         r"\badd_tech_progress_effect": "add_tech_progress",
         r"\bgive_scaled_tech_bonus_effect": "add_monthly_resource_mult",
         r"\bclear_uncharted_space = \{\s*from = ([^\n{}# ])\s*\}": r"clear_uncharted_space = \1",
@@ -1146,29 +1088,20 @@ v3_2 = {
 # prikki country removed
 v3_1 = {
     "targetsR": [
-        [
-            r"\b(any|every|random)_(research|mining)_station\b",
-            "v3.1: use just mining_station/research_station instead",
-        ],  # = 2 trigger & 4 effects
-        [
-            r"\sobservation_outpost = \{\s*limit",
-            "v3.1: is now a scope (from planet) rather than a trigger/effect",
-        ],
-        r"\spop_can_live_on_planet\b",  # r"\1can_live_on_planet", needs planet target
-        r"\scount_armies\b",  # (scope split: depending on planet/country)
-        (
-            ["common/bombardment_stances", "common/ship_sizes"],
-            [r"^\s+icon_frame = \d+", 'v3.1: "icon_frame" now only used for starbases'],
-        ),  # [6-9]  # Value of 2 or more means it shows up on the galaxy map, 1-5 denote which icon it uses on starbase sprite sheets (e.g. gfx/interface/icons/starbase_ship_sizes.dds)
+        [r"\b(any|every|random)_(research|mining)_station\b", "v3.1: use just mining_station/research_station instead"],  # = 2 trigger & 4 effects
+        [r"\bobservation_outpost = \{\s*limit", "v3.1: is now a scope (from planet) rather than a trigger/effect"],
+        r"\bpop_can_live_on_planet\b",  # r"\1can_live_on_planet", needs planet target
+        r"\bcount_armies\b",  # (scope split: depending on planet/country)
+        [r"^\s+icon_frame = \d+", (["common/bombardment_stances", "common/ship_sizes"], 'v3.1: "icon_frame" now only used for starbases')], # [6-9]  # Value of 2 or more means it shows up on the galaxy map, 1-5 denote which icon it uses on starbase sprite sheets (e.g. gfx/interface/icons/starbase_ship_sizes.dds)
         # PRE TEST
-        # r"\sspaceport\W", # scope replace?
-        # r"\shas_any_tradition_unlocked\W", # replace?
-        # r"\smodifier = \{\s*mult", # => factor
-        # r"\s+count_diplo_ties",
-        # r"\s+has_non_swapped_tradition",
-        # r"\s+has_swapped_tradition",
-        r"\swhich = \"?\w+\"?\s+value\s*[<=>]\s*\{\s*scope\s*=",  # var from 3.0
-        # re.compile(r"\s+which = \"?\w+\"?\s+value\s*[<=>]\s*(prev|from|root|event_target:[^\.\s]+)+\s*\}", re.I), # var from 3.0
+        # r"\bspaceport\W", # scope replace?
+        # r"\bhas_any_tradition_unlocked\W", # replace?
+        # r"\bmodifier = \{\s*mult", # => factor
+        # r"\bcount_diplo_ties",
+        # r"\bhas_non_swapped_tradition",
+        # r"\bhas_swapped_tradition",
+        r"\bwhich = \"?\w+\"?\s+value\s*[<=>]\s*\{\s*scope =",  # var from 3.0
+        # re.compile(r"\bwhich = \"?\w+\"?\s+value\s*[<=>]\s*(prev|from|root|event_target:[^\.\s]+)+\s*\}", re.I), # var from 3.0
     ],
     "targets3": {
         r"(\s+set_)(primitive) = yes": r"\1country_type = \2",
@@ -1357,19 +1290,15 @@ if code_cosmetic and not only_warning:
 # 3.0 removed ai_weight for buildings except branch_office_building = yes
 v3_0 = {
     "targetsR": [
-        r"\sproduced_energy\b",
-        r"\s(ship|army|colony|station)_maintenance\b",
-        r"\s(construction|trade|federation)_expenses\b",
-        r"\shas_(population|migration)_control = (yes|no)",
-        r"\s(%s)_planet\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
-        r"\s(%s)_ship\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
-        (
-            "common/buildings",
-            [
-                r"^\s+ai_weight\s*=",
-                "v3.0: ai_weight for buildings removed except for branch office",
-            ],
-        ),  # replaced buildings ai
+        r"\bproduced_energy\b",
+        r"\b(ship|army|colony|station)_maintenance\b",
+        r"\b(construction|trade|federation)_expenses\b",
+        r"\bhas_(population|migration)_control = (yes|no)",
+        r"\b(%s)_planet\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
+        r"\b(%s)_ship\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
+        [r"^\s+ai_weight =", ("common/buildings",
+                        "v3.0: ai_weight for buildings removed except for branch office"), # replaced buildings ai
+        ],
     ],
     "targets3": {
         r"\b(first_contact_)attack_not_allowed": r"\1cautious",
@@ -1379,18 +1308,18 @@ v3_0 = {
         r"has_failed_special_project\s+": "has_failed_special_project_in_log ",
         r"species = last_created(\s)": r"species = last_created_species\1",
         r"owner = last_created(\s)": r"owner = last_created_country\1",
-        r"(\s(?:%s))_pop\s*=" % VANILLA_PREFIXES: r"\1_owned_pop =",
-        r"(\s(?:%s))_planet\s*=" % VANILLA_PREFIXES: r"\1_galaxy_planet =",  # _system_planet
-        r"(\s(?:%s))_ship\s*=" % VANILLA_PREFIXES: r"\1_fleet_in_system =",  # _galaxy_fleet
-        r"(\s(?:%s))_sector\s*=" % VANILLA_PREFIXES: r"\1_owned_sector =",  # _galaxy_sector
-        r"(\s(?:any|every|random))_war_(attacker|defender)\s*=": r"\1_\2 =",
-        r"(\s(?:%s))_recruited_leader\s*=" % VANILLA_PREFIXES: r"\1_owned_leader =",
+        r"(\s(?:%s))_pop =" % VANILLA_PREFIXES: r"\1_owned_pop =",
+        r"(\s(?:%s))_planet =" % VANILLA_PREFIXES: r"\1_galaxy_planet =",  # _system_planet
+        r"(\s(?:%s))_ship =" % VANILLA_PREFIXES: r"\1_fleet_in_system =",  # _galaxy_fleet
+        r"(\s(?:%s))_sector =" % VANILLA_PREFIXES: r"\1_owned_sector =",  # _galaxy_sector
+        r"(\s(?:any|every|random))_war_(attacker|defender) =": r"\1_\2 =",
+        r"(\s(?:%s))_recruited_leader =" % VANILLA_PREFIXES: r"\1_owned_leader =",
         r"\bcount_planets\s+": "count_system_planet  ",  # count_galaxy_planet
         r"\bcount_ships\s+": "count_fleet_in_system ",  # count_galaxy_fleet
         r"\bcount(_owned)?_pops\s+": "count_owned_pop ",
         r"\bcount_(owned|fleet)_ships\s+": "count_owned_ship ",  # 2.7
         # "any_ship_in_system": "any_fleet_in_system", # works only sure for single size fleets
-        r"\bspawn_megastructure = \{([^{}#]+)location\s*=": r"spawn_megastructure = {\1planet =",  # s.a. multiline coords_from
+        r"\bspawn_megastructure = \{([^{}#]+)location =": r"spawn_megastructure = {\1planet =",  # s.a. multiline coords_from
         r"\s+planet = (solar_system|planet)[\s\n\r]*": "",  # REMOVE
         r"(\s+)any_system_within_border = \{\s*any_system_planet = (.*?\s*\})\s*\}": r"\1any_planet_within_border = \2",  # very rare, maybe put to cosmetic
         r"is_country_type = default\s+has_monthly_income = \{\s*resource = (\w+) value <=? \d": r"no_resource_for_component = { RESOURCE = \1",
@@ -1431,15 +1360,9 @@ if code_cosmetic and not only_warning:
 
 actuallyTargets = {
     "targetsR": [
-        r"\scan_support_spaceport = (yes|no)",  # < 2.0
-        [
-            r"\bnum_\w+\s*[<=>]+\s*[a-z]+[\s}]",
-            "no scope alone",
-        ],  #  [^\d{$@] too rare (could also be auto fixed)
-        [
-            r"\n\s+NO[TR] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[TR] = \{\s*[^{}#\n]+\s*\}",
-            "can be merged to NOR if not in an OR",
-        ],  #  [^\d{$@] too rare (could also be auto fixed)
+        r"\bcan_support_spaceport = (yes|no)",  # < 2.0
+        [r"\bnum_\w+\s*[<=>]+\s*[a-z]+[\s}]", "no scope alone", ],  #  [^\d{$@] too rare (could also be auto fixed)
+        [r"^\s+NO[TR] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[TR] = \{\s*[^{}#\n]+\s*\}", "can be merged to NOR if not in an OR", ],  #  [^\d{$@] too rare (could also be auto fixed)
     ],
     # targets2 = {
     #   r"MACHINE_species_trait_points_add = \d" : ["MACHINE_species_trait_points_add ="," ROBOT_species_trait_points_add = ",""],
@@ -1451,7 +1374,7 @@ actuallyTargets = {
         ### < 2.2
         r"\bhas_job = unemployed\b": "is_unemployed = yes",
         ### somewhat older
-        r"(\s+)ship_upkeep_mult\s*=": r"\1ships_upkeep_mult =",
+        r"(\s+)ship_upkeep_mult =": r"\1ships_upkeep_mult =",
         r"\b(contact_rule = )script_only": (
             "common/country_types",
             r"\1on_action_only",
@@ -1501,7 +1424,7 @@ actuallyTargets = {
             r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
         ],  # up to 7 items (sub-trigger)
         # NOR <=> (AND) = { NOT
-        r"(?<![ \t]OR)\s+=\s*\{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
+        r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
             r"(\n\s+)NO[RT] = \{\1(\s+)([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)"),
             r"\1NOR = {\1\2\3\1\2\4\1}"),
         ],  # only 2 items (sub-trigger) (?<!\sOR) Negative Look-behind
@@ -1705,7 +1628,7 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
                 )
             else:
                 for tar, repl in targets_trait.items():
-                    line = tar.sub(repl, line)
+                    line = tar.sub(repl, line, count=1)
                     if lines[i] != line:
                         lines[i] = line
                         changed = True
@@ -2281,14 +2204,17 @@ def modfix(file_list):
                     file_contents, changed = transform_add_trait(basename, file_contents, changed)
 
                 for i, line in enumerate(file_contents):
-                    if len(line) > 8 and not re.match(r"\s*#", line):
+                    stripped = line.strip()
+                    if len(stripped) > 8 and not stripped.startswith("#"):
                         # for line in file_contents:
                         # if subfolder in "prescripted_countries":
-                        #   print(line.strip().encode(errors='replace'))
+                        #   print(stripped.encode(errors='replace'))
                         for rt in targetsR:
-                            msg = ""
-                            if isinstance(rt, tuple):
-                                folder, rt = rt
+                            # if not isinstance(rt, list) or not len(rt) > 1: logger.warning(rt) else:
+                            rt, msg = rt
+
+                            if isinstance(msg, tuple):
+                                folder, msg = msg
                                 # print(type(subfolder), subfolder, folder)
                                 if isinstance(folder, list):
                                     for fo in folder:
@@ -2304,11 +2230,10 @@ def modfix(file_list):
                                     if not folder.search(subfolder):
                                         rt = False
                                 else: rt = False
-                            if isinstance(rt, list) and len(rt) > 1:
-                                msg = " (" + rt[1] + ")"
-                                rt = rt[0]
+
                             if rt:
-                                rt = re.search(rt, line)  # , flags=re.I
+                                # rt = re.search(rt, stripped)  # , flags=re.I
+                                rt = rt.search(stripped)  # , flags=re.I TODO
                             if rt:
                                 # print(
                                 #     "# WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
@@ -2322,7 +2247,7 @@ def modfix(file_list):
                                 #
                                 # )
                                 logger.warning(
-                                    "Potentially deprecated Syntax%s: %s in line %i file %s\n"
+                                    "Potentially deprecated Syntax (%s): %s in line %i file %s\n"
                                     % (
                                         msg,
                                         rt.group(0),
@@ -2344,8 +2269,7 @@ def modfix(file_list):
                                 # is a 3 tuple
                                 file, repl = list(repl.items())[0]
                                 if debug_mode:
-                                    print("tar3", line.strip())
-                                    print(pattern, repl, file)
+                                    print("tar3", stripped, "\n", pattern, repl, file)
                                 if isinstance(repl, str):
                                     if file != basename:
                                         rt = True
@@ -2393,24 +2317,14 @@ def modfix(file_list):
                             else:
                                 rt = True
                             if rt:  # , flags=re.I # , count=0, flags=0
-                                rt = pattern.search(line)  # , flags=re.I
-                                if rt:
+                                match = pattern.search(line)  # , flags=re.I
+                                if match:
                                     rt = line
-                                    line = pattern.sub(repl, rt)  # , flags=re.I
+                                    line = pattern.sub(repl, rt, count=1)  # , flags=re.I
                                     # line = line.replace(t, r)
                                     if line != rt:
                                         changed = True
-                                        # print(
-                                        #     "\t# Updated file: %s on %s (at line %i) with %s\n"
-                                        #     % (
-                                        #         basename,
-                                        #         rt.strip(),
-                                        #         i,
-                                        #         line.strip(),
-                                        #     ),
-                                        #     file=log_file,
-                                        #
-                                        # )
+                                        # print( "\t# Updated file: %s on %s (at line %i) with %s\n" % ( basename, rt.strip(), i, stripped, ), file=log_file, )
                                         logger.info(
                                             "\tUpdated file: %s on %s (at line %i) with %s\n"
                                             % (
@@ -2420,12 +2334,17 @@ def modfix(file_list):
                                                 line.lstrip(),
                                             )
                                         )
-                                        # break # just one hit per line?
-                                # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), line.strip().encode(errors='replace'))
+                                        # Determine the span of the match
+                                        match_start, rt = match.span()
+                                        # Check if the match spans the entire line (excluding leading/trailing whitespace)
+                                        if match_start <= 6 and rt >= len(stripped) - 6:
+                                            print("The entire line is matched; no further matches possible")
+                                            break  # The entire line is matched; no further matches possible
+                                # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
                     out += line
                 if "inline_scripts" not in subfolder:
-                    if line[-1][0] != "\n" and not line.lstrip().startswith("#"): # and line.strip()
+                    if line[-1][0] != "\n" and not line.lstrip().startswith("#"): # and stripped
                         out += "\n"
                         print("Added needed empty line at end.", i, line, len(line))
                         changed = True
@@ -2512,6 +2431,7 @@ def modfix(file_list):
                                         replace[0],
                                         replace[1],
                                         tar,
+                                        count=1,
                                         flags=re.I | re.M | re.A,
                                     )
                                 if isinstance(repl, str) or (
@@ -2598,10 +2518,13 @@ def modfix(file_list):
                             r'supported_version="v%s"'
                             % (FULL_STELLARIS_VERSION[0 : main_ver_len + 1] + "*"),
                             out,
+                            count=1
                         )
                     else:
                         out = re.sub(
-                            pattern, r'supported_version="v%s"' % FULL_STELLARIS_VERSION, out
+                            pattern, r'supported_version="v%s"' % FULL_STELLARIS_VERSION,
+                            out,
+                            count=1
                         )
                     if debug_mode:
                         print(
@@ -2621,7 +2544,7 @@ def modfix(file_list):
                             m.startswith(old_main_ver) and old_main_ver != new_main_ver
                             or m.startswith(new_main_ver) and m.replace(r"\.\d+$", "") != FULL_STELLARIS_VERSION
                         ):
-                            out = pattern.sub(r'version="%s"' % (FULL_STELLARIS_VERSION + ".0"), out)
+                            out = pattern.sub(r'version="%s"' % (FULL_STELLARIS_VERSION + ".0"), out, count=1)
                         elif m.replace(r"\.\d+$", "") != FULL_STELLARIS_VERSION:
                             # print(m, FULL_STELLARIS_VERSION, len(FULL_STELLARIS_VERSION))
                             out = out.replace(m, FULL_STELLARIS_VERSION + ".0")
@@ -2711,7 +2634,6 @@ if __name__ == "__main__":
                 None, CSIDL_PERSONAL, None, SHGFP_TYPE_CURRENT, temp
             )
             mod_path = temp.value + "/Paradox Interactive/Stellaris/mod"
-
 
     start_time = 0
     # exit()
@@ -2803,6 +2725,25 @@ if __name__ == "__main__":
     ### Pre-Compile regexps
     targets3 = [(re.compile(k, flags=0), targets3[k]) for k in targets3]
     targets4 = [(re.compile(k, flags=re.I), targets4[k]) for k in targets4]
+    # targetsR = [(re.compile(k[0], flags=0), k[1]) for k in targetsR]
+    for i, item in enumerate(targetsR):
+        # new_outer_list_item = []
+        if isinstance(item, str):
+            pattern_string = item
+            msg = ""
+        # elif len(item) > 1 and isinstance(item[0], str): # Heuristic: pattern is a string, and there's a replacement
+        else:
+            pattern_string = item[0]
+            msg = item[1]
+        # try:
+        #     new_outer_list_item = [re.compile(pattern_string), msg]
+        # except re.error as e:
+        #     print(f"Error compiling regex '{pattern_string}': {e}")
+        targetsR[i] = [re.compile(pattern_string), msg]
+
+    # print("\nCompiled targetsR:")
+    # for item in targetsR:
+    #     print(item)
 
     parse_dir()  # mod_path, mod_outpath
     # input("\nPRESS ANY KEY TO EXIT!")
