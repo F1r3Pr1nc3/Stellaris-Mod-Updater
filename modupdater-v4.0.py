@@ -25,7 +25,7 @@ FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.15' # @last supporte
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
 only_actual = 0
-code_cosmetic = 0
+code_cosmetic = 1
 also_old = 0
 debug_mode = 0  # without writing file=log_file
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
@@ -2095,6 +2095,7 @@ def parse_dir():
         global log_file
         if log_file and log_file != "":
             # Open the log file in append mode
+            # print(f"mod_outpath: {mod_outpath}, log_file: {log_file}")
             log_file = os.path.join(mod_outpath, log_file)
             if os.path.exists(log_file):
                 os.remove(log_file)
@@ -2106,7 +2107,7 @@ def parse_dir():
             log_file.setLevel(logging.DEBUG)
             log_file.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
             logger.addHandler(log_file)
-        
+
     logger.addHandler(stdout_handler)
 
     if debug_mode:
@@ -2125,28 +2126,42 @@ def parse_dir():
         # "We have a main or a sub folder"
         # folders = [f for f in os.listdir(mod_path) if os.path.isdir(os.path.join(mod_path, f))]
         folders = glob.iglob(mod_path + "/*/", recursive=False)
-        if next(folders, -1) == -1:
+        basename = os.path.basename(mod_path)
+        # print(basename)
+        # print(list(folders))
+        if basename == "common" or next(folders, -1) == -1:
             files = glob.glob(mod_path + "/**", recursive=True)  # '\\*.txt'
+            # print(files)
             if (
                 not files
                 or not isinstance(files, list)
-                and next(files, -1) == -1
-                and debug_mode
+                or len(files) < 2
             ):
                 # print("# Empty folder", mod_path, file=log_file)
-                logger.warning("Empty folder %s" % mod_path)
+                logger.warning("Empty folder %s." % mod_path)
             else:
                 # print("# We have clear a sub-folder", file=log_file)
-                logger.info("We have clear a sub-folder")
-                if mod_outpath == mod_path:
-                    mod_outpath, basename = os.path.split(mod_path)
+                logger.warning("We have clear a sub-folder.")
+                outpath = ""
+                if "common/" in mod_path:
+                    outpath = mod_path.split("common/")
+                    if len(outpath) > 1:
+                        outpath, basename = outpath
+                        basename = f"common/{basename}"
+                    else:
+                        outpath = outpath[0]
                 else:
-                    basename = os.path.basename(mod_path)
+                    outpath, basename = os.path.split(mod_path)
+
+                if mod_outpath == mod_path:
+                    mod_outpath = outpath
+                    logger.warning(f"New output folder {mod_outpath}")
+
                 add_logfile_handler()
                 modfix(files, basename)
         else:
             add_logfile_handler()
-            # We have a main-folder?
+            logger.debug("We have a main-folder?")
             for _f in folders:
                 if os.path.exists(os.path.join(_f, "descriptor.mod")):
                     mod_path = _f
@@ -2173,7 +2188,7 @@ def modfix(file_list, is_subfolder=False):
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
     subfolder = ""
-    
+
     for _file in file_list:
         if os.path.isfile(_file) and _file.endswith(".txt"):
             file_contents = ""
