@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/06
+# @Revision: 2025/06/07
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -1919,7 +1919,7 @@ def extract_scripted_triggers():
     """
     custom_triggers = {}
     triggers_dir = os.path.join(mod_path + "/common/scripted_triggers")
-    print(triggers_dir)
+    logger.debug(f"extract_scripted_triggers from: {triggers_dir}")
 
     if len(triggers_dir) == 0 or not os.path.isdir(triggers_dir):
         logger.debug(f"No 'common/scripted_triggers' directory found in mod at {mod_path}.")
@@ -1954,7 +1954,7 @@ def merg_planet_rev_lambda(p):
     "no": "NOT = { is_planet_class = pc_" + p.group(1) + " }"
     }[p.group(2)]
 
-def apply_merger_of_rules(targets3, targets4):
+def apply_merger_of_rules(targets3, targets4, is_subfolder=False):
     """Define the Merger of Rules triggers and check if they exist in the mod.
     --mergerofrules: Enable Merger of Rules compatibility mode.
     This flag forces compatibility logic for mods that use The Merger of Rules. When enabled, the script automatically scans your mod for custom scripted_triggers, and attempts to detect and apply supported MoR triggers individually.
@@ -2007,7 +2007,7 @@ def apply_merger_of_rules(targets3, targets4):
                 r"\b((?:is_country_type = default|merg_is_default_empire = yes|is_country_type = fallen_empire|merg_is_fallen_empire = yes|is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)(\s+)){2,}",
                 (NO_TRIGGER_FOLDER, r"is_default_or_fallen = yes\2"),
             ]
-    else:
+    elif not is_subfolder:
         triggers_in_mod = extract_scripted_triggers()
         merger_reverse_triggers = {
             "merg_is_default_empire": (r"\bmerg_is_default_empire = (yes|no)", lambda p: {"yes": "is_country_type = default", "no": "NOT = { is_country_type = default }"}[p.group(1)] ),
@@ -2083,7 +2083,7 @@ def parse_dir():
     # Using the custom formatter
     # Prevent adding multiple handlers if this setup code is run more than once
     if logger.handlers or logger.hasHandlers():
-        print("Logger handler already exists")
+        logging.debug("Logger handler already exists")
         logger.handlers.clear()
 
     # Create a handler for sys.stdout
@@ -2091,19 +2091,22 @@ def parse_dir():
     stdout_handler.setLevel(logging.INFO)
     stdout_handler.setFormatter(SafeFormatter('%(levelname)s - %(message)s'))
 
-    if log_file and log_file != "":
-        # Open the log file in append mode
-        log_file = os.path.join(mod_path, log_file)
-        if os.path.exists(log_file):
-            os.remove(log_file)
-        # log_file = open(log_file, "w", encoding="utf-8", errors="ignore")
-        # Create a handler for your existing log_file object
-        log_file = logging.FileHandler(log_file, mode='a', encoding='utf-8', errors='replace')
-        # We use StreamHandler because log_file is an already open file stream
-        # log_file = logging.StreamHandler(log_file)
-        log_file.setLevel(logging.DEBUG)
-        log_file.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logger.addHandler(log_file)
+    def add_logfile_handler():
+        global log_file
+        if log_file and log_file != "":
+            # Open the log file in append mode
+            log_file = os.path.join(mod_outpath, log_file)
+            if os.path.exists(log_file):
+                os.remove(log_file)
+            # log_file = open(log_file, "w", encoding="utf-8", errors="ignore")
+            # Create a handler for your existing log_file object
+            log_file = logging.FileHandler(log_file, mode='a', encoding='utf-8', errors='replace')
+            # We use StreamHandler because log_file is an already open file stream
+            # log_file = logging.StreamHandler(log_file)
+            log_file.setLevel(logging.DEBUG)
+            log_file.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+            logger.addHandler(log_file)
+        
     logger.addHandler(stdout_handler)
 
     if debug_mode:
@@ -2116,6 +2119,7 @@ def parse_dir():
         # files = glob.glob(mod_path + "/**", recursive=True)  # '\\*.txt'
         files = glob.glob(mod_path + "/common/**", recursive=True)
         files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
+        add_logfile_handler()
         modfix(files)
     else:
         # "We have a main or a sub folder"
@@ -2130,22 +2134,24 @@ def parse_dir():
                 and debug_mode
             ):
                 # print("# Empty folder", mod_path, file=log_file)
-                # print("Empty folder", mod_path, file=sys.stdout)
-                logger.info("Empty folder %s" % mod_path)
-
+                logger.warning("Empty folder %s" % mod_path)
             else:
                 # print("# We have clear a sub-folder", file=log_file)
-                # print("We have clear a sub-folder", file=sys.stdout)
                 logger.info("We have clear a sub-folder")
-                modfix(files)
+                if mod_outpath == mod_path:
+                    mod_outpath, basename = os.path.split(mod_path)
+                else:
+                    basename = os.path.basename(mod_path)
+                add_logfile_handler()
+                modfix(files, basename)
         else:
+            add_logfile_handler()
             # We have a main-folder?
             for _f in folders:
                 if os.path.exists(os.path.join(_f, "descriptor.mod")):
                     mod_path = _f
                     mod_outpath = os.path.join(mod_outpath, _f)
                     # print(mod_path, file=log_file)
-                    # print(mod_path, file=sys.stdout)
                     logger.info(mod_path)
                     # files = glob.glob(mod_path + "/**", recursive=True)  # '\\*.txt'
                     files = glob.glob(mod_path + "/common/**", recursive=True)
@@ -2157,21 +2163,19 @@ def parse_dir():
                     files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
                     if next(iter(files), -1) != -1:
                         # print("# We have probably a mod sub-folder", file=log_file)
-                        # print("We have probably a mod sub-folder", file=sys.stdout)
-                        logger.info("We have probably a mod sub-folder")
+                        logger.warning("We have probably a mod sub-folder")
                         modfix(files)
 
-def modfix(file_list):
+def modfix(file_list, is_subfolder=False):
     logging.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
 
-    tar3, tar4 = apply_merger_of_rules(list(targets3), list(targets4))
+    tar3, tar4 = apply_merger_of_rules(list(targets3), list(targets4), is_subfolder)
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
-
     subfolder = ""
+    
     for _file in file_list:
         if os.path.isfile(_file) and _file.endswith(".txt"):
-            subfolder = os.path.relpath(_file, mod_path)
             file_contents = ""
             logging.debug("\tCheck file: %s" % _file)
             with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
@@ -2194,13 +2198,19 @@ def modfix(file_list):
                 #               line = line.replace(target,replacer)
 
                 file_contents = txtfile.readlines()
-                subfolder, basename = os.path.split(subfolder)
-                # basename = os.path.basename(_file)
-                # txtfile.close()
+                if is_subfolder:
+                    basename = _file
+                    subfolder = is_subfolder
+                else:
+                    subfolder = os.path.relpath(_file, mod_path)
+                    subfolder, basename = os.path.split(subfolder)
+
                 subfolder = subfolder.replace("\\", "/")
+                # print(f"subfolder '{subfolder}', basename '{basename}'")
                 out = ""
                 changed = False
-                if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99 and any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS): # Since v4.0
+                # Since v4.0
+                if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99 and any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
                     file_contents, changed = transform_add_trait(basename, file_contents, changed)
 
                 for i, line in enumerate(file_contents):
@@ -2233,10 +2243,10 @@ def modfix(file_list):
 
                             if rt:
                                 # rt = re.search(rt, stripped)  # , flags=re.I
-                                rt = rt.search(stripped)  # , flags=re.I TODO
+                                rt = rt.search(stripped)
                             if rt:
                                 # print(
-                                #     "# WARNING: Potentially deprecated Syntax%s: %s in line %i file %s\n"
+                                #     "# WARNING: Potentially deprecated Syntax (%s): %s in line %i file %s\n"
                                 #     % (
                                 #         msg,
                                 #         rt.group(0),
@@ -2343,10 +2353,12 @@ def modfix(file_list):
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
                     out += line
+
                 if "inline_scripts" not in subfolder:
-                    if line[-1][0] != "\n" and not line.lstrip().startswith("#"): # and stripped
+                    # The last values from the loop
+                    if line[-1][0] != "\n" and not stripped.startswith("#"):
                         out += "\n"
-                        print("Added needed empty line at end.", i, line, len(line))
+                        logger.info("Added needed empty line at end.", i, line, len(line))
                         changed = True
                     if out.startswith('\n'):
                         out = out.replace('\n', '', 1)
@@ -2358,8 +2370,7 @@ def modfix(file_list):
                     pattern = pattern[0]
                     targets = pattern.findall(out)
                     if targets and len(targets) > 0:
-                        if debug_mode:
-                            print("tar4", targets, type(targets))
+                        # logger.debug("tar4", targets, type(targets))
                         for tar in targets:
                             # check valid folder
                             rt = False
@@ -2372,7 +2383,7 @@ def modfix(file_list):
                                 folder, replace[1] = repl[1]
                                 rt = False
                                 if debug_mode:
-                                    print(type(replace), replace, replace[1])
+                                    logger.debug(type(replace), replace, replace[1])
                                 if isinstance(folder, list):
                                     for fo in folder:
                                         if subfolder in fo:
@@ -2446,7 +2457,7 @@ def modfix(file_list):
                                         tar = tar[0]  # Take only first group
                                         logger.debug(f"\tFROM GROUP1:\n{pattern}")
                                     elif debug_mode:
-                                        print("\tFROM:\n", pattern)
+                                        logger.debug("\tFROM:\n", pattern)
                                     # print("# Multiline replace:\n", replace, file=log_file)
                                     # print("Multiline replace:\n", replace, file=sys.stdout)
                                     logger.info("Multiline replace:\n%s" % replace)
@@ -2458,13 +2469,8 @@ def modfix(file_list):
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
                     out_file = os.path.join(structure, basename)
-                    # print(
-                    #     "\t# WRITE FILE:",
-                    #     out_file,
-                    #     file=log_file,
-                    #
-                    # )
-                    logger.info("\tWRITE FILE:%s" % out_file)
+                    # print("\t# WRITE FILE:", out_file, file=log_file, )
+                    logger.info("\tWRITE FILE: %s" % out_file)
                     if not os.path.exists(structure):
                         os.makedirs(structure)
                         # print('Create folder:', subfolder)
@@ -2577,8 +2583,7 @@ def modfix(file_list):
                 open(_file, "w", encoding="utf-8", errors="ignore").write(out.strip())
 
     # print("\n# Done!", mod_outpath, file=log_file)
-    # print("\nDone!", mod_outpath, file=sys.stdout)
-    logger.info("# Done! %s" % mod_outpath)
+    logger.info("✅ Done! %s" % mod_outpath)
 
 class SafeFormatter(logging.Formatter):
     def format(self, record):
