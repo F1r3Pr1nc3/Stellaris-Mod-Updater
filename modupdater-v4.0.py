@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/07
+# @Revision: 2025/06/08
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -25,7 +25,7 @@ FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.15' # @last supporte
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
 only_actual = 0
-code_cosmetic = 1
+code_cosmetic = 0
 also_old = 0
 debug_mode = 0  # without writing file=log_file
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
@@ -1586,11 +1586,14 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
 
         # Detect block start
         # if block_start_pattern.match(stripped):
-        if (stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {')):
+        if stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {'):
             if not stripped.endswith('}'):
                 skip_block = True
                 block_depth = 1
             continue
+        if 'modify_species = {' in stripped or 'change_species_characteristics = {' in stripped:
+            continue
+
         # Handle lines inside skipped blocks
         if skip_block:
             block_depth += stripped.count('{')
@@ -1618,7 +1621,7 @@ def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
                     lines[i] = line
                 changed = True
                 logger.info(
-                   "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
+                   "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
                    % (
                        basename,
                        stripped,
@@ -2363,8 +2366,8 @@ def modfix(file_list, is_subfolder=False):
                                         match_start, rt = match.span()
                                         # Check if the match spans the entire line (excluding leading/trailing whitespace)
                                         if match_start <= 6 and rt >= len(stripped) - 6:
-                                            print("The entire line is matched; no further matches possible")
-                                            break  # The entire line is matched; no further matches possible
+                                            # print("The entire line is matched; no further matches possible")
+                                            break
                                 # elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
                     out += line
