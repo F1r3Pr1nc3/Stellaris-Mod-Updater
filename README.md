@@ -56,8 +56,10 @@ These can be set directly in the script or passed as arguments when launching.
 
 ### ⌨️ Example 
  ```bash
-python modupdater-v4.0.py -a 1 -m 1 -input "c:\Users\User\Documents\Paradox Interactive\Stellaris\mod\ADeadlyTempest"
+python modupdater-v4.0.py -a 1 -m 1 -input "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\ADeadlyTempest"
 ```
+Note: To use [b]double backslashes[/b] or [b]forward slashes[/b] for the path strings you are passing as arguments (on Windows).
+Or just use (if the same folder): ```py modupdater-v4.0.py```
 
 ## 📄 License
 
