@@ -28,12 +28,13 @@ import logging
 import argparse
 
 # Example usage
-old_version_folder = "../Stellaris3.14/"
-new_version_folder = "../Stellaris4.0/"
+old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris3.14"
+new_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
 # Add/Remove more categories if needed
-rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers" } # "starbase_buildings", "jobs" , "starbase_modules"
+rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers" } # , "rules", "variables", "starbase_buildings", "jobs" , "starbase_modules"
 scan_events = True # False #  Event ID tracking
-debug = False # True # 
+scan_common = True # False # Common folder tracking
+debug = False # True #
 
 # Configure basic logging - this can be overridden by argparse later
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,6 +47,7 @@ def parse_args():
     parser.add_argument("new", nargs="?", help="Path to the new version of Stellaris")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--events", action="store_true", help="Enable event ID scanning")
+    parser.add_argument("--common", action="store_true", help="Enable common folder name scanning")
     return parser.parse_args()
 
 def write_if_not_empty(path, file, lines, info):
@@ -172,7 +174,7 @@ def write_diffs(old_items, new_items, category, old_path, new_path, summary_line
     summary_lines.append(f"  Added:   {len(added)}")
     summary_lines.append(f"  Removed: {len(removed)}\n")
 
-def compare_stellaris_data(old_path, new_path, debug=False, events=False):
+def compare_stellaris_data(old_path, new_path):
     summary_lines = ["Stellaris Diff Summary\n======================\n"]
 
     category_configs = {
@@ -186,6 +188,8 @@ def compare_stellaris_data(old_path, new_path, debug=False, events=False):
         "starbase_modules": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_modules"),
         "civics":      (re.compile(r'^((?:civic|origin)_\w+) = \{', re.MULTILINE), "common/governments/civics"),
         "governments": (re.compile(r'^(gov_\w+) = \{', re.MULTILINE), "common/governments"),
+        "variables": (re.compile(r'^@(\w+) =', re.MULTILINE), "common/scripted_variables"), # \s*-?[.\d]+
+        "rules": (re.compile(r'^\t+([A-Z0-9_]+) =', re.MULTILINE), "common/defines"),
     }
 
     for cat, (pattern, subpath) in category_configs.items():
@@ -212,7 +216,7 @@ def compare_stellaris_data(old_path, new_path, debug=False, events=False):
 
             renamed = detect_renamed_blocks(old_blocks, new_blocks, removed, added)
 
-            with open(os.path.join(old_path, f"{cat}_renamed.txt"), 'w', encoding='utf-8') as f:
+            with open(os.path.join(old_path, f"{cat}_renamed.log"), 'w', encoding='utf-8') as f:
                 for old, new, ratio, old_file, new_file in renamed:
                     f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
 
@@ -263,7 +267,7 @@ def compare_stellaris_data(old_path, new_path, debug=False, events=False):
     write_diffs(old_items, new_items, "modifiers", old_path, new_path, summary_lines, renamed)
 
     if scan_events:
-        logging.info("Processing category: EVENTS")
+        logging.info("Processing category: EVENTS...")
         event_dir_old = os.path.join(old_path, "events")
         event_dir_new = os.path.join(new_path, "events")
 
@@ -275,10 +279,46 @@ def compare_stellaris_data(old_path, new_path, debug=False, events=False):
 
         write_diffs(old_ids, new_ids, "events", old_path, new_path, summary_lines)
 
+    if scan_common:
+        logging.info("Processing COMMON subdirectory structure...")
+        old_folders = os.path.join(old_path, "common")
+        new_folders = os.path.join(new_path, "common")
+
+        old_folders = get_subfolder_names(old_folders)
+        new_folders = get_subfolder_names(new_folders)
+
+        write_diffs(old_folders, new_folders, "common", old_path, new_path, summary_lines)
+
+
     # Write summary
     write_if_not_empty(old_path, "summary_diff.txt", summary_lines, "📋 Summary")
 
-    
+
+def get_subfolder_names(folder_path: str) -> set[str]:
+    """
+    Scans the given folder and returns a set containing the names of all
+    immediate subdirectories.
+    Args:
+        folder_path (str): The path to the folder to scan.
+    Returns:
+        set[str]: A set containing the names of the found subdirectories.
+                  Returns an empty set if the path is not a valid directory.
+    """
+    # First, check if the provided path is actually a directory.
+    if not os.path.isdir(folder_path):
+        print(f"Warning: The path '{folder_path}' is not a valid directory.")
+        return set()
+
+    subfolder_names = set()
+    for entry_name in os.listdir(folder_path):
+        # We must create the full path to the entry to check if it's a directory.
+        full_path = os.path.join(folder_path, entry_name)
+        if os.path.isdir(full_path):
+            subfolder_names.add(entry_name)
+
+    return subfolder_names
+
+
 # compare_stellaris_data(old_version_folder, new_version_folder)
 if __name__ == "__main__":
     args = parse_args()
@@ -296,5 +336,7 @@ if __name__ == "__main__":
         debug = args.debug
     if args.events:
         scan_events = args.events
+    if args.common:
+        scan_common = args.common
 
-    compare_stellaris_data(old_path, new_path, debug, scan_events)
+    compare_stellaris_data(old_path, new_path)
