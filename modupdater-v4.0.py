@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/08
+# @Revision: 2025/06/13
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,7 +20,7 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.15' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.16' # @last supported sub-version
 # Default values
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
@@ -132,7 +132,7 @@ actuallyTargets = {
 
 # TODO
 # Loc yml job replacement
-
+# added @colossus_reactor_cost_1 = 0
 v4_0 = {
     # Used list_traits_diff.py script for changed traits
     "targetsR": [
@@ -215,12 +215,15 @@ v4_0 = {
         r"\b((?:any|every|ordered)_owned_pop) =": r"\1_group =",
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
         r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_hundred),
-        r"\b((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS) =)\s*([1-9]\d?)\b":
-            ("common/defines", multiply_by_hundred),
+
         r"^(\s+[^#]*?)\bbase_cap_amount\b": ("common/buildings", r"\1planet_limit"),
         r"\buse_ship_kill_target\b": ("common/component_templates", "use_ship_main_target"),
         r"^(\s+)(potential_crossbreeding_chance =)": ("common/traits", r"\1# \2"),
         r"^(\s+)(ship_piracy_suppression_add =)": ("common/ship_sizes", r"\1# \2"),
+        # Moved to extra unction
+        # r"\b((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS) =)\s*([1-9]\d?)\b":
+        #     ("common/defines", multiply_by_hundred),
+        # r"^(\s+)((?:COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\s*=)": ("common/defines", r"\1# \2"),
         r"\s+standard_trade_routes_module = {}": ("common/country_types", ""),
         r"\s+collects_trade = (yes|no)": ("common/starbase_levels", ""),
         r"\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
@@ -1558,96 +1561,6 @@ def _apply_version_data_to_targets(source_data_dict):
     if "targets4" in source_data_dict:
         actuallyTargets["targets4"].update(source_data_dict["targets4"])
 
-targets_trait = {
-    re.compile(r"\badd_trait = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 }",
-    re.compile(r"\badd_trait_no_notify = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 show_message = no }",
-}
-
-# Since v4.0 ,
-def transform_add_trait(basename, lines, changed, targets_trait=targets_trait):
-    """
-    Transforms lines of a Stellaris script, replacing all occurrences of:
-        add_trait = trait_name
-    with:
-        add_trait = { trait = trait_name }
-    — unless the line appears inside a 'modify_species = {' or
-    'change_species_characteristics = {' block.
-    """
-    # Patterns for detecting the start of excluded blocks and the trait assignment
-    # block_start_pattern = re.compile(r'\b(modify_species|change_species_characteristics) = \{')
-
-    skip_block = False
-    block_depth = 0
-
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped == "" or stripped.startswith('#'):
-            continue
-
-        # Detect block start
-        # if block_start_pattern.match(stripped):
-        if stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {'):
-            if not stripped.endswith('}'):
-                skip_block = True
-                block_depth = 1
-            continue
-        if 'modify_species = {' in stripped or 'change_species_characteristics = {' in stripped:
-            continue
-
-        # Handle lines inside skipped blocks
-        if skip_block:
-            block_depth += stripped.count('{')
-            block_depth -= stripped.count('}')
-            if block_depth < 1:
-                skip_block = False
-            continue
-
-        stripped_len = len(line.lstrip())
-        if stripped_len < 22:
-            continue
-
-        # r"(?<!modify_species)(?<!change_species_characteristics)( = \{[^{}#]*?\badd_trait = )\"?(\w+)\"?\b([^{}#}]*?)": r"\1{ trait = \2\3 }", # cheap no look behind
-
-        # Apply transformation if not inside skipped block
-        # Only single liner supported
-        if "add_trait" in stripped and not 'add_trait = {' in stripped:
-            if stripped.startswith('add_trait'): # and not stripped.endswith('}')
-
-                if stripped.startswith('add_trait ='):
-                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
-                    lines[i] = line
-                else:
-                    line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
-                    lines[i] = line
-                changed = True
-                logger.info(
-                   "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
-                   % (
-                       basename,
-                       stripped,
-                       i,
-                       line.lstrip(),
-                   )
-                )
-            else:
-                for tar, repl in targets_trait.items():
-                    line = tar.sub(repl, line, count=1)
-                    if lines[i] != line:
-                        lines[i] = line
-                        changed = True
-                        logger.info(
-                           "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
-                           % (
-                               basename,
-                               stripped,
-                               i,
-                               line.lstrip(),
-                           )
-                        )
-                        break
-
-    return lines, changed
-
 def do_code_cosmetic():
     global targets3, targets4
     DLC_triggers = {
@@ -2181,8 +2094,10 @@ def parse_dir():
                     files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
                     if next(iter(files), -1) != -1:
                         # print("# We have probably a mod sub-folder", file=log_file)
-                        logger.warning("We have probably a mod sub-folder")
+                        logger.warning("We have probably a mod sub-folder.")
                         modfix(files)
+                    else:
+                        logger.warning("No Mod structure found!")
 
 def modfix(file_list, is_subfolder=False):
     logging.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
@@ -2191,6 +2106,149 @@ def modfix(file_list, is_subfolder=False):
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
     subfolder = ""
+    # Since v4.0
+    TARGETS_DEF_OLD = re.compile(r"(COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\b")
+    TARGETS_DEF = re.compile(r"((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS)\s*=)\s*([1-9]\d?)\b") # multiply_by_hundred
+    TARGETS_TRAIT = {
+        re.compile(r"\badd_trait = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 }",
+        re.compile(r"\badd_trait_no_notify = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 show_message = no }",
+    }
+    # Optimierte Set-Funktion
+    def find_with_set_optimized(basename, lines, changed): # , TARGETS_DEF_OLD=TARGETS_DEF_OLD
+        """ Findet eindeutige Konstanten im Text """
+        # target_strings = {
+        #     "COMBAT_DAYS_BEFORE_TARGET_STICKYNESS", "COMBAT_TARGET_STICKYNESS_FACTOR",
+        #     "COMMERCIAL_PACT_VALUE_MULT", "FAVORITE_JOB_EMPLOYMENT_BONUS",
+        #     "FORCED_SPECIES_ASSEMBLY_PENALTY", "FORCED_SPECIES_GROWTH_PENALTY",
+        #     "HALF_BREED_BASE_CHANCE", "HALF_BREED_EXTRA_TRAIT_PICKS",
+        #     "HALF_BREED_EXTRA_TRAIT_POINTS", "HALF_BREED_SAME_CLASS_CHANCE_ADD",
+        #     "HALF_BREED_SWAP_BASE_SPECIES_CHANCE", "HIGH_PIRACY_RISK",
+        #     "LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY", "MAX_EMIGRATION_PUSH",
+        #     "MAX_GROWTH_FROM_IMMIGRATION", "MAX_GROWTH_PENALTY_FROM_EMIGRATION",
+        #     "MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH", "MAX_PLANET_POPS",
+        #     "NEW_POP_SPECIES_RANDOMNESS", "NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS",
+        #     "ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE", "PIRACY_FULL_GROWTH_DAYS_COUNT",
+        #     "PIRACY_MAX_PIRACY_MULT", "PIRACY_SUPPRESSION_RATE",
+        #     "POP_DECLINE_THRESHOLD", "REQUIRED_POP_ASSEMBLY",
+        #     "REQUIRED_POP_DECLINE", "REQUIRED_POP_GROWTH",
+        #     "SAME_STRATA_EMPLOYMENT_BONUS", "SHIP_EXP_GAIN_PIRACY_SUP"
+        # }
+        # found_info  = []
+        # TARGETS_DEF_OLD = re.compile(r'\b(?:' + '|'.join(c for c in target_strings) + r')\b')
+
+        for i, line in enumerate(lines):
+            stripped = line.lstrip()
+            if not stripped or stripped.startswith('#'):
+                continue
+            if TARGETS_DEF_OLD.match(stripped):
+                # lines[i] = f'{line[:len(line)-len(stripped)]}# {stripped}\n'
+                lines[i] = line[:len(line)-len(stripped)] + '# ' + stripped
+                logger.info(f"\tCommented out obsolete define on file: {basename} on {stripped} (at line {i+1})")
+                changed = True
+            else:
+                m = TARGETS_DEF.match(stripped)
+                if m:
+                    lines[i] = line[:len(line)-len(stripped)] + multiply_by_hundred(m) + stripped[m.end():]
+                    logger.info(f"\tMultiplied define value by 100 on file: {basename} on {stripped} (at line {i+1})")
+                    changed = True
+
+            # for w in target_strings:
+            #     if stripped.startswith(w):
+            #         # found_info .append(w) 
+            #         lines[i] = line[:len(line)-len(stripped)]+'# '+stripped
+            #         logger.info(f"\t# Commented out define on file: {basename} on {stripped} (at line {i})")
+            #         target_strings.remove(w)
+            #         changed = True
+            #         break
+
+        return lines, changed
+
+    # Since v4.0
+    def transform_add_trait(basename, lines, changed): # , TARGETS_TRAIT=TARGETS_TRAIT
+        """
+        Transforms lines of a Stellaris script, replacing all occurrences of:
+            add_trait = trait_name
+        with:
+            add_trait = { trait = trait_name }
+        — unless the line appears inside a 'modify_species = {' or
+        'change_species_characteristics = {' block.
+        """
+        # Patterns for detecting the start of excluded blocks and the trait assignment
+        # block_start_pattern = re.compile(r'\b(modify_species|change_species_characteristics) = \{')
+
+        skip_block = False
+        block_depth = 0
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped == "" or stripped.startswith('#'):
+                continue
+
+            # Detect block start
+            # if block_start_pattern.match(stripped):
+            if stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {'):
+                if not stripped.endswith('}'):
+                    skip_block = True
+                    block_depth = 1
+                continue
+            if 'modify_species = {' in stripped or 'change_species_characteristics = {' in stripped:
+                continue
+
+            # Handle lines inside skipped blocks
+            if skip_block:
+                block_depth += stripped.count('{')
+                block_depth -= stripped.count('}')
+                if block_depth < 1:
+                    skip_block = False
+                continue
+
+            stripped_len = len(line.lstrip())
+            if stripped_len < 22:
+                continue
+
+            # r"(?<!modify_species)(?<!change_species_characteristics)( = \{[^{}#]*?\badd_trait = )\"?(\w+)\"?\b([^{}#}]*?)": r"\1{ trait = \2\3 }", # cheap no look behind
+
+            # Apply transformation if not inside skipped block
+            # Only single liner supported
+            if "add_trait" in stripped and not 'add_trait = {' in stripped:
+                if stripped.startswith('add_trait'): # and not stripped.endswith('}')
+
+                    if stripped.startswith('add_trait ='):
+                        line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
+                        lines[i] = line
+                    else:
+                        line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
+                        lines[i] = line
+                    changed = True
+                    logger.info(
+                       "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
+                       % (
+                           basename,
+                           stripped,
+                           i,
+                           line.lstrip(),
+                       )
+                    )
+                else:
+                    for tar, repl in TARGETS_TRAIT.items():
+                        line = tar.sub(repl, line, count=1)
+                        if lines[i] != line:
+                            lines[i] = line
+                            changed = True
+                            logger.info(
+                               "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
+                               % (
+                                   basename,
+                                   stripped,
+                                   i,
+                                   line.lstrip(),
+                               )
+                            )
+                            break
+
+        return lines, changed
+
+
 
     for _file in file_list:
         if os.path.isfile(_file) and _file.endswith(".txt"):
@@ -2228,8 +2286,11 @@ def modfix(file_list, is_subfolder=False):
                 out = ""
                 changed = False
                 # Since v4.0
-                if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99 and any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
-                    file_contents, changed = transform_add_trait(basename, file_contents, changed)
+                if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
+                    if subfolder.endswith("defines"):
+                        file_contents, changed = find_with_set_optimized(basename, file_contents, changed)
+                    elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
+                        file_contents, changed = transform_add_trait(basename, file_contents, changed)
 
                 for i, line in enumerate(file_contents):
                     stripped = line.strip()

@@ -31,7 +31,7 @@ import argparse
 old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris3.14"
 new_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
 # Add/Remove more categories if needed
-rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers" } # , "rules", "variables", "starbase_buildings", "jobs" , "starbase_modules"
+rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", } # "starbase_buildings", "jobs" , "starbase_modules"
 scan_events = True # False #  Event ID tracking
 scan_common = True # False # Common folder tracking
 debug = False # True #
@@ -189,7 +189,7 @@ def compare_stellaris_data(old_path, new_path):
         "civics":      (re.compile(r'^((?:civic|origin)_\w+) = \{', re.MULTILINE), "common/governments/civics"),
         "governments": (re.compile(r'^(gov_\w+) = \{', re.MULTILINE), "common/governments"),
         "variables": (re.compile(r'^@(\w+) =', re.MULTILINE), "common/scripted_variables"), # \s*-?[.\d]+
-        "rules": (re.compile(r'^\t+([A-Z0-9_]+) =', re.MULTILINE), "common/defines"),
+        "defines": (re.compile(r'^\t+([A-Z0-9_]+)\s*=', re.MULTILINE), "common/defines"),
     }
 
     for cat, (pattern, subpath) in category_configs.items():
@@ -306,7 +306,7 @@ def get_subfolder_names(folder_path: str) -> set[str]:
     """
     # First, check if the provided path is actually a directory.
     if not os.path.isdir(folder_path):
-        print(f"Warning: The path '{folder_path}' is not a valid directory.")
+        logger.warning(f"The path '{folder_path}' is not a valid directory.")
         return set()
 
     subfolder_names = set()
