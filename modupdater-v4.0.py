@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/13
+# @Revision: 2025/06/16
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,7 +20,7 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.16' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.17' # @last supported sub-version
 # Default values
 mod_path = "" # os.path.dirname(os.getcwd())
 only_warning = 0
@@ -191,7 +191,7 @@ v4_0 = {
         [r"\bid = (?:action\.(?:202[01]|6(?:4|5[05]?))|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
         # [r"\bis_unemployed\b", "REMOVED in v4.0"],
         # [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
-        [r"\bunemploy_pop\b", "REMOVED in v4.0, use transfer_pop_amount"],
+        [r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_pop..."],
         [r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
 
     ],
@@ -277,12 +277,16 @@ v4_0 = {
         # r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
     },
     "targets4": {
-        r"\bevery_owned_pop_group = {\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
-        r"\bcreate_pop = \{(\s*)(?:species|count) = [\d\w\.:]+(?:\1ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\1(?:species|count) = [\d\w\.:]+\s*\}":
-            [r"\bcount( = \d+)", r"size\1"],
-        r"(\s+)random_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
-            r"(\s+)random_owned_pop = \{\s+resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
-            r"\1resettle_pop_group = {\1\tPOP_GROUP = \2\1\tPLANET = \3\1\tPERCENTAGE = 1"
+        r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
+        r"\bcreate_pop = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
+            [r"\bcount\b", "size"],
+        r"\s+every_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
+            r"(\s+)every_owned_pop = \{\s+resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
+            r"\1resettle_pop_group = {\1\tPOP_GROUP = \2\1\tPLANET = \3\1\tPERCENTAGE = 100"
+        ],
+        r"\s+resettle_pop = \{\s+[^{}#]+\s*\}": [
+            r"(\n?[\t ]+)resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
+            r"\1resettle_pop_group = {\1\tPOP_GROUP = \2\1\tPLANET = \3\1\tPERCENTAGE = 1\1}"
         ],
         r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
         r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
@@ -534,24 +538,24 @@ v3_10 = {
             "admiral": "legion",
             "general": "regulatory",
         }[p.group(1)],
-        r"^([^#]+?)\s+leader_trait_clone_(army|army_fertile)_admiral": r"\1 leader_trait_clone_\2_commander",
-        r"^([^#]+?)\s+leader_trait_civil_engineer": r"\1 leader_trait_manufacturer",
-        r"^([^#]+?)\s+leader_trait_scrapper_": r"\1 leader_trait_distribution_lines_",
-        r"^([^#]+?)\s+leader_trait_urbanist_": r"\1 trait_ruler_architectural_sense_",
-        r"^([^#]+?)\s+leader_trait_par_zealot(_\d)?\b": r"\1 leader_trait_crusader",
-        r"^([^#]+?)\s+leader_trait_repair_crew\b": r"\1 leader_trait_brilliant_shipwright",
-        r"^([^#]+?)\s+leader_trait_demolisher_destiny\b": r"\1 leader_trait_demolisher",
-        r"^([^#]+?)\s+leader_trait_deep_space_explorer\b": r"\1 leader_trait_xeno_cataloger",
-        r"^([^#]+?)\s+leader_trait_supreme_admiral\b": r"\1 leader_trait_military_overseer",
-        r"^([^#]+?)\s+leader_trait_pilferer\b": r"\1 leader_trait_tzrynn_tithe",
-        r"^([^#]+?)\s+leader_trait_kidnapper\b": r"\1 leader_trait_interrogator",
-        r"^([^#]+?)\s+leader_trait_watchdog\b": r"\1 leader_trait_energy_weapon_specialist",
-        r"^([^#]+?)\s+leader_trait_insightful\b": r"\1 leader_trait_academic_dig_site_expert",
-        r"^([^#]+?)\s+leader_trait_experimenter\b": r"\1 leader_trait_juryrigger",
-        r"^([^#]+?)\s+leader_trait_fanatic\b": r"\1 leader_trait_master_gunner",
-        r"^([^#]+?)\s+leader_trait_glory_seeker": r"\1 leader_trait_butcher",
-        r"^([^#]+?)\s+leader_trait_army_logistician(_\d)?\b": r"\1 leader_trait_energy_weapon_specialist",
-        r"^([^#]+?)\s+leader_trait_fotd_admiral\b": r"\1 leader_trait_fotd_commander",
+        r"\bleader_trait_clone_(army|army_fertile)_admiral": r"leader_trait_clone_\1_commander",
+        r"\bleader_trait_civil_engineer": "leader_trait_manufacturer",
+        r"\bleader_trait_scrapper_": "leader_trait_distribution_lines_",
+        r"\bleader_trait_urbanist_": "trait_ruler_architectural_sense_",
+        r"\bleader_trait_par_zealot(_\d)?\b": "leader_trait_crusader",
+        r"\bleader_trait_repair_crew\b": "leader_trait_brilliant_shipwright",
+        r"\bleader_trait_demolisher_destiny\b": "leader_trait_demolisher",
+        r"\bleader_trait_deep_space_explorer\b": "leader_trait_xeno_cataloger",
+        r"\bleader_trait_supreme_admiral\b": "leader_trait_military_overseer",
+        r"\bleader_trait_pilferer\b": "leader_trait_tzrynn_tithe",
+        r"\bleader_trait_kidnapper\b": "leader_trait_interrogator",
+        r"\bleader_trait_watchdog\b": "leader_trait_energy_weapon_specialist",
+        r"\bleader_trait_insightful\b": "leader_trait_academic_dig_site_expert",
+        r"\bleader_trait_experimenter\b": "leader_trait_juryrigger",
+        r"\bleader_trait_fanatic\b": "leader_trait_master_gunner",
+        r"\bleader_trait_glory_seeker": "leader_trait_butcher",
+        r"\bleader_trait_army_logistician(_\d)?\b": "leader_trait_energy_weapon_specialist",
+        r"\bleader_trait_fotd_admiral\b": "leader_trait_fotd_commander",
         # r'=\s*leader_trait_mining_focus\b': '= leader_trait_private_mines_2',
         r"add_modifier = \{ modifier = space_storm \}": "create_space_storm = yes",
         r"\bassist_research_mult = ([-\d.]+)\b": lambda p: "planet_researchers_produces_mult = "
@@ -2090,7 +2094,7 @@ def parse_dir():
                     modfix(files)
                 else:
                     # files = glob.glob(mod_path + "/**", recursive=True)  # '\\*.txt'
-                    files = glob.glob(mod_path + "/common/*.txt", recursive=True)
+                    files = glob.glob(mod_path + "/common/**/*.txt", recursive=True)
                     files.extend(glob.glob(mod_path + "/events/*.txt", recursive=False))
                     if next(iter(files), -1) != -1:
                         # print("# We have probably a mod sub-folder", file=log_file)
@@ -2106,6 +2110,11 @@ def modfix(file_list, is_subfolder=False):
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
     subfolder = ""
+    exclude_paths = [
+        os.path.join(mod_path, "common", "scripted_variables"),
+        os.path.join(mod_path, "common", "on_actions")
+    ]
+
     # Since v4.0
     TARGETS_DEF_OLD = re.compile(r"(COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\b")
     TARGETS_DEF = re.compile(r"((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS)\s*=)\s*([1-9]\d?)\b") # multiply_by_hundred
@@ -2248,10 +2257,8 @@ def modfix(file_list, is_subfolder=False):
 
         return lines, changed
 
-
-
     for _file in file_list:
-        if os.path.isfile(_file) and _file.endswith(".txt"):
+        if not any(_file.startswith(p) for p in exclude_paths) and os.path.isfile(_file) and _file.endswith(".txt"):
             file_contents = ""
             logging.debug("\tCheck file: %s" % _file)
             with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
@@ -2289,6 +2296,7 @@ def modfix(file_list, is_subfolder=False):
                 if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
                     if subfolder.endswith("defines"):
                         file_contents, changed = find_with_set_optimized(basename, file_contents, changed)
+                        continue
                     elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
                         file_contents, changed = transform_add_trait(basename, file_contents, changed)
 
@@ -2515,8 +2523,8 @@ def modfix(file_list, is_subfolder=False):
                                 if isinstance(repl, list):
                                     if isinstance(tar, tuple):
                                         tar = tar[0]  # Take only first group
-                                        if debug_mode:
-                                            print("ONLY GRP1:", type(replace), replace)
+                                        # logger.debug("ONLY GRP1:", type(replace), replace)
+                                    # if debug_mode: print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
                                     replace = re.sub(
                                         replace[0],
                                         replace[1],
@@ -2530,7 +2538,6 @@ def modfix(file_list, is_subfolder=False):
                                     and tar != replace
                                 ):
                                     # print("# Match:\n", tar, file=log_file)
-                                    # print("Match:\n", tar, file=sys.stdout)
                                     logger.info("Match:\n %s" % tar)
                                     if isinstance(tar, tuple):
                                         tar = tar[0]  # Take only first group
@@ -2538,12 +2545,11 @@ def modfix(file_list, is_subfolder=False):
                                     elif debug_mode:
                                         logger.debug("\tFROM:\n", pattern)
                                     # print("# Multiline replace:\n", replace, file=log_file)
-                                    # print("Multiline replace:\n", replace, file=sys.stdout)
                                     logger.info("Multiline replace:\n%s" % replace)
                                     out = out.replace(tar, replace)
                                     changed = True
                                 elif debug_mode:
-                                    logger.debug(f"DEBUG BLIND MATCH: {tar} {repl} {type(repl)} {replace}")
+                                    logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
 
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
