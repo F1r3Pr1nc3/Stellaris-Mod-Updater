@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/16
+# @Revision: 2025/06/18
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,9 +20,9 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.17' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.18' # @last supported sub-version
 # Default values
-mod_path = "" # os.path.dirname(os.getcwd())
+mod_path = "" # e.g. c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\aUAPtest\\ os.path.dirname(os.getcwd())
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -70,7 +70,7 @@ def setBoolean(s):
 #   print("You are using Python {}.{}.".format(sys.version_info.major, sys.version_info.minor))
 #   sys.exit(1)
 
-VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe"
+VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe|gestalt_consciousnes"
 VANILLA_PREFIXES = r"any|every|random|count|ordered"
 PLANET_MODIFIER = r"jobs|housing|amenities"
 RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
@@ -174,7 +174,7 @@ v4_0 = {
         [r"\bsurveyor_update_orbital_effect\b", "REMOVED in v4.0"],
         [r"\btoxic_knights_order_habitat_setup\b", "REMOVED in v4.0"],
         [r"\bupdate_habitat_orbital_effect\b", "REMOVED in v4.0"],
-        [r"\bwipe_pop_ethos\b", "REMOVED in v4.0"],
+        [r"\bwipe_pop_ethos\b", (["common/scripted_effects", "events"], "REMOVED in v4.0")],
         # Scripted Trigger
         [r"\bbuildings_unemployed\b", "REMOVED in v4.0"],
         [r"\bcan_assemble_budding_pop\b", "REMOVED in v4.0"],
@@ -191,7 +191,7 @@ v4_0 = {
         [r"\bid = (?:action\.(?:202[01]|6(?:4|5[05]?))|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
         # [r"\bis_unemployed\b", "REMOVED in v4.0"],
         # [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
-        [r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_pop..."],
+        [r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_assigned_pop_amount ..."],
         [r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
 
     ],
@@ -216,6 +216,8 @@ v4_0 = {
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
         r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_hundred),
 
+        r"^on_pop_(abducted|resettled|added|rights_change)\b": ("common/on_actions", r"on_pop_group_\1"),
+        r"^on_pop_ethic_changed\b": ("common/on_actions", "on_daily_pop_ethics_divergence"),
         r"^(\s+[^#]*?)\bbase_cap_amount\b": ("common/buildings", r"\1planet_limit"),
         r"\buse_ship_kill_target\b": ("common/component_templates", "use_ship_main_target"),
         r"^(\s+)(potential_crossbreeding_chance =)": ("common/traits", r"\1# \2"),
@@ -225,6 +227,7 @@ v4_0 = {
         #     ("common/defines", multiply_by_hundred),
         # r"^(\s+)((?:COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\s*=)": ("common/defines", r"\1# \2"),
         r"\s+standard_trade_routes_module = {}": ("common/country_types", ""),
+        r"^(\s+)(monthly_progress|completion_event)": ("common/observation_station_missions", r"\1# \2"), # Obsolete, causes CTD
         r"\s+collects_trade = (yes|no)": ("common/starbase_levels", ""),
         r"\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
         r"^(\s+)(ignores_favorite =)": ("common/pop_jobs", r"\1# \2"),
@@ -287,6 +290,10 @@ v4_0 = {
         r"\s+resettle_pop = \{\s+[^{}#]+\s*\}": [
             r"(\n?[\t ]+)resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
             r"\1resettle_pop_group = {\1\tPOP_GROUP = \2\1\tPLANET = \3\1\tPERCENTAGE = 1\1}"
+        ],
+        r"\bwipe_pop_ethos = yes\s+pop_change_ethic = ethic_\w+\b": [
+            r"wipe_pop_ethos = yes(\s+)pop_change_ethic = (ethic_\w+)",
+            (["common/scripted_effects", "events"], r"pop_group_transfer_ethic = {\1POP_GROUP = this\1ETHOS = \2\1PERCENTAGE = 1\1}")
         ],
         r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
         r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
@@ -1780,7 +1787,7 @@ def do_code_cosmetic():
     targets4[
         r"\s+(?:OR = \{)?\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+\}?"
     ] = [
-        r"(\s+)(OR = \{)?(\s+)(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))(?(2)\1\})",
+        r"(\s+)(OR = \{)?(\s+)(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?:has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?:has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|(?:has_authority = \"?auth_machine_intelligence\"?|is_machine_empire = yes))(?(2)\1\})",
         (NO_TRIGGER_FOLDER, r"\1\3is_robot_empire = yes"),
     ]
     targets4[
@@ -1804,6 +1811,19 @@ def do_code_cosmetic():
     targets4[r"\bOR = \{\s*(?:merg_is_(?:default|fallen)_empire = yes\s+){2}\}"] = (
         "is_default_or_fallen = yes"
     )
+
+
+exclude_paths = [
+    "agreement_presets",
+    "component_sets",
+    "component_templates",
+    "notification_modifiers",
+    # "on_actions",
+    "scripted_variables",
+    "start_screen_messages",
+    "section_templates",
+    "ship_sizes",
+]
 
 def is_float(s):
     try:
@@ -1971,7 +1991,7 @@ def apply_merger_of_rules(targets3, targets4, is_subfolder=False):
     return (targets3, targets4)
 
 def parse_dir():
-    global mod_path, mod_outpath, log_file, start_time #, targets3, targets4
+    global mod_path, mod_outpath, log_file, start_time, exclude_paths #, targets3, targets4
 
     files = []
     mod_path = os.path.normpath(mod_path)
@@ -1999,6 +2019,8 @@ def parse_dir():
             print("Warning: Mod files will be overwritten!")
     else:
         mod_outpath = os.path.normpath(mod_outpath)
+
+    exclude_paths = [os.path.join(mod_path, "common", e) for e in exclude_paths]
 
     # Using the custom formatter
     # Prevent adding multiple handlers if this setup code is run more than once
@@ -2110,10 +2132,6 @@ def modfix(file_list, is_subfolder=False):
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
     subfolder = ""
-    exclude_paths = [
-        os.path.join(mod_path, "common", "scripted_variables"),
-        os.path.join(mod_path, "common", "on_actions")
-    ]
 
     # Since v4.0
     TARGETS_DEF_OLD = re.compile(r"(COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\b")
@@ -2453,103 +2471,103 @@ def modfix(file_list, is_subfolder=False):
 
                 # for pattern, repl in tar4.items(): old dict way
                 for pattern in tar4:  # new list way
-                    repl = pattern[1]
-                    pattern = pattern[0]
+                    pattern, repl = pattern
                     targets = pattern.findall(out)
-                    if targets and len(targets) > 0:
+                    # if targets and len(targets) > 0:
                         # logger.debug("tar4", targets, type(targets))
-                        for tar in targets:
-                            # check valid folder
+                    for tar in targets:
+                        # check valid folder
+                        rt = False
+                        replace = repl
+                        if isinstance(repl, list) and isinstance(repl[1], tuple):
+                            # logging.debug('Has folder check')
+                            replace = repl.copy()
+                            # folder = repl[1][0]
+                            # replace[1] = repl[1][1]
+                            folder, replace[1] = repl[1]
                             rt = False
-                            replace = repl
-                            if isinstance(repl, list) and isinstance(repl[1], tuple):
-                                # logging.debug('Has folder check')
-                                replace = repl.copy()
-                                # folder = repl[1][0]
-                                # replace[1] = repl[1][1]
-                                folder, replace[1] = repl[1]
-                                rt = False
-                                if debug_mode:
-                                    logger.debug(type(replace), replace, replace[1])
-                                if isinstance(folder, list):
-                                    for fo in folder:
-                                        if subfolder in fo:
-                                            rt = True
-                                            if debug_mode:
-                                                print(folder)
-                                            break
-                                elif isinstance(folder, str):
-                                    if subfolder in folder:
+                            if debug_mode:
+                                logger.debug(type(replace), replace, replace[1])
+                            if isinstance(folder, list):
+                                for fo in folder:
+                                    if subfolder in fo:
                                         rt = True
-                                        # logging.debug(folder)
-                                elif isinstance(folder, re.Pattern) and folder.search(
-                                    subfolder
-                                ):
-                                    # print("Check folder (regexp)", subfolder)
+                                        if debug_mode:
+                                            print(folder)
+                                        break
+                            elif isinstance(folder, str):
+                                if subfolder in folder:
                                     rt = True
-                                else:
-                                    rt = False
-                            elif isinstance(repl, tuple):
-                                # logging.debug('Has folder check simple')
-                                folder, replace = repl
-                                # logging.debug("subfolder", subfolder, folder)
-                                if isinstance(folder, list):
-                                    for fo in folder:
-                                        if subfolder in fo:
-                                            rt = True
-                                # elif subfolder in folder:
-                                elif isinstance(folder, str):
-                                    # logging.debug("subfolder in folder", subfolder, folder)
-                                    if subfolder in folder:
-                                        rt = True
-                                        # logging.debug(folder)
-                                elif isinstance(folder, re.Pattern):
-                                    if folder.search(subfolder):
-                                        # logging.debug("Check folder (regexp) True", subfolder, repl)
-                                        rt = True
-                                    # ellogging.debug("Folder EXCLUDED:", subfolder, repl)
-                                else:
-                                    rt = False
-                            elif isinstance(repl, dict): # Trigger filename
-                                file, replace = list(repl.items())[0]
-                                # print(pattern, file, type(file), replace, type(basename))
-                                if file != basename:
-                                    rt = True
-                                # else: print("\tEXCLUDED:", pattern, "from", basename)
-                            else:
+                                    # logging.debug(folder)
+                            elif isinstance(folder, re.Pattern) and folder.search(
+                                subfolder
+                            ):
+                                # print("Check folder (regexp)", subfolder)
                                 rt = True
-                            if rt:
-                                # print(type(repl), tar, type(tar), subfolder)
-                                if isinstance(repl, list):
-                                    if isinstance(tar, tuple):
-                                        tar = tar[0]  # Take only first group
-                                        # logger.debug("ONLY GRP1:", type(replace), replace)
-                                    # if debug_mode: print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
-                                    replace = re.sub(
-                                        replace[0],
-                                        replace[1],
-                                        tar,
-                                        count=1,
-                                        flags=re.I | re.M | re.A,
-                                    )
-                                if isinstance(repl, str) or (
-                                    not isinstance(tar, tuple)
-                                    and tar in out
-                                    and tar != replace
-                                ):
-                                    # print("# Match:\n", tar, file=log_file)
-                                    logger.info("Match:\n %s" % tar)
-                                    if isinstance(tar, tuple):
-                                        tar = tar[0]  # Take only first group
-                                        logger.debug(f"\tFROM GROUP1:\n{pattern}")
-                                    elif debug_mode:
-                                        logger.debug("\tFROM:\n", pattern)
-                                    # print("# Multiline replace:\n", replace, file=log_file)
-                                    logger.info("Multiline replace:\n%s" % replace)
-                                    out = out.replace(tar, replace)
-                                    changed = True
-                                elif debug_mode:
-                                    logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
+                            else:
+                                rt = False
+                        elif isinstance(repl, tuple):
+                            # logging.debug('Has folder check simple')
+                            folder, replace = repl
+                            # logging.debug("subfolder", subfolder, folder)
+                            if isinstance(folder, list):
+                                for fo in folder:
+                                    if subfolder in fo:
+                                        rt = True
+                            # elif subfolder in folder:
+                            elif isinstance(folder, str):
+                                # logging.debug("subfolder in folder", subfolder, folder)
+                                if subfolder in folder:
+                                    rt = True
+                                    # logging.debug(folder)
+                            elif isinstance(folder, re.Pattern):
+                                if folder.search(subfolder):
+                                    # logging.debug("Check folder (regexp) True", subfolder, repl)
+                                    rt = True
+                                # ellogging.debug("Folder EXCLUDED:", subfolder, repl)
+                            else:
+                                rt = False
+                        elif isinstance(repl, dict): # Trigger filename
+                            file, replace = list(repl.items())[0]
+                            # print(pattern, file, type(file), replace, type(basename))
+                            if file != basename:
+                                rt = True
+                            # else: print("\tEXCLUDED:", pattern, "from", basename)
+                        else:
+                            rt = True
+                        if not rt: continue
+                        # print(type(repl), tar, type(tar), subfolder)
+                        if isinstance(repl, list):
+                            if isinstance(tar, tuple):
+                                tar = tar[0]  # Take only first group
+                                # logger.debug("ONLY GRP1:", type(replace), replace)
+                            # if debug_mode: print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+                            replace = re.sub(
+                                replace[0],
+                                replace[1],
+                                tar,
+                                count=1,
+                                flags=re.I | re.M | re.A,
+                            )
+                        if isinstance(repl, str) or (
+                            not isinstance(tar, tuple)
+                            and tar in out
+                            and tar != replace
+                        ):
+                            # print("# Match:\n", tar, file=log_file)
+                            logger.info("Match:\n %s" % tar)
+                            if debug_mode:
+                                if isinstance(tar, tuple):
+                                    tar = tar[0]  # Take only first group
+                                    logger.debug(f"\tFROM GROUP1:\n{pattern}")
+                                else:
+                                    logger.debug(f"\tFROM::\n{pattern}")
+                            # print("# Multiline replace:\n", replace, file=log_file)
+                            logger.info("Multiline replace:\n%s" % replace)
+                            out = out.replace(tar, replace)
+                            changed = True
+                        elif debug_mode:
+                            logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
 
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
