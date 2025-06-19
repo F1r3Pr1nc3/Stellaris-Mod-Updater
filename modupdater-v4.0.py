@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/18
+# @Revision: 2025/06/19
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,7 +20,7 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.18' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.19' # @last supported sub-version
 # Default values
 mod_path = "" # e.g. c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\aUAPtest\\ os.path.dirname(os.getcwd())
 only_warning = 0
@@ -146,17 +146,18 @@ v4_0 = {
         [r"\bcan_work_job\b", "REMOVED in v4.0"],
         # [r"\bcount_owned_pops\b", "REMOVED in v4.0"],
         [r"\bhas_collected_system_trade_value\b", "REMOVED in v4.0"],
-        [r"\bhas_system_trade_value\b", "REMOVED in v4.0"],
+        # [r"\bhas_system_trade_value\b", "REMOVED in v4.0"],
         [r"\bhas_trade_route\b", "REMOVED in v4.0"],
         [r"\bnum_trade_routes\b", "REMOVED in v4.0"],
         [r"\btrade_income\b", "REMOVED in v4.0"],
-        [r"\btrade_intercepted_(value|percentage)\b", "REMOVED in v4.0"],
-        [r"\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
+        [r"\btrade_(protected|intercepted)_(value|percentage)\b", "REMOVED in v4.0"],
+        # [r"\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
         [r"\bstarbase_trade_protection(_range)?_add\b", "REMOVED in v4.0"],
         [r"\btrade_route_value\b", "REMOVED in v4.0"],
         [r"\btrading_value\b", "REMOVED in v4.0"],
         [r"\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
         [r"\bis_half_species\b", "REMOVED in v4.0"],
+        [r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
         [r"\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"],
         [r"\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
         # Modifier
@@ -174,19 +175,17 @@ v4_0 = {
         [r"\bsurveyor_update_orbital_effect\b", "REMOVED in v4.0"],
         [r"\btoxic_knights_order_habitat_setup\b", "REMOVED in v4.0"],
         [r"\bupdate_habitat_orbital_effect\b", "REMOVED in v4.0"],
-        [r"\bwipe_pop_ethos\b", (["common/scripted_effects", "events"], "REMOVED in v4.0")],
+        # [r"\bwipe_pop_ethos\b", (["common/scripted_effects", "events"], "REMOVED in v4.0")],
         # Scripted Trigger
         [r"\bbuildings_unemployed\b", "REMOVED in v4.0"],
-        [r"\bcan_assemble_budding_pop\b", "REMOVED in v4.0"],
-        [r"\bcan_assemble_clone_soldier_pop\b", "REMOVED in v4.0"],
-        [r"\bcan_assemble_tiyanki_pop\b", "REMOVED in v4.0"],
+        [r"\bcan_assemble_(budding|clone_soldier|tiyanki)_pop\b", "REMOVED in v4.0"],
         [r"\benigmatic_modifier_jobs\b", "REMOVED in v4.0"],
         # [r"\bhas_any_industry_district\b", "REMOVED in v4.0"],
         # [r"\bhas_any_mining_district\b", "REMOVED in v4.0"],
         [r"\bhas_refinery_designation\b", "REMOVED in v4.0"],
         [r"\bhas_research_job\b", "REMOVED in v4.0"],
         [r"\bjobs_any_research\b", "REMOVED in v4.0"],
-        [r"\btrait_(advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b", "REMOVED in v4.0"],
+        # [r"\btrait_(advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b", "REMOVED in v4.0"],
         # Events
         [r"\bid = (?:action\.(?:202[01]|6(?:4|5[05]?))|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
         # [r"\bis_unemployed\b", "REMOVED in v4.0"],
@@ -212,7 +211,7 @@ v4_0 = {
         r"\btrait_cyborg_climate_adjustment_frozen\b": "trait_cyborg_climate_adjustment_cold",
         r"\b(count_owned_pop)\b": r"\1_amount",
         r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
-        r"\b((?:any|every|ordered)_owned_pop) =": r"\1_group =",
+        r"\b((?:any|every|ordered)_owned_pop|create_pop) =": r"\1_group =",
         r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
         r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_hundred),
 
@@ -222,10 +221,13 @@ v4_0 = {
         r"\buse_ship_kill_target\b": ("common/component_templates", "use_ship_main_target"),
         r"^(\s+)(potential_crossbreeding_chance =)": ("common/traits", r"\1# \2"),
         r"^(\s+)(ship_piracy_suppression_add =)": ("common/ship_sizes", r"\1# \2"),
+        r"^(\s+)(has_system_trade_value =)": r"\1# \2",
+        # r"^(\s+)(has_trade_route =)": r"\1# \2",
         # Moved to extra unction
         # r"\b((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|MAX_CARRYING_CAPACIT|RESETTLE_UNEMPLOYED_BASE_RATE|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS) =)\s*([1-9]\d?)\b":
         #     ("common/defines", multiply_by_hundred),
         # r"^(\s+)((?:COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\s*=)": ("common/defines", r"\1# \2"),
+        r"\btrait_(?:advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b": "",
         r"\s+standard_trade_routes_module = {}": ("common/country_types", ""),
         r"^(\s+)(monthly_progress|completion_event)": ("common/observation_station_missions", r"\1# \2"), # Obsolete, causes CTD
         r"\s+collects_trade = (yes|no)": ("common/starbase_levels", ""),
@@ -244,7 +246,7 @@ v4_0 = {
         r"\bcategory = pop\b": "category = pop_group",
         r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
         r"^(\s+)pop_change_ethic = ([\d\w\.:]+)\b":  r"\1pop_group_transfer_ethic = {\n\1\tPOP_GROUP = this\n\1\tETHOS = \2\n\1\tPERCENTAGE = 1\n\1}", # AMOUNT = 100
-        r"\b(create_pop = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\1size\2", # Just cheap pre-fix
+        r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\1size\2", # Just cheap pre-fix
         r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
         r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
         r"\bis_pop_category = specialist\b": "is_specialist_category = yes",
@@ -281,7 +283,7 @@ v4_0 = {
     },
     "targets4": {
         r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
-        r"\bcreate_pop = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
+        r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
             [r"\bcount\b", "size"],
         r"\s+every_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
             r"(\s+)every_owned_pop = \{\s+resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
@@ -295,12 +297,18 @@ v4_0 = {
             r"wipe_pop_ethos = yes(\s+)pop_change_ethic = (ethic_\w+)",
             (["common/scripted_effects", "events"], r"pop_group_transfer_ethic = {\1POP_GROUP = this\1ETHOS = \2\1PERCENTAGE = 1\1}")
         ],
+        r"\bany_system_within_border = \{\s+has_trade_route = yes\s+trade_intercepted_value > \d+\s+\}": "has_monthly_income = { resource = trade value > 100 }",
+        r"\bhas_trade_route = yes\s+(?:trade_intercepted_value > \d+)?": [
+            r"has_trade_route = yes(\s+)(?:trade_intercepted_value > \d+)?",
+            r"is_on_border = yes\1any_neighbor_system = {\1\tNOR = { has_owner = yes has_star_flag = guardian }\1}"
+        ],
+        r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? (\d+)\s+trade_intercepted_value <=? \d+\s+\}": r"years_passed > \2" ,
         r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
         r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
         r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
-        r"\bwhile = \{\s*count = \d+\s+create_pop = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
-            r"while = \{\s*count = (\d+)\s+create_pop = \{\s*(species = [\d\w\.:]+)\s+(ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
-            r"create_pop = { \2 size = \1\3 }"],
+        r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
+            r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\d\w\.:]+)\s+(ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
+            r"create_pop_group = { \2 size = \1\3 }"],
         r"\ballowed_peace_offers = \{\s+(?:(?:status_quo|surrender|demand_surrender)\s+){1,3}\s*\}": [
             r"allowed_peace_offers = \{\s+(status_quo|surrender|demand_surrender)\s*(status_quo|surrender|demand_surrender)?\s*(status_quo|surrender|demand_surrender)?\s*\}",
             ("common/war_goals", lambda p: ""
@@ -2463,7 +2471,7 @@ def modfix(file_list, is_subfolder=False):
                     # The last values from the loop
                     if line[-1][0] != "\n" and not stripped.startswith("#"):
                         out += "\n"
-                        logger.info("Added needed empty line at end.", i, line, len(line))
+                        logger.info(f"Added needed empty line at end: {i} '{line}' {len(line)}")
                         changed = True
                     if out.startswith('\n'):
                         out = out.replace('\n', '', 1)
