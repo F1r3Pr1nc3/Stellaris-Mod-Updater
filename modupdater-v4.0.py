@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/19
+# @Revision: 2025/06/20
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -302,7 +302,10 @@ v4_0 = {
             r"has_trade_route = yes(\s+)(?:trade_intercepted_value > \d+)?",
             r"is_on_border = yes\1any_neighbor_system = {\1\tNOR = { has_owner = yes has_star_flag = guardian }\1}"
         ],
-        r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? (\d+)\s+trade_intercepted_value <=? \d+\s+\}": r"years_passed > \2" ,
+        r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? \d+\s+(?:trade_intercepted_value <=? \d+\s+)?\}": [
+            r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? (\d+)\s+(?:trade_intercepted_value <=? \d+\s+)?\}",
+            r"years_passed > \1"
+        ],
         r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
         r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
         r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
@@ -2481,8 +2484,9 @@ def modfix(file_list, is_subfolder=False):
                 for pattern in tar4:  # new list way
                     pattern, repl = pattern
                     targets = pattern.findall(out)
-                    # if targets and len(targets) > 0:
-                        # logger.debug("tar4", targets, type(targets))
+                    if targets and len(targets) > 0:
+                        logger.debug(f"tar4: {targets}, {type(targets)}")
+                    else: continue
                     for tar in targets:
                         # check valid folder
                         rt = False
@@ -2532,7 +2536,7 @@ def modfix(file_list, is_subfolder=False):
                                 if folder.search(subfolder):
                                     # logging.debug("Check folder (regexp) True", subfolder, repl)
                                     rt = True
-                                # ellogging.debug("Folder EXCLUDED:", subfolder, repl)
+                                # else: logging.debug("Folder EXCLUDED:", subfolder, repl)
                             else:
                                 rt = False
                         elif isinstance(repl, dict): # Trigger filename
@@ -2548,7 +2552,7 @@ def modfix(file_list, is_subfolder=False):
                         if isinstance(repl, list):
                             if isinstance(tar, tuple):
                                 tar = tar[0]  # Take only first group
-                                # logger.debug("ONLY GRP1:", type(replace), replace)
+                                logger.debug("ONLY GRP1:", type(replace), replace)
                             # if debug_mode: print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
                             replace = re.sub(
                                 replace[0],
@@ -2562,16 +2566,12 @@ def modfix(file_list, is_subfolder=False):
                             and tar in out
                             and tar != replace
                         ):
-                            # print("# Match:\n", tar, file=log_file)
-                            logger.info("Match:\n %s" % tar)
-                            if debug_mode:
-                                if isinstance(tar, tuple):
-                                    tar = tar[0]  # Take only first group
-                                    logger.debug(f"\tFROM GROUP1:\n{pattern}")
-                                else:
-                                    logger.debug(f"\tFROM::\n{pattern}")
+                            # print("# Match:", tar)
+                            if isinstance(tar, tuple):
+                                tar = tar[0]  # Take only first group
+                                logger.debug(f"\tFROM GROUP1:\n{pattern}")
                             # print("# Multiline replace:\n", replace, file=log_file)
-                            logger.info("Multiline replace:\n%s" % replace)
+                            logger.info(f"Match:\n{tar}\nMultiline replace:\n{replace}")
                             out = out.replace(tar, replace)
                             changed = True
                         elif debug_mode:
@@ -2579,7 +2579,7 @@ def modfix(file_list, is_subfolder=False):
 
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
-                    out_file = os.path.join(structure, basename)
+                    out_file = os.path.normpath(os.path.join(structure, basename))
                     # print("\t# WRITE FILE:", out_file, file=log_file, )
                     logger.info("\tWRITE FILE: %s" % out_file)
                     if not os.path.exists(structure):
