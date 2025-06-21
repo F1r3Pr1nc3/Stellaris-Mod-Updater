@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/20
+# @Revision: 2025/06/21
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -22,7 +22,7 @@ import datetime
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.19' # @last supported sub-version
 # Default values
-mod_path = "" # e.g. c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\aUAPtest\\ os.path.dirname(os.getcwd())
+mod_path = "" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\" # os.path.dirname(os.getcwd())
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -302,10 +302,7 @@ v4_0 = {
             r"has_trade_route = yes(\s+)(?:trade_intercepted_value > \d+)?",
             r"is_on_border = yes\1any_neighbor_system = {\1\tNOR = { has_owner = yes has_star_flag = guardian }\1}"
         ],
-        r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? \d+\s+(?:trade_intercepted_value <=? \d+\s+)?\}": [
-            r"\bevent_target:pirate_system = \{\s+trade_intercepted_value >=? (\d+)\s+(?:trade_intercepted_value <=? \d+\s+)?\}",
-            r"years_passed > \1"
-        ],
+        r"\bevent_target:pirate_system = \{\s+trade_intercepted_value\s*([<=>]+)\s*(\d+)\s+(?:trade_intercepted_value\s*[<=>]+\s*\d+\s+)?\}": r"years_passed \1 \2",
         r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
         r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
         r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
@@ -881,7 +878,6 @@ v3_6 = {
 }
 v3_5 = {
     "targetsR": [
-        # [r"\b(%s)_bordering_country = \{" % VANILLA_PREFIXES, 'just use xyz_country_neighbor_to_system instead'],
         # [r"\b(restore|store)_galactic_community_leader_backup_data = ", 'now a scripted effect or just use store_country_backup_data instead']
     ],
     "targets3": {
@@ -896,19 +892,10 @@ v3_5 = {
         # r"(\"NAME_[^-\s\"]+)-([^-\s\"]+)\"": r'\1_\2"', mostly but not generally done
     },
     "targets4": {
-        r"\bany_system_(?:planet|colony) = \{[^{}#]*(?:has_owner = yes|is_colony = yes|exists = owner)\s": [
-            r"any_system_(?:planet|colony) = (\{[^{}#]*)(?:has_owner = yes|is_colony = yes|exists = owner)\b",
-            r"any_system_colony = \1has_owner = yes",
-        ],
-        r"\s(?:every|random|count|ordered)_system_planet = \{[^{}#]*limit = \{\s*(?:has_owner = yes|is_colony = yes|exists = owner)\s": [
-            r"(every|random|count|ordered)_system_planet = (\{[^{}#]*limit = \{\s*)(?:has_owner = yes|is_colony = yes|exists = owner)\b",
-            r"\1_system_colony = \2has_owner = yes",
-        ],
-        r"(\bOR = \{\s+(has_trait = trait_(?:plantoid|lithoid)_budding\s+){2}\})": "has_budding_trait = yes",
-        r"_pop = \{\s+unemploy_pop = yes\s+kill_pop = yes": [
-            r"(_pop = \{\s+)unemploy_pop = yes\s+(kill_pop = yes)",
-            r"\1\2",
-        ],  # ghost pop bug fixed
+        # r"\bany_system_(?:planet|colony) = (\{[^{}#]*?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b": r"any_system_colony = \1", # has_owner = yes
+        r"\b(%s)_system_(?:planet|colony) = (\{[^{}#]*?(?:limit = \{)?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b" % VANILLA_PREFIXES: r"\1_system_colony = \2", # has_owner = yes
+        r"\bOR = \{\s+(has_trait = trait_(?:plantoid|lithoid)_budding\s+){2}\}": "has_budding_trait = yes",
+        # r"(_pop = \{\s+)unemploy_pop = yes\s+(kill_pop = yes)": r"\1\2", # ghost pop bug fixed: obsolete
     },
 }
 """ v3.4
@@ -1431,9 +1418,10 @@ actuallyTargets = {
             % (VANILLA_ETHICS, VANILLA_ETHICS),
             (NO_TRIGGER_FOLDER, r"is_\1\2 = no"),
         ],
-        r"\b(?:OR = \{)?\s+?has_ethic = \"?ethic_(?:(?:%s)|fanatic_(?:%s))\"?\s+has_ethic = \"?ethic_(?:(?:%s)|fanatic_(?:%s))\"?\s*\}?"
-        % (VANILLA_ETHICS, VANILLA_ETHICS, VANILLA_ETHICS, VANILLA_ETHICS): [
-            r"(\bOR = \{)?(\s*?\n*?\s*?)?(?(1)\t?)has_ethic = \"?ethic_(?:(%s)|fanatic_(%s))\"?\s*?has_ethic = \"?ethic_(?:(?:\4|\3)|fanatic_(?:\4|\3))\"?\s*?(?(1)\})"
+        # TODO BLIND matches?
+        r"(?:\bOR = \{)?(?:\s+?has_ethic = \"?ethic_(?:(?:%s)|fanatic_(?:%s))\"?){2}\s*\}?"
+        % (VANILLA_ETHICS, VANILLA_ETHICS): [
+            r"(\bOR = \{)?(\s*?\n*?\s*?)?(?(1)\t?)has_ethic = \"?ethic_(?:(%s)|fanatic_(%s))\"?\s*?has_ethic = \"?ethic_(?:(?:\4|\3)|fanatic_(?:\4|\3))\"?(?(1)\s*?\})"
             % (VANILLA_ETHICS, VANILLA_ETHICS),
             (NO_TRIGGER_FOLDER, r"\2is_\3\4 = yes"),
         ],  # r"\4is_ethics_aligned = { ARG1 = \2\3 }",
@@ -1514,6 +1502,7 @@ actuallyTargets = {
             r"count_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}",
             r"has_starbase_module = \1",
         ],
+        # TODO performance: a lot of blind matches
         r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
             r"days = (\d{2,})\b",
             lambda p: (
@@ -2202,7 +2191,7 @@ def modfix(file_list, is_subfolder=False):
         return lines, changed
 
     # Since v4.0
-    def transform_add_trait(basename, lines, changed): # , TARGETS_TRAIT=TARGETS_TRAIT
+    def transform_add_trait(basename, lines, changed):
         """
         Transforms lines of a Stellaris script, replacing all occurrences of:
             add_trait = trait_name
@@ -2248,41 +2237,60 @@ def modfix(file_list, is_subfolder=False):
 
             # Apply transformation if not inside skipped block
             # Only single liner supported
-            if "add_trait" in stripped and not 'add_trait = {' in stripped:
-                if stripped.startswith('add_trait'): # and not stripped.endswith('}')
+            if "add_trait" in stripped:
+                if not 'add_trait = {' in stripped:
+                    if stripped.startswith('add_trait'): # and not stripped.endswith('}')
 
-                    if stripped.startswith('add_trait ='):
-                        line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
-                        lines[i] = line
-                    else:
-                        line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
-                        lines[i] = line
-                    changed = True
-                    logger.info(
-                       "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
-                       % (
-                           basename,
-                           stripped,
-                           i,
-                           line.lstrip(),
-                       )
-                    )
-                else:
-                    for tar, repl in TARGETS_TRAIT.items():
-                        line = tar.sub(repl, line, count=1)
-                        if lines[i] != line:
+                        if stripped.startswith('add_trait ='):
+                            line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
                             lines[i] = line
-                            changed = True
-                            logger.info(
-                               "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
-                               % (
-                                   basename,
-                                   stripped,
-                                   i,
-                                   line.lstrip(),
-                               )
-                            )
-                            break
+                        else:
+                            line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
+                            lines[i] = line
+                        changed = True
+                        logger.info(
+                           "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
+                           % (
+                               basename,
+                               stripped,
+                               i,
+                               line.lstrip(),
+                           )
+                        )
+                    else:
+                        for tar, repl in TARGETS_TRAIT.items():
+                            line = tar.sub(repl, line) # , count=1
+                            if lines[i] != line:
+                                lines[i] = line
+                                changed = True
+                                logger.info(
+                                   "\t# Updated effect on file: %s on %s (at line %i) with %s\n"
+                                   % (
+                                       basename,
+                                       stripped,
+                                       i,
+                                       line.lstrip(),
+                                   )
+                                )
+                                break
+                # else: # Cheap fallback fix # TODO: remove BLIND matches!?
+                #     for tar, repl in TARGETS_TRAIT.items():
+                #         line = tar.sub(repl, line)
+                #         if lines[i] != line:
+                #             lines[i] = line
+                #             changed = True
+                #             logger.info(
+                #                "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
+                #                % (
+                #                    basename,
+                #                    stripped,
+                #                    i,
+                #                    line.lstrip(),
+                #                )
+                #             )
+                #             break
+                #         else:
+                #             logger.debug("BLIND trait match")
 
         return lines, changed
 
@@ -2483,99 +2491,110 @@ def modfix(file_list, is_subfolder=False):
                 # for pattern, repl in tar4.items(): old dict way
                 for pattern in tar4:  # new list way
                     pattern, repl = pattern
-                    targets = pattern.findall(out)
-                    if targets and len(targets) > 0:
-                        logger.debug(f"tar4: {targets}, {type(targets)}")
-                    else: continue
-                    for tar in targets:
-                        # check valid folder
-                        rt = False
-                        replace = repl
-                        if isinstance(repl, list) and isinstance(repl[1], tuple):
-                            # logging.debug('Has folder check')
-                            replace = repl.copy()
-                            # folder = repl[1][0]
-                            # replace[1] = repl[1][1]
-                            folder, replace[1] = repl[1]
-                            rt = False
-                            if debug_mode:
-                                logger.debug(type(replace), replace, replace[1])
-                            if isinstance(folder, list):
-                                for fo in folder:
-                                    if subfolder in fo:
-                                        rt = True
-                                        if debug_mode:
-                                            print(folder)
-                                        break
-                            elif isinstance(folder, str):
-                                if subfolder in folder:
+                
+                    rt = False # check valid folder before loop
+                    replace = False # repl
+
+                    if isinstance(repl, list) and isinstance(repl[1], tuple):
+                        replace = repl.copy()
+                        # folder = repl[1][0]
+                        # replace[1] = repl[1][1]
+                        folder, replace[1] = repl[1]
+                        if debug_mode:
+                            print('Has folder check', type(replace), replace, replace[1])
+                        if isinstance(folder, list):
+                            for fo in folder:
+                                if subfolder in fo:
                                     rt = True
-                                    # logging.debug(folder)
-                            elif isinstance(folder, re.Pattern) and folder.search(
-                                subfolder
-                            ):
-                                # print("Check folder (regexp)", subfolder)
+                                    if debug_mode:
+                                        print(folder)
+                                    break
+                        elif isinstance(folder, str):
+                            if subfolder in folder:
                                 rt = True
-                            else:
-                                rt = False
-                        elif isinstance(repl, tuple):
-                            # logging.debug('Has folder check simple')
-                            folder, replace = repl
-                            # logging.debug("subfolder", subfolder, folder)
-                            if isinstance(folder, list):
-                                for fo in folder:
-                                    if subfolder in fo:
-                                        rt = True
-                            # elif subfolder in folder:
-                            elif isinstance(folder, str):
-                                # logging.debug("subfolder in folder", subfolder, folder)
-                                if subfolder in folder:
-                                    rt = True
-                                    # logging.debug(folder)
-                            elif isinstance(folder, re.Pattern):
-                                if folder.search(subfolder):
-                                    # logging.debug("Check folder (regexp) True", subfolder, repl)
-                                    rt = True
-                                # else: logging.debug("Folder EXCLUDED:", subfolder, repl)
-                            else:
-                                rt = False
-                        elif isinstance(repl, dict): # Trigger filename
-                            file, replace = list(repl.items())[0]
-                            # print(pattern, file, type(file), replace, type(basename))
-                            if file != basename:
-                                rt = True
-                            # else: print("\tEXCLUDED:", pattern, "from", basename)
-                        else:
-                            rt = True
-                        if not rt: continue
-                        # print(type(repl), tar, type(tar), subfolder)
-                        if isinstance(repl, list):
-                            if isinstance(tar, tuple):
-                                tar = tar[0]  # Take only first group
-                                logger.debug("ONLY GRP1:", type(replace), replace)
-                            # if debug_mode: print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
-                            replace = re.sub(
-                                replace[0],
-                                replace[1],
-                                tar,
-                                count=1,
-                                flags=re.I | re.M | re.A,
-                            )
-                        if isinstance(repl, str) or (
-                            not isinstance(tar, tuple)
-                            and tar in out
-                            and tar != replace
+                                # logging.debug(folder)
+                        elif isinstance(folder, re.Pattern) and folder.search(
+                            subfolder
                         ):
-                            # print("# Match:", tar)
-                            if isinstance(tar, tuple):
-                                tar = tar[0]  # Take only first group
-                                logger.debug(f"\tFROM GROUP1:\n{pattern}")
-                            # print("# Multiline replace:\n", replace, file=log_file)
-                            logger.info(f"Match:\n{tar}\nMultiline replace:\n{replace}")
-                            out = out.replace(tar, replace)
-                            changed = True
-                        elif debug_mode:
-                            logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
+                            # print("Check folder (regexp)", subfolder)
+                            rt = True
+                        else:
+                            rt = False
+                    elif isinstance(repl, tuple):
+                        folder, repl = repl
+                        # logging.debug("Has folder check simple, subfolder: {subfolder}, {folder}")
+                        if isinstance(folder, list):
+                            for fo in folder:
+                                if subfolder in fo:
+                                    rt = True
+                        # elif subfolder in folder:
+                        elif isinstance(folder, str):
+                            # logging.debug("subfolder in folder, subfolder: {subfolder}, {folder}")
+                            if subfolder in folder:
+                                rt = True
+                        elif isinstance(folder, re.Pattern):
+                            if folder.search(subfolder):
+                                # logging.debug("Check folder (regexp) True", subfolder, repl)
+                                rt = True
+                            # else: logging.debug("Folder EXCLUDED:", subfolder, repl)
+                        else:
+                            rt = False
+                    elif isinstance(repl, dict): # Trigger filename
+                        file, replace = list(repl.items())[0]
+                        # print(pattern, file, type(file), replace, type(basename))
+                        if file != basename:
+                            rt = True
+                        # else: print("\tEXCLUDED:", pattern, "from", basename)
+                    else: # isinstance(repl, str)
+                        rt = True
+                    if not rt or not pattern.search(out):
+                        continue
+
+                    if replace:
+                        targets = pattern.finditer(out) # findall 
+                        if targets:
+                            targets = list(targets)
+                            # print(f"tar4: {targets}, {type(targets)}")
+                        else:
+                            continue
+                        for t in reversed(targets):
+                            tar = t.group(0) # match
+                            # print(type(repl), tar, type(tar))
+                            if isinstance(replace, list):
+                                if isinstance(tar, tuple):
+                                    tar = tar[0]  # Take only first group
+                                    logger.debug("ONLY GRP1:", type(replace), replace)
+                                # print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+                                replace = re.sub(
+                                    replace[0],
+                                    replace[1],
+                                    tar,
+                                    count=1,
+                                    flags=re.I | re.M | re.A,
+                                )
+                            else: replace = False
+                            # TODO optimize
+                            if replace and (isinstance(replace, str) and (
+                                    not isinstance(tar, tuple) and
+                                    tar != replace and
+                                    tar in out
+                                )
+                            ):
+                                if isinstance(tar, tuple):
+                                    tar = tar[0]  # Take only first group
+                                    logger.warning(f"\tFROM GROUP1:\n{pattern}")
+                                # print("# Multiline replace:\n", replace, file=log_file)
+                                logger.info(f"Match: {tar}\nMultiline replace: {replace}")
+
+                                out = out[:t.start()] + replace + out[t.end():]
+                                # out = out.replace(tar, replace)
+                                changed = True
+                            else:
+                                logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
+                    elif isinstance(repl, str):
+                        logger.info(f"Match: {pattern}\nSimple multiline replace all:\n{repl}")
+                        out = pattern.sub(repl, out)
+                        changed = True
 
                 if changed and not only_warning:
                     structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
