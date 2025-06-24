@@ -158,11 +158,14 @@ v4_0 = {
         [r"\btrading_value\b", "REMOVED in v4.0"],
         [r"\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
         [r"\bis_half_species\b", "REMOVED in v4.0"],
-        [r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
-        [r"\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"],
         [r"\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
+        # Scope
+        [r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
+        # [r"\blast_refugee_country\b", "REMOVED in v4.0"],
+        [r"\bplanet_owner\b", "REMOVED in v4.0"],
         # Modifier
-        [r"\bbranch_office_value\b", "REMOVED in v4.0"],
+        # [r"\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"], TODO CHECK
+        # [r"\bbranch_office_value\b", "Modifier REPLACED in v4.0 with trigger same name"],
         [r"\bdiplo_fed_xpboost\b", "REMOVED in v4.0"],
         [r"\bhabitat_district_jobs_add\b", "REMOVED in v4.0"],
         [r"\bhabitat_districts_building_slots_add\b", "REMOVED in v4.0"],
@@ -203,6 +206,7 @@ v4_0 = {
             r"\1\2_2",
         r"^[^#]*?(\s+)country_event = \{\s+id = first_contact.1060[^{}#]+\}": r"\1if = {\n\1\tlimit = { very_first_contact_paragon = yes }\n\1\tset_country_flag = first_contact_protocol_event_happened\n\1}",
         r"\bplanet_storm_dancers\b": "planet_entertainers",
+        r"([\s.])planet_owner =": r"\1planet.owner =",
         r"\bhas_any_industry_district\b": (NO_TRIGGER_FOLDER, "has_any_industry_zone"),
         r"\bhas_any_mining_district\b": (NO_TRIGGER_FOLDER, "has_any_capped_planet_mining_district"),
         r"\b(?:add|remove)_leader_traits_after_modification\b": "update_leader_after_modification",
@@ -247,7 +251,7 @@ v4_0 = {
         r"\bcategory = pop\b": "category = pop_group",
         r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
         r"^(\s+)pop_change_ethic = ([\d\w\.:]+)\b":  r"\1pop_group_transfer_ethic = {\n\1\tPOP_GROUP = this\n\1\tETHOS = \2\n\1\tPERCENTAGE = 1\n\1}", # AMOUNT = 100
-        r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\1size\2", # Just cheap pre-fix
+        r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
         r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
         r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
         r"\bis_pop_category = specialist\b": "is_specialist_category = yes",
@@ -309,7 +313,7 @@ v4_0 = {
         r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
         r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
             r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\d\w\.:]+)\s+(ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
-            r"create_pop_group = { \2 size = \1\3 }"],
+            r"create_pop_group = { \g<2> size = \g<1>00 \g<3> }"],
         r"\ballowed_peace_offers = \{\s+(?:(?:status_quo|surrender|demand_surrender)\s+){1,3}\s*\}": [
             r"allowed_peace_offers = \{\s+(status_quo|surrender|demand_surrender)\s*(status_quo|surrender|demand_surrender)?\s*(status_quo|surrender|demand_surrender)?\s*\}",
             ("common/war_goals", lambda p: ""
@@ -2139,6 +2143,7 @@ def modfix(file_list, is_subfolder=False):
 
         for i, line in enumerate(lines):
             stripped = line.strip()
+            line_changed = False
             if stripped == "" or stripped.startswith('#'):
                 continue
 
@@ -2174,37 +2179,29 @@ def modfix(file_list, is_subfolder=False):
                         if stripped.startswith('add_trait ='):
                             line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
                             lines[i] = line
-                            changed = True
+                            line_changed = True
                         elif stripped.startswith('add_trait_no_notify ='):
                             line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
                             lines[i] = line
-                            changed = True                    
+                            line_changed = True                    
                     else:
                         for tar, repl in TARGETS_TRAIT.items():
                             line = tar.sub(repl, line) # , count=1
                             if lines[i] != line:
                                 lines[i] = line
-                                changed = True
+                                line_changed = True
                                 break
                 # else: # Cheap fallback fix # TODO: remove BLIND matches!?
                 #     for tar, repl in TARGETS_TRAIT.items():
                 #         line = tar.sub(repl, line)
                 #         if lines[i] != line:
                 #             lines[i] = line
-                #             changed = True
-                #             logger.info(
-                #                "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
-                #                % (
-                #                    basename,
-                #                    stripped,
-                #                    i,
-                #                    line.lstrip(),
-                #                )
-                #             )
+                #             line_changed = True
                 #             break
                 #         else:
                 #             logger.debug("BLIND trait match")
-                    if changed:
+                    if line_changed:
+                        changed = True
                         logger.info(
                                "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
                                % (
