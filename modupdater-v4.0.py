@@ -24,7 +24,7 @@ FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.20' # @last supporte
 # Default values
 mod_path = "" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\" # os.path.dirname(os.getcwd())
 only_warning = 0
-only_actual = 0
+only_actual = 1
 code_cosmetic = 0
 also_old = 0
 debug_mode = 0  # without writing file=log_file
@@ -341,6 +341,8 @@ v4_0 = {
                 ('\t\t'+m.group(3) if m.group(3) else '')+
                 '\t\t}\n\t}\n'
             )],
+        r"(group = \{\s+(?:limit = \{\s+)?(?:\bNO[RT] = \{\s+)?)(\b(?:owner_)?species = \{\s+)?is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
+            r"\1is_robot_pop_group = \3",
     },
 }
 
@@ -378,8 +380,6 @@ v3_13 = {
         # Limited Fix the wrong scope is_robotic - supported scopes: leader, pop, pop_group, country
         # r"((?:leader|pop_amount|controller|owner|overlord|country) = \{\s+)(\blimit = \{\s+)?(?:\bNO[RT] = \{\s+)?(\b(?:owner_)?species = \{\s+)is_robotic = (yes|no)(?(3)\s+\})":
         #     (NO_TRIGGER_FOLDER, r"\1\2is_robotic_species = \4"), just for repair
-        r"(group = \{\s+)(?:\blimit = \{\s+)?(?:\bNO[RT] = \{\s+)?(\b(?:owner_)?species = \{\s+)is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
-            r"\1is_robot_pop_group = \3",
         # r"\s(?:\bNO[RT]|\bOR) = \{\s*(?:has_trait = \"?trait_(?:mechanical|machine_unit)\"?\s*?){2}\}": [
         #     r"\b(NO[RT]|OR) = \{\s*(?:has_trait = \"?trait_(?:mechanical|machine_unit)\"?\s*?){2}\}", (NO_TRIGGER_FOLDER,
         #     lambda p: "is_robotic = " + ("yes" if p.group(1) and p.group(1) == "OR" else "no")
@@ -543,7 +543,7 @@ v3_10 = {
         ],
     ],
     "targets3": {
-        r"\bcan_fill_specialist_job =": "can_fill_specialist_job_trigger =",
+        # r"\bcan_fill_specialist_job\b": "can_fill_specialist_job_trigger",
         r"\bleader_age = ": "leader_lifespan_add = ",
         r"^on_survey = \{": ("common/on_actions", "on_survey_planet = {"),
         r"councilor_trait = no\n?": ("common/traits", ""),
@@ -1441,8 +1441,9 @@ actuallyTargets = {
         r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
         r"(?:(\s+)is_country_type = (?:default|awakened_fallen_empire)\b){2}": (NO_TRIGGER_FOLDER, r"\1is_country_type_with_subjects = yes"),
         r"(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\s+(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\b": (NO_TRIGGER_FOLDER, "is_synthetic_empire = yes"),
-        r'\bhas_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?\s+has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?\s+has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?\b': (NO_TRIGGER_FOLDER, "is_homicidal = yes"),
-        r"\b(?:has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm|barbaric_despoilers)\s+\"?){4}": (NO_TRIGGER_FOLDER, "is_unfriendly = yes\n"),
+        r'(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?){3}': (NO_TRIGGER_FOLDER, r"\1is_homicidal = yes"),
+        r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm|barbaric_despoilers)\"?){4}": (NO_TRIGGER_FOLDER, r"\1is_unfriendly = yes"),
+        r"is_homicidal = yes\s+has_(?:valid_)?civic = \"?barbaric_despoilers\"?": "is_unfriendly = yes",
         r"NOT = \{\s*check_variable = \{\s*which = \"?\w+\"?\s+value = [^{}#\s=]\s*\}\s*\}": [
             r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}",
             r"\1 != \2 }",
@@ -1941,6 +1942,7 @@ def parse_dir():
     if not os.path.isdir(mod_path) or not os.path.isfile(os.path.join(mod_path, "descriptor.mod")):
         mod_path = os.getcwd() if not os.path.isdir(mod_path) else mod_path
         mod_path = iBox("Please select a mod folder:", mod_path)
+        mod_path = os.path.normpath(mod_path)
 
     if not os.path.isdir(mod_path):
         # except OSError:
@@ -2406,8 +2408,8 @@ def modfix(file_list, is_subfolder=False):
                     out += line
 
                 if "inline_scripts" not in subfolder:
-                    # The last values from the loop
-                    if line[-1][0] != "\n" and not stripped.startswith("#"):
+                    # The last values from the loop (if there is just one empty line the vanilla parser gets crazy)
+                    if i > 1 and line[-1][0] != "\n" and not stripped.startswith("#"):
                         out += "\n"
                         logger.debug(f"Added needed empty line at end: {i} '{line}' {len(line)}")
                         changed = True
@@ -2779,13 +2781,12 @@ if __name__ == "__main__":
     targets4 = [(re.compile(k, flags=re.I), targets4[k]) for k in targets4]
 
     ### General Fixes (needs to be first due reverse order)
-    
     items_to_add = [
         (re.compile(r"\bNO[RT] = \{\s+(\w+ = )yes\s+\}", flags=re.I), r"\1no"), # RESOLVE NOT with one item
         (re.compile(r"\bOR = \{\s+(\w+ = [^{}#\s]+)\s+\}", flags=re.I), r"\1"), # REMOVE OR with one item
     ]
     targets4[:0] = items_to_add
-    # targets4.extend(items_to_add)
+    targets4.extend(items_to_add)
 
     # targetsR = [(re.compile(k[0], flags=0), k[1]) for k in targetsR]
     for i, item in enumerate(targetsR):
