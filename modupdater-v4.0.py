@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/24
+# @Revision: 2025/06/26
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -162,7 +162,7 @@ v4_0 = {
         # Scope
         [r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
         # [r"\blast_refugee_country\b", "REMOVED in v4.0"],
-        [r"\bplanet_owner\b", "REMOVED in v4.0"],
+        # [r"((?<!_as =)[\s.]planet_owner\b", "REMOVED in v4.0"],
         # Modifier
         # [r"\bplanet_telepaths_unity_produces_add\b", "REMOVED in v4.0"], TODO CHECK
         # [r"\bbranch_office_value\b", "Modifier REPLACED in v4.0 with trigger same name"],
@@ -206,7 +206,7 @@ v4_0 = {
             r"\1\2_2",
         r"^[^#]*?(\s+)country_event = \{\s+id = first_contact.1060[^{}#]+\}": r"\1if = {\n\1\tlimit = { very_first_contact_paragon = yes }\n\1\tset_country_flag = first_contact_protocol_event_happened\n\1}",
         r"\bplanet_storm_dancers\b": "planet_entertainers",
-        r"([\s.])planet_owner =": r"\1planet.owner =",
+        r"((?<!_as =)[\s.])planet_owner": r"\1planet.owner",
         r"\bhas_any_industry_district\b": (NO_TRIGGER_FOLDER, "has_any_industry_zone"),
         r"\bhas_any_mining_district\b": (NO_TRIGGER_FOLDER, "has_any_capped_planet_mining_district"),
         r"\b(?:add|remove)_leader_traits_after_modification\b": "update_leader_after_modification",
@@ -254,7 +254,7 @@ v4_0 = {
         r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
         r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
         r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
-        r"\bis_pop_category = specialist\b": "is_specialist_category = yes",
+        r"\bis_pop_category = specialist\b": (NO_TRIGGER_FOLDER, "is_specialist_category = yes"),
         r"\bguardian_warden\b": "guardian_opus_sentinel",
         r"\bbuilding_clinic\b": "building_medical_2",
         # r"\boffspring_drone\b": "spawning_drone",
@@ -283,7 +283,7 @@ v4_0 = {
         # Modifier trigger
         r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
         # Modifier effect
-        r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
+        r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b" % PLANET_MODIFIER: multiply_by_hundred,
         # r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
     },
     "targets4": {
@@ -371,7 +371,15 @@ v3_13 = {
         r"\bset_faction_hostility = \{\s*(?:target = [\d\w\.:]+)?(?:\s+set_(?:hostile|neutral|friendly) = (?:yes|no)){3}\s*(?:target = [\d\w\.:]+)?\s*\}": [
             r"\s+(?:\w+ = no\s+){0,2}(set_(?:hostile|neutral|friendly) = yes)\s*?(?:\w+ = no\s+){0,2}\s*(target = [\d\w\.:]+)?\s*\}",
             lambda p: " " + p.group(1) + " " + (p.group(2) + " }" if p.group(2) else "}")],
-        r"(?:(\s+)has_trait = \"?trait_(?:mechanical|machine_unit)\"?){2}": (NO_TRIGGER_FOLDER, r"\1is_robotic = yes"),
+        # WARNING TODO: TEST only support species scope
+        r"(species = \{\s+is_robotic)_species =": r"\1 =",
+        r"(\s)species = \{\s+(is_robotic) = (yes|no)\s+\}": (NO_TRIGGER_FOLDER, r"\1\2_species = \3"),
+        r"(?:(\s+)(?:has_trait = \"?trait_(?:mechanical|machine_unit)\"?|is_species_class = (?:ROBOT|MACHINE))){2}": (NO_TRIGGER_FOLDER, r"\1is_robotic_species = yes"),
+        # Limited Fix the wrong scope is_robotic - supported scopes: leader, pop, pop_group, country
+        # r"((?:leader|pop_amount|controller|owner|overlord|country) = \{\s+)(\blimit = \{\s+)?(?:\bNO[RT] = \{\s+)?(\b(?:owner_)?species = \{\s+)is_robotic = (yes|no)(?(3)\s+\})":
+        #     (NO_TRIGGER_FOLDER, r"\1\2is_robotic_species = \4"), just for repair
+        r"(group = \{\s+)(?:\blimit = \{\s+)?(?:\bNO[RT] = \{\s+)?(\b(?:owner_)?species = \{\s+)is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
+            r"\1is_robot_pop_group = \3",
         # r"\s(?:\bNO[RT]|\bOR) = \{\s*(?:has_trait = \"?trait_(?:mechanical|machine_unit)\"?\s*?){2}\}": [
         #     r"\b(NO[RT]|OR) = \{\s*(?:has_trait = \"?trait_(?:mechanical|machine_unit)\"?\s*?){2}\}", (NO_TRIGGER_FOLDER,
         #     lambda p: "is_robotic = " + ("yes" if p.group(1) and p.group(1) == "OR" else "no")
@@ -614,7 +622,7 @@ v3_10 = {
     "targets4": {
         r'\bleader_class = "?commander"?\s+leader_class = "?commander"?\b': "leader_class = commander",
         # r"^\s+leader_class = \{\s*((?:admiral|scientist|general|governor)\s+){1,4}": [r'(admiral|general|governor)', (["common/traits", "common/governments/councilors"], lambda p: {"governor": "official", "admiral": "commander", "general": "commander" }[p.group(1)])],
-        r"(?:\s+has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3}\s*": " is_terraforming_candidate = yes ",
+        r"(?:\s+has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3}\s*":  (NO_TRIGGER_FOLDER, " is_terraforming_candidate = yes "),
     },
 }
 # CAELUM
@@ -631,8 +639,8 @@ v3_9 = {
     "targets3": {
         # r'\bhabitat_0\b': 'major_orbital', # 'habitat_central_complex',
         r"\bimperial_origin_start_spawn_effect =": "origin_spawn_system_effect =",
-        r"\b(?:is_orbital_ring = no|has_starbase_size >= starbase_outpost)": "is_normal_starbase = yes",
-        r"\b(?:is_normal_starbase = no|has_starbase_size >= orbital_ring_tier_1)": "is_orbital_ring = yes",
+        r"\b(?:is_orbital_ring = no|has_starbase_size >= starbase_outpost)": (NO_TRIGGER_FOLDER, "is_normal_starbase = yes"),
+        r"\b(?:is_normal_starbase = no|has_starbase_size >= orbital_ring_tier_1)": (NO_TRIGGER_FOLDER, "is_orbital_ring = yes"),
         # r'\bhas_starbase_size (>)=? starbase_outpost': lambda p: 'is_normal_starbase = yes',
         r"\bcan_see_in_list = (yes|no)": lambda p: "hide_leader = " + {"yes": "no", "no": "yes"}[p.group(1)],
         # r'\bis_roaming_space_critter_country_type = (yes|no)':  lambda p: {"yes": "", "no": "N"}[p.group(1)] + 'OR = {is_country_type = tiyanki is_country_type = amoeba is_country_type = amoeba_borderless }', # just temp beta
@@ -975,10 +983,10 @@ v3_4 = {
             r"OR = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
             "is_doomsday_planet = yes",
         ],
-        r"\bvalue = subject_loyalty_effects\s+\}\s+\}": [
-            r"(subject_loyalty_effects\s+\})(\s+)\}",
-            ("common/agreement_presets", r"\1\2\t{ key = protectorate value = subject_is_not_protectorate }\2}"),
-        ],
+        # r"\bvalue = subject_loyalty_effects\s+\}\s+\}": [ # Not valid for preset_protectorate
+        #     r"(subject_loyalty_effects\s+\})(\s+)\}",
+        #     ("common/agreement_presets", r"\1\2\t{ key = protectorate value = subject_is_not_protectorate }\2}"),
+        # ],
     },
 }
 """ 3.3 LIBRA TODO soldier_job_check_trigger
@@ -1006,7 +1014,7 @@ v3_3 = {
         # r"\bGFX_ship_part_auto_repair": (["common/component_sets", "common/component_templates"], 'GFX_ship_part_ship_part_nanite_repair_system'), # because icons.gfx
         r"\b(country_election_)influence_(cost_mult)": r"\1\2",
         r"\bwould_work_job": ("common/game_rules", "can_work_specific_job"),
-        r"\bhas_civic = civic_reanimated_armies": "is_reanimator = yes",
+        r"\bhas_(?:valid_)?civic = civic_reanimated_armies": (NO_TRIGGER_FOLDER, "is_reanimator = yes"),
         # r"^(?:\t\t| {4,8})value =": ("common/ethics", 'base ='), maybe too cheap
         # r"\bcountry_admin_cap_mult\b": ("common/**", 'empire_size_colonies_mult'),
         # r"\bcountry_admin_cap_add\b": ("common/**", 'country_edict_fund_add'),
@@ -1325,7 +1333,6 @@ v3_0 = {
         # r"(\s+)planet = (solar_system|planet)\b": "",  # REMOVE???
         r"(\s+)any_system_within_border = \{\s*any_system_planet = (.*?\s*\})\s*\}": r"\1any_planet_within_border = \2",  # very rare, maybe put to cosmetic
         r"is_country_type = default\s+has_monthly_income = \{\s*resource = (\w+) value <=? \d": r"no_resource_for_component = { RESOURCE = \1",
-        r"([^\._])owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}": r"\1is_owned_by = \2",
         ## Since Megacorp removed: change_species_characteristics was false documented until 3.2
         r"[\s#]+(pops_can_(be_colonizers|migrate|reproduce|join_factions|be_slaves)|can_generate_leaders|pops_have_happiness|pops_auto_growth|pop_maintenance) = (yes|no)\s*": "",
     },
@@ -1381,6 +1388,7 @@ actuallyTargets = {
         r"\bis_country\b": "is_same_empire",
         r"(\s+)is_same_value = ([\w\.:]+\.(?:controller|(?:space_)?owner)(?:\.overlord)?(?:[\s}]+|$))": r"\1is_same_empire = \2",
         r"((?:controller|(?:space_)?owner|overlord|country) = \{|is_ai = (?:yes|no))\s+is_same_value\b": r"\1 is_same_empire",
+        r"([^\._])owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}": r"\1is_owned_by = \2",
     },
     "targets4": {
         ### < 3.0
@@ -1484,14 +1492,24 @@ actuallyTargets = {
         ],
         r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
         # r"\bany_(?:playable_)?country = \{[^{}#]*(?:NO[RT] = \{)?\s*is_same_value\b": ["is_same_value", "is_same_empire"],
-        # REMOVE OR with one item
-        r"\bOR = \{\s+(\w+ = [^\s#]+)\s+\}": r"\1",
-        r"\bNO[RT] = \{\s+(\w+ = )yes\s+\}": r"\1no",
     },
 }
 
 ACTUAL_STELLARIS_VERSION_FLOAT = float(ACTUAL_STELLARIS_VERSION_FLOAT)
 print("ACTUAL_STELLARIS_VERSION_FLOAT", ACTUAL_STELLARIS_VERSION_FLOAT)
+
+exclude_paths = [
+    "achievements",
+    "agreement_presets",
+    "component_sets",
+    "component_templates",
+    "notification_modifiers",
+    # "on_actions",
+    "scripted_variables",
+    "start_screen_messages",
+    "section_templates",
+    "ship_sizes",
+]
 
 # 1. Define a list of version configurations, sorted from newest to oldest.
 # Each item is a tuple: (version_threshold_float, data_dictionary_for_that_version)
@@ -1747,19 +1765,6 @@ def do_code_cosmetic():
     targets4[r"(?:(\s+)merg_is_(?:default|fallen)_empire = yes){2}"] = r"\1is_default_or_fallen = yes"
     
 
-
-exclude_paths = [
-    "agreement_presets",
-    "component_sets",
-    "component_templates",
-    "notification_modifiers",
-    # "on_actions",
-    "scripted_variables",
-    "start_screen_messages",
-    "section_templates",
-    "ship_sizes",
-]
-
 def is_float(s):
     try:
         float(s)
@@ -1793,7 +1798,7 @@ def extract_scripted_triggers():
     of defined scripted triggers.
     """
     custom_triggers = {}
-    triggers_dir = os.path.join(mod_path + "/common/scripted_triggers")
+    triggers_dir = os.path.normpath(os.path.join(mod_path + "/common/scripted_triggers"))
     logger.debug(f"extract_scripted_triggers from: {triggers_dir}")
 
     if len(triggers_dir) == 0 or not os.path.isdir(triggers_dir):
@@ -1955,7 +1960,7 @@ def parse_dir():
     else:
         mod_outpath = os.path.normpath(mod_outpath)
 
-    exclude_paths = [os.path.join(mod_path, "common", e) for e in exclude_paths]
+    exclude_paths = [os.path.normpath(os.path.join(mod_path, "common", e)) for e in exclude_paths]
 
     # Using the custom formatter
     # Prevent adding multiple handlers if this setup code is run more than once
@@ -2067,6 +2072,7 @@ def modfix(file_list, is_subfolder=False):
 
     # logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
     subfolder = ""
+    # file_pattern = re.compile(r"^[\s#]")
 
     # Since v4.0
     TARGETS_DEF_OLD = re.compile(r"(COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\b")
@@ -2215,9 +2221,10 @@ def modfix(file_list, is_subfolder=False):
         return lines, changed
 
     for _file in file_list:
+        _file = os.path.normpath(_file)
         if not any(_file.startswith(p) for p in exclude_paths) and os.path.isfile(_file) and _file.endswith(".txt"):
             file_contents = ""
-            logging.debug("\tCheck file: %s" % _file)
+            logger.debug(f"Check file: {_file}")
             with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
                 # out = txtfile.read() # full_fille
                 # try:
@@ -2322,8 +2329,8 @@ def modfix(file_list, is_subfolder=False):
                             if isinstance(repl, dict):
                                 # is a 3 tuple
                                 file, repl = list(repl.items())[0]
-                                if debug_mode:
-                                    print("tar3", stripped, "\n", pattern, repl, file)
+                                # if debug_mode:
+                                #     print("tar3", stripped, "\n", pattern, repl, file)
                                 if isinstance(repl, str):
                                     if file != basename:
                                         rt = True
@@ -2402,16 +2409,15 @@ def modfix(file_list, is_subfolder=False):
                     # The last values from the loop
                     if line[-1][0] != "\n" and not stripped.startswith("#"):
                         out += "\n"
-                        logger.info(f"Added needed empty line at end: {i} '{line}' {len(line)}")
+                        logger.debug(f"Added needed empty line at end: {i} '{line}' {len(line)}")
                         changed = True
-                    if out.startswith('\n'):
-                        out = out.replace('\n', '', 1)
-                        changed = True
+                    # if not file_pattern.search(out):
+                    #     out = '\n' + out
+                    #     changed = True
 
                 # for pattern, repl in tar4.items(): old dict way
                 for pattern in tar4:  # new list way
                     pattern, repl = pattern
-                
                     rt = False # check valid folder before loop
                     replace = False # repl
 
@@ -2465,6 +2471,9 @@ def modfix(file_list, is_subfolder=False):
                     if not rt or not pattern.search(out):
                         continue
 
+                    if not replace and isinstance(repl, str):
+                        replace = [pattern, repl]
+
                     if replace:
                         targets = pattern.finditer(out) # findall 
                         if targets:
@@ -2472,7 +2481,7 @@ def modfix(file_list, is_subfolder=False):
                             # print(f"tar4: {targets}, {type(targets)}")
                         else:
                             continue
-
+                            
                         if isinstance(replace[0], str):
                             repl[0] = replace[0] = re.compile(replace[0], flags=re.I | re.M | re.A)
                             logger.debug(f"Compiled: {tar4[1][0]} - {type(tar4[1][0])}")
@@ -2480,35 +2489,33 @@ def modfix(file_list, is_subfolder=False):
                             tar = t.group(0) # match
                             # print(type(repl), tar, type(tar))
                             if isinstance(replace, list):
-                                if len(t.groups()) > 1:
-                                    # tar = t.group(1)  # Take only first group
-                                    logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
+                                # if len(t.groups()) > 1:
+                                #     tar = t.group(1)  # Take only first group
+                                #     logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
                                 # print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
                                 replace, num_re = replace[0].subn(replace[1], tar, count=1)
-                                if num_re != 1: replace = False
-                            else: replace = False
+                                if num_re != 1:
+                                    replace = False
+                            else:
+                                replace = False
 
                             if replace and isinstance(replace, str): 
                                 # and isinstance(tar, str) 
                                 # and tar != replace:
-                                if isinstance(tar, tuple):
-                                    tar = tar[0]  # Take only first group
-                                    logger.warning(f"\tFROM GROUP1:\n{pattern.pattern}")
                                 logger.info(f"Match: {tar}\nMultiline replace: {replace}")
                                 out = out[:t.start()] + replace + out[t.end():]
-                                # out = out.replace(tar, replace)
                                 changed = True
                             else:
                                 logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
-                    elif isinstance(repl, str): # or callable(repl)
-                        if debug_mode:
-                            targets = pattern.findall(out)
-                            for tar in targets:
-                                logger.info(f"Match: {tar}\nSimple multiline replace all:\n{pattern.sub(repl, tar, count=1)}")
-                        else:
-                            logger.info(f"Match: {pattern.pattern}\nSimple multiline replace all:\n{repl}")
-                        out = pattern.sub(repl, out)
-                        changed = True
+                    # elif isinstance(repl, str): # or callable(repl)
+                    #     # if debug_mode: TODO
+                    #     targets = pattern.findall(out)
+                    #     for tar in targets:
+                    #         logger.info(f"Match: {tar}\nSimple multiline replace all:\n{pattern.sub(repl, tar, count=1)}")
+                    #     # else:
+                    #     #     logger.info(f"Match: {pattern.pattern}\nSimple multiline replace all:\n{repl}")
+                    #     out = pattern.sub(repl, out)
+                    #     changed = True
                     else:
                         logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
 
@@ -2609,14 +2616,6 @@ def modfix(file_list, is_subfolder=False):
                 pattern = pattern2.search(out)
                 if pattern:
                     pattern = pattern.group(1)
-
-                # b'Freebooters Origin [3.14.\xe2\x98\xa0] (reborn)' version 3.14.1592653.0 on 'descriptor.mod' updated to 4.0.5!
-                # print(
-                #     pattern,
-                #     "version %s on 'descriptor.mod' updated to %s!"
-                #     % (m, FULL_STELLARIS_VERSION),
-                #     file=log_file,
-                # )
                 logger.info(
                     "%s version %s on 'descriptor.mod' updated to %s!"
                     % (pattern, m, FULL_STELLARIS_VERSION)
@@ -2778,6 +2777,16 @@ if __name__ == "__main__":
     ### Pre-Compile regexps
     targets3 = [(re.compile(k, flags=0), targets3[k]) for k in targets3]
     targets4 = [(re.compile(k, flags=re.I), targets4[k]) for k in targets4]
+
+    ### General Fixes (needs to be first due reverse order)
+    
+    items_to_add = [
+        (re.compile(r"\bNO[RT] = \{\s+(\w+ = )yes\s+\}", flags=re.I), r"\1no"), # RESOLVE NOT with one item
+        (re.compile(r"\bOR = \{\s+(\w+ = [^{}#\s]+)\s+\}", flags=re.I), r"\1"), # REMOVE OR with one item
+    ]
+    targets4[:0] = items_to_add
+    # targets4.extend(items_to_add)
+
     # targetsR = [(re.compile(k[0], flags=0), k[1]) for k in targetsR]
     for i, item in enumerate(targetsR):
         # new_outer_list_item = []
