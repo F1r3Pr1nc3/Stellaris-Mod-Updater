@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/28
+# @Revision: 2025/06/30
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -22,7 +22,7 @@ import datetime
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.21' # @last supported sub-version
 # Default values
-mod_path = "" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\" # os.path.dirname(os.getcwd())
+mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\" # os.path.dirname(os.getcwd())
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -349,7 +349,7 @@ v4_0 = {
 v3_13 = {
 	"targetsR": [
 		# [r"\bhas_authority\b", "Replaced in v3.13 with scripted trigger"]
-		[r"^\s*?[^#]+\s+\b(?:%s)_(?:system|galaxy_(?:fleet|planet|pop|species))\b" % "every|count|ordered", "global command"] # VANILLA_PREFIXES
+		[r"^[^#]+\s+\b(?:%s)_(?:system|galaxy_(?:fleet|planet|pop|species))\b" % "every|count|ordered", "global command"] # VANILLA_PREFIXES
 	],
 	"targets3": {
 		r"\bhas_authority = (\"?)auth_(imperial|democratic|oligarchic|dictatorial)\1\b":  (NO_TRIGGER_FOLDER, r"is_\2_authority = yes"),
@@ -498,9 +498,7 @@ v3_11 = {
 	},
 }
 if code_cosmetic and not only_warning:
-	v3_11["targets3"][r"^(\s+[^#]*?\btech_)((?:society|physics|engineering)_\d)"] = (
-		lambda p: p.group(1)
-		+ {
+	v3_11["targets3"][r"^(\s+[^#]*?\btech_)((?:society|physics|engineering)_\d)"] = lambda p: p.group(1) + {
 			"society_1": "genome_mapping",
 			"society_2": "colonization_3",
 			"society_3": "colonization_4",
@@ -511,8 +509,7 @@ if code_cosmetic and not only_warning:
 			"engineering_2": "space_mining_4",
 			"engineering_3": "advanced_metallurgy_2",
 		}[p.group(2)]
-	)
-
+	
 # """== 3.10 PYXIS (Astral Planes DLC) Quick stats ==
 # BTW: the modifier leader_age has been renamed to leader_lifespan_add, the trigger leader_lifespan has been introduced
 # Removed paragon.5001
@@ -528,7 +525,7 @@ v3_10 = {
 		[r"\bleader_trait_inspiring",
 			"Removed in v3.10, possible replacing by leader_trait_crusader",
 		],  # TODO: needs to be more accurate
-		[r"\s+kill_leader = \{ type", "Probably outdated since 3.10"],  # TODO: needs to be more accurate
+		[r"\bkill_leader = \{ type", "Probably outdated since 3.10"],  # TODO: needs to be more accurate
 		[r"\bai_categories", (["common/traits"], "Replaced in v3.10 with 'inline_script'")],
 		[r"\b(?:is_)?councilor_trait", (["common/traits"],
 							"Replaced in v3.10 with 'councilor_modifier' or 'force_councilor_trait = yes')")
@@ -536,7 +533,7 @@ v3_10 = {
 		[r"\bselectable_weight = @class_trait_weight", (["common/traits"],
 							"Replaced in v3.10 with inline_script'"),
 		],
-		[r"^\s+leader_class = \{\s*((?:admiral|general|governor)\s+){1,2}", (["common/traits", "common/governments/councilors"],
+		[r"^leader_class = \{\s*((?:admiral|general|governor)\s+){1,2}", (["common/traits", "common/governments/councilors"],
 							"Needs to be replaced with 'official' or 'commander' in v3.10"),
 		],
 	],
@@ -797,18 +794,9 @@ v3_7 = {
 v3_6 = {
 	# - .lua replaced by .shader
 	"targetsR": [
-		[
-			r"\bhas_ascension_perk = ap_transcendence\b",
-			"Removed in v3.6: can be replaced with 'has_tradition = tr_psionics_finish'",
-		],
-		[
-			r"\bhas_ascension_perk = ap_evolutionary_mastery\b",
-			"Removed in v3.6: can be replaced with 'has_tradition = tr_genetics_resequencing'",
-		],
-		[
-			r"\btech_genetic_resequencing\b",
-			"Replaced in v3.6: with 'tr_genetics_resequencing'",
-		],
+		[r"\bhas_ascension_perk = ap_transcendence\b", "Removed in v3.6: can be replaced with 'has_tradition = tr_psionics_finish'"],
+		[r"\bhas_ascension_perk = ap_evolutionary_mastery\b", "Removed in v3.6: can be replaced with 'has_tradition = tr_genetics_resequencing'"],
+		[r"\btech_genetic_resequencing\b", "Replaced in v3.6: with 'tr_genetics_resequencing'"],
 	],
 	"targets3": {
 		r"\bpop_assembly_speed": "planet_pop_assembly_mult",
@@ -885,10 +873,10 @@ For performance reason option
 """
 v3_4 = {
 	"targetsR": [
-		[r"^\s+empire_limit = \{", ("common/ship_sizes",
+		[r"^empire_limit = \{", ("common/ship_sizes",
 							'v3.4: "empire_limit" has been replaces by "ai_ship_data" and "country_limits"'),
 		],
-		[r"^\s+(?:ship_data|army_data) = \{", ("common/country_types",
+		[r"^(?:ship_data|army_data) = \{", ("common/country_types",
 							'v3.4: "ship_data & army_data" has been replaces by "ai_ship_data" and "country_limits"'),
 		],
 		r"\b(fire_warning_sign|add_unity_times_empire_size) = yes",
@@ -1019,7 +1007,7 @@ v3_2 = {
 	"targetsR": [
 		[r"\bslot = 0", "v3.2: set_starbase_module = now starts with 1"],
 		[r"\bany_pop\b", "use any_owned_pop/any_species_pop"],
-		[r"[^# \t]\s+is_planet_class = pc_ringworld_habitable\b",
+		[r"\bis_planet_class = pc_ringworld_habitable\b",
 			'v3.2: could possibly be replaced with "is_ringworld = yes"'
 		],
 		# r"\badd_tech_progress_effect = ", # replaced with add_tech_progress
@@ -1073,7 +1061,7 @@ v3_1 = {
 		[r"\bobservation_outpost = \{\s*limit", "v3.1: is now a scope (from planet) rather than a trigger/effect"],
 		r"\bpop_can_live_on_planet\b",  # r"\1can_live_on_planet", needs planet target
 		r"\bcount_armies\b",  # (scope split: depending on planet/country)
-		[r"^\s+icon_frame = \d+", (["common/bombardment_stances", "common/ship_sizes"], 'v3.1: "icon_frame" now only used for starbases')], # [6-9]  # Value of 2 or more means it shows up on the galaxy map, 1-5 denote which icon it uses on starbase sprite sheets (e.g. gfx/interface/icons/starbase_ship_sizes.dds)
+		[r"^icon_frame = \d+", (["common/bombardment_stances", "common/ship_sizes"], 'v3.1: "icon_frame" now only used for starbases')], # [6-9]  # Value of 2 or more means it shows up on the galaxy map, 1-5 denote which icon it uses on starbase sprite sheets (e.g. gfx/interface/icons/starbase_ship_sizes.dds)
 		# PRE TEST
 		# r"\bspaceport\W", # scope replace?
 		# r"\bhas_any_tradition_unlocked\W", # replace?
@@ -1277,7 +1265,7 @@ v3_0 = {
 		r"\bhas_(population|migration)_control = (yes|no)",
 		r"\b(%s)_planet\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
 		r"\b(%s)_ship\b" % VANILLA_PREFIXES,  # split in owner and galaxy and system scope
-		[r"^\s+ai_weight =", ("common/buildings",
+		[r"^ai_weight =", ("common/buildings",
 						"v3.0: ai_weight for buildings removed except for branch office"), # replaced buildings ai
 		],
 	],
@@ -1400,14 +1388,8 @@ actuallyTargets = {
 			r"\1NOR = {\2\3\4\5\6\7",
 		],  # only right indent for 5 items (sub-trigger)
 		### End boolean operator merge
-		r"\bany_country = \{[^{}#]*(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire|is_galactic_community_member|is_part_of_galactic_council) = yes)": [
-			r"any_country = (\{[^{}#]*(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire|is_galactic_community_member|is_part_of_galactic_council) = yes))",
-			r"any_playable_country = \1",
-		],
-		r"\s(?:every|random|count)_country = \{[^{}#]*limit = \{\s*(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire|is_galactic_community_member|is_part_of_galactic_council) = yes)": [
-			r"(\s(?:every|random|count))_country = (\{[^{}#]*limit = \{\s*(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire|is_galactic_community_member|is_part_of_galactic_council) = yes))",
+		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES: # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
 			r"\1_playable_country = \2",
-		],
 		r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
 		r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
 		r"(?:(\s+)is_country_type = (?:default|awakened_fallen_empire)\b){2}": (NO_TRIGGER_FOLDER, r"\1is_country_type_with_subjects = yes"),
@@ -1554,14 +1536,14 @@ def do_code_cosmetic():
 	triggerScopes = r"limit|trigger|any_\w+|leader|owner|controller|PREV|FROM|ROOT|THIS|event_target:\w+"
 
 	targetsR.append([r"\bnum_\w+\s*[<=>]+\s*[a-z]+[\s}]", "no scope alone"])  #  [^\d{$@] too rare (could also be auto fixed)
-	targetsR.append([r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}", "can be merged into NOR if not in an OR"])  #  [^\d{$@] too rare (could also be auto fixed)
+	targetsR.append([r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT]\s*=\s*\{\s*[^{}#\n]+\s*\}", "can be merged into NOR if not in an OR"])  #  [^\d{$@] too rare (could also be auto fixed)
 
 	targets3[r"(?:[<=>{]\s|\.|\t|PREV|FROM|Prev|From)+(PREV|FROM|ROOT|THIS|Prev|From|Root|This)+\b" ] = lambda p: p.group(0).lower()
-	targets3[r"\b(IF|ELSE|ELSE_IF|OWNER|Owner|CONTROLLER|Controller|LIMIT) ="] = lambda p: p.group(1).lower() + " ="
-	targets3[r"\b(or|not|nor|and) ="] = lambda p: p.group(1).upper() + " ="
+	targets3[r"\b(IF|ELSE|ELSE_IF|OWNER|Owner|CONTROLLER|Controller|LIMIT)\s*="] = lambda p: p.group(1).lower() + " ="
+	targets3[r"\b(or|not|nor|and)\s*="] = lambda p: p.group(1).upper() + " ="
 	targets3[r" {4}"] = r"\t"  # r" {4}": r"\t", # convert space to tabs
-	targets3[r"^(\s+)limit = \{\s*\}"] = r"\1# limit = { }"
-	targets3[r'\bhost_has_dlc = "([\s\w]+)"'] = (
+	targets3[r"^(\s+)limit\s*=\s*\{\s*\}"] = r"\1# limit = { }"
+	targets3[r'\bhost_has_dlc\s*=\s*"([\s\w]+)"'] = (
 		re.compile(r"^(?!common/traits)"),
 		lambda p: (
 			"has_" + DLC_triggers[p.group(1)] + " = yes"
@@ -1570,9 +1552,7 @@ def do_code_cosmetic():
 		),
 	)
 	# targets3[r"\s*days = -1\s*"] = ' ' # still needed to execute immediately
-	targets3[r"(?<!(?:e\.g|.\.\.))([#.])[\t ]{1,3}([a-z])([a-z]+ +[^;:\s#=<>]+)"] = (
-		lambda p: p.group(1) + " " + p.group(2).upper() + p.group(3)
-	)  # format comment
+	targets3[r"(?<!(?:e\.g|.\.\.))([#.])[\t ]{1,3}([a-z])([a-z]+ +[^;:\s#=<>]+)"] = lambda p: p.group(1) + " " + p.group(2).upper() + p.group(3) # format comment
 	targets3[r"#([^\-\s#])"] = r"# \1"  # r"#([^\s#])": r"# \1", # format comment
 	#  targets3[r"# +([A-Z][^\n=<>{}\[\]# ]+? [\w,\.;\'\//+\- ()&]+? \w+ \w+ \w+)$"] = r"# \1." # set comment punctuation mark
 	targets3[r"(?<!(?:e\.g|.\.\.))([#.][\t ][a-z])([a-z]+ +[^;:\s#=<>]+ [^\n]+?[\.!?])$" ] = lambda p: p.group(1).upper() + p.group(2)  # format comment
@@ -1585,23 +1565,19 @@ def do_code_cosmetic():
 				"=": "!=",
 			}[p.group(2)]  ) +" "+ p.group(3) if p.group(2) != "=" or p.group(3)[0] == "@" or p.group(3)[0] == "-" or is_float(p.group(3)) else p.group(0)
 	# targets3[r"(\w+)\s*!=\s*([^\n\s<\=>{}#]+)"] = r"NOT = { \1 = \2 }"
-	targets3[r"\bNOT = \{\s*(num_\w+|\w+?(?:_passed)) = (\d+)\s*\}"] = r"\1 != \2"
-	targets3[r"\bfleet = \{\s*(destroy|delete)_fleet = this\s*\}"] = (
-		r"\1_fleet = fleet"  # TODO may extend
-	)
-	targets3[r"\s+change_all = no"] = ""  # only yes option
-	targets3[r"(\s+has_(?:population|migration)_control) = (yes|no)"] = (
-		r"\1 = { type = \2 country = prev.owner }"  # NOT SURE
-	)
-	# targets3[r"\bNOT = \{\s*has_valid_civic\b"] = "NOT = { has_civic"
+	targets3[r"\bNOT\s*=\s*\{\s*(num_\w+|\w+?(?:_passed)) = (\d+)\s*\}"] = r"\1 != \2"
+	targets3[r"\bfleet\s*=\s*\{\s*(destroy|delete)_fleet = this\s*\}"] = r"\1_fleet = fleet"  # TODO may extend
+	targets3[r"\s+change_all\s*=\s*no"] = ""  # only yes option
+	targets3[r"(\s+has_(?:population|migration)_control)\s*=\s*(yes|no)"] = r"\1 = { type = \2 country = prev.owner }"  # NOT SURE
+		# targets3[r"\bNOT = \{\s*has_valid_civic\b"] = "NOT = { has_civic"
 	targets3[r"\bowner_main_species\b"] = "owner_species"
 	targets3[
 		re.compile(
-			r"\bNO[RT] = \{\s*((?:%s) = \{)\s*([^\s]+) = yes\s*\}\s*\}" % triggerScopes,
+			r"\bNO[RT]\s*=\s*\{\s*((?:%s) = \{)\s*([^\s]+)\s*=\s*yes\s*\}\s*\}" % triggerScopes,
 			re.I,
 		)
 	] = r"\1 \2 = no }"
-	targets3[r"(\s|\.)(?:space_)?owner = { (?:is_country_type = default|merg_is_default_empire = (yes|no)) \}"] = lambda p: (
+	targets3[r"(\s|\.)(?:space_)?owner\s*=\s*\{ (?:is_country_type\s*=\s*default|merg_is_default_empire\s*=\s*(yes|no)) \}"] = lambda p: (
 		(" = { can_generate_trade_value = " + p.group(2) + " }"
 		if p.group(1) == "."
 		else p.group(1) + "can_generate_trade_value = " + p.group(2))
@@ -1611,18 +1587,17 @@ def do_code_cosmetic():
 			else p.group(1) + "can_generate_trade_value = yes"
 	)
 	# Collect same scope
-	targets4[r"exists = (\w+)\n(?:\s+\1 = \{\s*\w+ = [^{}#\n]+?\s*\}[ \t]*\n)+"] = [
+	targets4[r"exists\s*=\s*(\w+)\n(?:\s+\1 = \{\s*\w+ = [^{}#\n]+?\s*\}[ \t]*\n)+"] = [
 			r"(\s+\w+ = \{)\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?",
 			r"\1 \2\3\4\5\6\7}\n"]  # up to 6 items
-	targets4[r"\bany_system_planet = \{\s*is_capital = (?:yes|no)\s*\}"] = [
-		r"any_system_planet = \{\s*is_capital = (yes|no)\s*\}",
+	targets4[r"\bany_system_planet\s*=\s*\{\s*is_capital\s*=\s*(?:yes|no)\s*\}"] = [
+		r"any_system_planet\s*=\s*\{\s*is_capital\s*=\s*(yes|no)\s*\}",
 		r"is_capital_system = \1",
 	]
-	targets4[r"(?:species|country|ship|pop|leader|army) = \{\s*is_same_value = [\w\.:]+?\.?species\s*\}"] = [
-		r"(species|country|ship|pop|leader|army) = \{\s*is_same_value = ([\w\.:]+?\.?species)\s*\}",
+	targets4[r"(?:species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*[\w\.:]+?\.?species\s*\}"] = [
+		r"(species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*([\w\.:]+?\.?species)\s*\}",
 		r"\1 = { is_same_species = \2 }"
 	]
-
 	# targets3[r"# *([A-Z][\w ={}]+?)\.$"] = r"# \1" # remove comment punctuation mark
 	# targets4[r"\n{3,}"] = "\n\n" # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
 	# only for planet galactic_object
@@ -1675,7 +1650,6 @@ def do_code_cosmetic():
 		% (VANILLA_ETHICS, VANILLA_ETHICS),
 		r"is_fallen_empire_\1\2 = yes",
 	]
-
 	targets4[
 		r'\b(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (?:yes|no)|has_machine_age_dlc = (?:yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")'
 	] = [
@@ -1728,10 +1702,10 @@ def do_code_cosmetic():
 
 	targets4[
 		r"\b(?:has_country_flag = synthetic_empire\s+owner_species = \{ has_trait = trait_mechanical \}|owner_species = \{ has_trait = trait_mechanical \}\s+has_country_flag = synthetic_empire)\b"
-	] = (NO_TRIGGER_FOLDER, "is_mechanical_empire = yes"),
+	] = (NO_TRIGGER_FOLDER, "is_mechanical_empire = yes")
 	targets4[
 		r"\b(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\b"
-	] = (NO_TRIGGER_FOLDER, "is_robot_empire = yes"),
+	] = (NO_TRIGGER_FOLDER, "is_robot_empire = yes")
 	targets4[r"(?:(\s+)merg_is_(?:fallen_empire|awakened_fe) = yes){2}"] = r"\1is_fallen_empire = yes"
 	targets4[r"(?:(\s+)merg_is_(?:default_empire|awakened_fe) = yes){2}"] = r"\1is_country_type_with_subjects = yes"
 	targets4[r"(?:(\s+)merg_is_(?:default|fallen)_empire = yes){2}"] = r"\1is_default_or_fallen = yes"
@@ -1847,11 +1821,8 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 				tar4[merger_triggers[trigger][0]] = merger_triggers[trigger][1]
 			else:
 				tar3[merger_triggers[trigger][0]] = merger_triggers[trigger][1]
+
 		if not keep_default_country_trigger:
-			tar4[
-				r"\s(?:%s)_playable_country = \{[^{}#]*(?:limit = \{\s+)?(?:is_country_type = default|CmtTriggerIsPlayableEmpire = yes|is_zofe_compatible = yes|merg_is_default_empire = yes)\s*" % VANILLA_PREFIXES] = [
-				r"((?:%s)_playable_country = \{[^{}#]*?(?:limit = \{\s+)?)(?:is_country_type = default|CmtTriggerIsPlayableEmpire = yes|is_zofe_compatible = yes|merg_is_default_empire = yes)\s*" % VANILLA_PREFIXES, r"\1",
-			]
 			# without is_country_type_with_subjects & without is_fallen_empire = yes
 			tar4[
 				r"\b(?:(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes))|(?:(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = default|merg_is_default_empire = yes))|(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)))"
@@ -1891,10 +1862,17 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 			elif trigger in merger_reverse_triggers:
 				tar3[merger_reverse_triggers[trigger][0]] = merger_reverse_triggers[trigger][1]
 				logger.debug(f"Removing nonexistent MoR trigger: {trigger}")
-
+	
 	### Pre-Compile regexps
 	tar3 = [(re.compile(k, flags=0), tar3[k]) for k in tar3]
 	tar4 = [(re.compile(k, flags=re.I), tar4[k]) for k in tar4]
+
+	# Cleanup
+	if mergerofrules:
+		tar4.append((re.compile(r"((?:%s)_playable_country = \{[^{}#]*?(?:limit = \{\s+)?)(?:is_country_type = default|CmtTriggerIsPlayableEmpire = yes|is_zofe_compatible = yes|merg_is_default_empire = yes)\s*" % VANILLA_PREFIXES), r"\1"))
+	else:
+		tar4.append((re.compile(r"((?:%s)_playable_country = \{[^{}#]*?(?:limit = \{\s+)?)(?:is_country_type = default|CmtTriggerIsPlayableEmpire = yes)\s*" % VANILLA_PREFIXES), r"\1"))
+
 	# print(tar3)
 	# print(tar4)
 	targets3.extend(tar3)
@@ -2068,7 +2046,6 @@ def modfix(file_list, is_subfolder=False):
 		for i, line in valid_lines:
 			stripped = line.lstrip()
 			if TARGETS_DEF_R.match(stripped):
-				line = lines[i]
 				lines[i] = line = line[:len(line)-len(stripped)] + '# ' + stripped
 				# valid_lines[l] = (i, line)
 				logger.info(f"\tCommented out obsolete define on file: {basename} on {stripped} (at line {i+1})")
@@ -2077,7 +2054,6 @@ def modfix(file_list, is_subfolder=False):
 				for tar, rep in TARGETS_DEF_3:
 					m = tar.match(stripped)
 					if m:
-						line = lines[i]
 						lines[i] = line = line[:len(line)-len(stripped)] + rep(m) + stripped[m.end():]
 						# valid_lines[l] = (i, line)
 						logger.info(f"\tMultiplied define value by 100 on file: {basename} on {stripped} (at line {i+1})")
@@ -2144,16 +2120,13 @@ def modfix(file_list, is_subfolder=False):
 				if not 'add_trait = {' in stripped:
 					if stripped.startswith('add_trait'): # and not stripped.endswith('}')
 						if stripped.startswith('add_trait ='):
-							line = lines[i]
 							line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
 							line_changed = True
 						elif stripped.startswith('add_trait_no_notify ='):
-							line = lines[i]
 							line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
 							line_changed = True
 					else:
 						for tar, repl in TARGETS_TRAIT.items():
-							line = lines[i]
 							line = tar.sub(repl, line) # , count=1
 							if lines[i] != line:
 								line_changed = True
@@ -2193,11 +2166,42 @@ def modfix(file_list, is_subfolder=False):
 			# print('Create folder:', subfolder)
 		open(out_file, "w", encoding="utf-8").write(out)
 
+	def process_folder(folder):
+		rt = False
+		# logging.debug("subfolder: {subfolder}, {folder}")
+		if isinstance(folder, list):
+			# logging.debug("folder list: {subfolder}, {folder}")
+			for fo in folder:
+				if subfolder in fo:
+					rt = True
+					break
+					# logging.debug(f"folder matches: {subfolder}, {folder}")
+		elif isinstance(folder, str):
+			# logging.debug(f"subfolder in folder: {subfolder}, {folder}")
+			if subfolder in folder:
+				rt = True
+				# logging.debug(folder)
+		elif isinstance(folder, re.Pattern):
+			if folder.search(subfolder):
+				# logging.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
+				rt = True
+			# logging.debug("Folder EXCLUDED: {subfolder}, {repl}")
+		elif isinstance(folder, tuple):
+			trigger_key = folder[1]
+			# not the same file name for triggers
+			if trigger_key in triggers_in_mod and triggers_in_mod[trigger_key] != basename:
+				# print(f"Found same trigger in mod {trigger_key}")
+				rt = True
+			else:
+				rt = False
+				# print(f"Not same trigger in file {basename}")
+		return rt
+
 	for _file in file_list:
 		_file = os.path.normpath(_file)
 		if not any(_file.startswith(p) for p in exclude_paths) and os.path.isfile(_file) and _file.endswith(".txt"):
 			lines = ""
-			logger.debug(f"Check file: {_file}")
+			if debug_mode: print(f"Check file: {_file}")
 			with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
 
 				subfolder = os.path.relpath(_file, mod_path)
@@ -2214,7 +2218,7 @@ def modfix(file_list, is_subfolder=False):
 						stripped = line.split('#', 1)
 						if len(stripped) > 1:
 							stripped = stripped[0].rstrip() + '\n'
-						else: 
+						else:
 							stripped = stripped[0]
 						valid_lines.append((i, stripped))
 
@@ -2230,8 +2234,7 @@ def modfix(file_list, is_subfolder=False):
 					elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
 						lines, valid_lines, changed = transform_add_trait(lines, valid_lines, changed)
 
-				for pattern in tar3:  # new list way
-					pattern, repl = pattern
+				for pattern, repl in tar3:  # new list way
 					folder = False
 					rt = False # check valid folder
 					# File name check
@@ -2242,59 +2245,25 @@ def modfix(file_list, is_subfolder=False):
 							if file != basename:
 								rt = True
 						elif file in basename:
-							# if debug_mode: print("\tFILE match:", file, basename)
+							# logging.debug("\tFILE match:", file, basename)
 							folder, repl, rt = repl
 						else:
 							folder, rt, repl = repl
 						if folder:
-							if isinstance(folder, list):
-								# if debug_mode: print("folder list", subfolder, folder)
-								for fo in folder:
-									if subfolder in fo:
-										rt = True
-										# if debug_mode: print("folder matches", subfolder, folder)
-							elif subfolder in folder:
-								rt = True
-							else:
-								rt = False
+							rt = process_folder(folder)
+
 					# Folder check
 					elif isinstance(repl, tuple):
 						folder, repl = repl
-						# if debug_mode: print("subfolder: {subfolder}, {folder}")
-						if isinstance(folder, list):
-							# logging.debug("folder list: {subfolder}, {folder}")
-							for fo in folder:
-								if subfolder in fo:
-									rt = True
-									# logging.debug(f"folder matches: {subfolder}, {folder}")
-						elif isinstance(folder, str):
-							# logging.debug(f"subfolder in folder: {subfolder}, {folder}")
-							if subfolder in folder:
-								rt = True
-								# logging.debug(folder)
-						elif isinstance(folder, re.Pattern):
-							if folder.search(subfolder):
-								# logging.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
-								rt = True
-							# logging.debug("Folder EXCLUDED: {subfolder}, {repl}")
-						elif isinstance(folder, tuple):
-							trigger_key = folder[1]
-							# not the same file name for triggers
-							if trigger_key in triggers_in_mod and triggers_in_mod[trigger_key] != basename:
-								# print(f"Found same trigger in mod {trigger_key}")
-								rt = True
-							else:
-								rt = False
-								# print(f"Not same trigger in file {basename}")
-						else:
-							rt = False
-					else:
+						rt = process_folder(folder)
+					else: # isinstance(repl, str) or callable?
 						rt = True
+
 					if rt:  # , flags=re.I # , count=0, flags=0
 						for l, (i, line) in enumerate(valid_lines):
 							m = pattern.search(line)  # , flags=re.I
 							if m:
-								line_changed = line = lines[i]
+								line_changed = line
 								line_changed, rt = pattern.subn(repl, line, count=1)  # , flags=re.I
 								if rt == 1:
 									if line_changed != line:
@@ -2306,8 +2275,6 @@ def modfix(file_list, is_subfolder=False):
 											"\tUpdated file: %s on %s (at line %i) with %s\n"
 											% (basename, line.lstrip(), i, line_changed)
 										)
-										# Determine the span of the match
-										# m_start, rt = m.span()
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
 										if m.start() <= 6 and m.end() >= len(line_changed) - 6:
 											logger.debug("The entire line is matched; no further matches possible")
@@ -2320,31 +2287,16 @@ def modfix(file_list, is_subfolder=False):
 
 				out = "".join(lines)
 
-				for rt in targetsR:
-					# if not isinstance(rt, list) or not len(rt) > 1: logger.warning(rt) else:
-					rt, msg = rt
-
+				for pattern, msg in targetsR:
+					folder = True
 					if isinstance(msg, tuple):
 						folder, msg = msg
-						# print(type(subfolder), subfolder, folder)
-						if isinstance(folder, list):
-							for fo in folder:
-								if subfolder in fo:
-									folder = False
-									break
-							if folder:
-								rt = False
-						elif isinstance(folder, str):
-							if subfolder not in folder:
-								rt = False
-						elif isinstance(folder, re.Pattern):
-							if not folder.search(subfolder):
-								rt = False
-						else: rt = False
-					if rt:
+						folder = process_folder(folder)
+					if folder:
 						# for i, line in valid_lines:
 						for l, (i, line) in enumerate(valid_lines):
-							m = rt.search(line)
+							line = line.lstrip()
+							m = pattern.search(line)
 							if m:
 								logger.warning(
 									"Potentially deprecated Syntax (%s): %s in line %i file %s\n"
@@ -2352,7 +2304,6 @@ def modfix(file_list, is_subfolder=False):
 								)
 								del valid_lines[l] # just one hit per line
 								break # just one hit per file
-
 
 				if i > 2 and len(lines) > 2 and "inline_scripts" not in subfolder:
 					# The last values from the loop (if there is just one empty line the vanilla parser gets crazy)
@@ -2365,65 +2316,28 @@ def modfix(file_list, is_subfolder=False):
 					#     out = '\n' + out
 					#     changed = True
 
-				# for pattern, repl in tar4.items(): old dict way
-				for pattern in tar4:  # new list way
-					pattern, repl = pattern
+				for pattern, repl in tar4:  # new list way
 					rt = False # check valid folder before loop
-					replace = False # repl
-
+					replace = False
 					# Folder check
-					if isinstance(repl, list):
-						replace = repl.copy()
+					if isinstance(repl, list): # subreplace
 						if isinstance(repl[1], tuple):
-							folder, replace[1] = repl[1]
-							# print('Has folder check', type(replace), replace, replace[1])
-							if isinstance(folder, list):
-								for fo in folder:
-									if subfolder in fo:
-										rt = True
-										# if debug_mode: print(folder)
-										break
-							elif isinstance(folder, str):
-								if subfolder in folder:
-									rt = True
-								#     print(f"Folder does MATCH: {subfolder}, {folder}")
-								# else: print(f"Folder doesn't match: {subfolder}, {folder}")
-							elif isinstance(folder, re.Pattern) and folder.search(subfolder):
-								# if debug_mode: print(f"Check folder (regexp) {subfolder}")
-								rt = True
-							elif isinstance(folder, tuple):
-								trigger_key = folder[1]
-								# not the same file name for triggers
-								if trigger_key in triggers_in_mod and triggers_in_mod[trigger_key] != basename:
-									# print(f"Found same trigger in mod {trigger_key}")
-									rt = True
-								else:
-									rt = False
-									# print(f"Not same trigger in file {basename}")
-
+							folder, repl[1] = repl[1]
+							rt  = process_folder(folder)
+						replace = repl.copy()
+					
 					elif isinstance(repl, tuple):
+						# if len(repl) < 2 and isinstance(repl[0], tuple): print("DAMN!", repl)
+						# if len(repl) > 2: print("TOO TUPLE!", repl)
 						folder, repl = repl
-						# logging.debug("Has folder check simple, subfolder: {subfolder}, {folder}")
-						if isinstance(folder, list):
-							for fo in folder:
-								if subfolder in fo:
-									rt = True
-						# elif subfolder in folder:
-						elif isinstance(folder, str):
-							# logging.debug("subfolder in folder, subfolder: {subfolder}, {folder}")
-							if subfolder in folder:
-								rt = True
-						elif isinstance(folder, re.Pattern):
-							if folder.search(subfolder):
-								# logging.debug("Check folder (regexp) True", subfolder, repl)
-								rt = True
-							# else: logging.debug("Folder EXCLUDED:", subfolder, repl)
-
+						rt  = process_folder(folder)
 					elif isinstance(repl, dict): # Trigger filename
-						file, replace = list(repl.items())[0]
+						file, repl = list(repl.items())[0]
 						# print(pattern, file, type(file), replace, type(basename))
 						if file != basename:
 							rt = True
+							if isinstance(repl, list):
+								replace = repl.copy()
 						# else: print("\tEXCLUDED:", pattern, "from", basename)
 					else: # isinstance(repl, str) or callable?
 						rt = True
@@ -2453,27 +2367,17 @@ def modfix(file_list, is_subfolder=False):
 								#     tar = t.group(1)  # Take only first group
 								#     logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
 								# print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
-							repl_str, num_re = replace[0].subn(replace[1], tar, count=1)
-							if num_re != 1:
+							repl_str, rt = replace[0].subn(replace[1], tar, count=1)
+							if rt != 1:
 								repl_str = False
 
 							if repl_str and isinstance(repl_str, str):
-								# and isinstance(tar, str)
-								# and tar != replace:
+								# (and isinstance(tar, str) and tar != replace):
 								logger.info(f"Match: {tar}\nMultiline replace: {repl_str}")
 								out = out[:t.start()] + repl_str + out[t.end():]
 								changed = True
 							else:
 								logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
-					# elif isinstance(repl, str): # or callable(repl)
-					#     # if debug_mode: TODO
-					#     targets = pattern.findall(out)
-					#     for tar in targets:
-					#         logger.info(f"Match: {tar}\nSimple multiline replace all:\n{pattern.sub(repl, tar, count=1)}")
-					#     # else:
-					#     #     logger.info(f"Match: {pattern.pattern}\nSimple multiline replace all:\n{repl}")
-					#     out = pattern.sub(repl, out)
-					#     changed = True
 					else:
 						logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
 				if changed and not only_warning:
@@ -2653,9 +2557,7 @@ if __name__ == "__main__":
 		targets3[r"(\s*)empire_unique = yes"] = ("common/buildings", r"\1empire_limit = { base = 1 }")
 		targets3[r"(\s*)is_listed = no"] = ("common/buildings", r"\1can_build = no")
 		targets3[r"\s+(?:outliner_planet_type|tile_set) = \w+\s*"] = ("common/planet_classes", "")
-		targets3[r"\b(?:add|set)_blocker = \"?tb_(\w+)\"?"] = (
-			r"add_deposit = d_\1"  # More concrete? r"add_blocker = { type = d_\1 blocked_deposit = none }"
-		)
+		targets3[r"\b(?:add|set)_blocker = \"?tb_(\w+)\"?"] = r"add_deposit = d_\1"  # More concrete? r"add_blocker = { type = d_\1 blocked_deposit = none }"
 		targets3[r"\btb_(\w+)"] = r"d_\1"
 		targets3[r"\b(building_capital)(?:_\d)\b"] = r"\1"
 		targets3[r"\b(betharian_power_plant)\b"] = r"building_\1"
@@ -2711,8 +2613,8 @@ if __name__ == "__main__":
 		do_code_cosmetic()
 
 	### Pre-Compile regexps
-	targets3 = [(re.compile(k, flags=0), targets3[k]) for k in targets3]
-	targets4 = [(re.compile(k, flags=re.I), targets4[k]) for k in targets4]
+	targets3 = [(re.compile(k, flags=0), v) for k, v in targets3.items()]
+	targets4 = [(re.compile(k, flags=re.I), v) for k, v in targets4.items()]
 
 	### General Fixes (needs to be last)
 	items_to_add = [
