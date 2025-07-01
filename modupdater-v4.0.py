@@ -12,7 +12,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/06/30
+# @Revision: 2025/07/01
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -20,9 +20,10 @@ import datetime
 # @TODO: extended support The Merger of Rules ?
 
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.21' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.22' # @last supported sub-version
 # Default values
-mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\" # os.path.dirname(os.getcwd())
+# mod_path = os.path.dirname(os.getcwd())
+mod_path = "" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"  "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod"
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -308,8 +309,8 @@ v4_0 = {
 		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
 		r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
-			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\d\w\.:]+)\s+(ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
-			r"create_pop_group = { \g<2> size = \g<1>00 \g<3> }"],
+			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\d\w\.:]+)\s*?(\sethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\}))?\s*\}\s*\}",
+			r"create_pop_group = { \g<2> size = \g<1>00\g<3> }"],
 		r"\ballowed_peace_offers = \{\s+(?:(?:status_quo|surrender|demand_surrender)\s+){1,3}\s*\}": [
 			r"allowed_peace_offers = \{\s+(status_quo|surrender|demand_surrender)\s*(status_quo|surrender|demand_surrender)?\s*(status_quo|surrender|demand_surrender)?\s*\}",
 			("common/war_goals", lambda p: ""
@@ -1373,10 +1374,11 @@ actuallyTargets = {
 			r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
 		],  # up to 7 items (sub-trigger)
 		# NOR <=> (AND) = { NOT
+		# TODO a lot of BLIND MATCHES
 		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
-			r"(\n\s+)NO[RT] = \{\1(\s+)([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)"),
-			r"\1NOR = {\1\2\3\1\2\4\1}"),
-		],  # only 2 items (sub-trigger) (?<!\sOR) Negative Look-behind
+			r"(\n\s+)NO[RT] = \{\s+([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)\w"),
+			r"\1NOR = {\1\t\2\1\t\3\1}"
+		)],  # only 2 items (sub-trigger)
 		# NAND <=> NOT = { AND
 		r"\n\s+NO[RT] = \{\s*AND = \{[^{}#]*?\}\s*\}": [
 			r"(\t*)NO[RT] = \{\s*AND = \{[ \t]*\n(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?\s*\}[ \t]*\n",
@@ -1384,8 +1386,8 @@ actuallyTargets = {
 		],  # only 4 items (sub-trigger)
 		# NOR <=> NOT = { OR (only sure if base is AND)
 		r"\n\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
-			r"(\t*)NO[RT] = \{\s*?OR = \{(\s+)(\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+)(\s*\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s)?(\s*\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s)?(\s*\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s)?(\s*\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s)?\s*\}\s+",
-			r"\1NOR = {\2\3\4\5\6\7",
+			r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
+			r"NOR = {\n\2\3\4\5\6",
 		],  # only right indent for 5 items (sub-trigger)
 		### End boolean operator merge
 		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES: # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
@@ -1397,10 +1399,7 @@ actuallyTargets = {
 		r'(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?){3}': (NO_TRIGGER_FOLDER, r"\1is_homicidal = yes"),
 		r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm|barbaric_despoilers)\"?){4}": (NO_TRIGGER_FOLDER, r"\1is_unfriendly = yes"),
 		r"is_homicidal = yes\s+has_(?:valid_)?civic = \"?barbaric_despoilers\"?": "is_unfriendly = yes",
-		r"NOT = \{\s*check_variable = \{\s*which = \"?\w+\"?\s+value = [^{}#\s=]\s*\}\s*\}": [
-			r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}",
-			r"\1 != \2 }",
-		],
+		r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}": r"\1 != \2 }",
 		# r"change_species_characteristics = \{\s*?[^{}\n]*?
 		r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
 		# very rare, maybe put to cosmetic
@@ -2166,7 +2165,7 @@ def modfix(file_list, is_subfolder=False):
 			# print('Create folder:', subfolder)
 		open(out_file, "w", encoding="utf-8").write(out)
 
-	def process_folder(folder):
+	def check_folder(folder):
 		rt = False
 		# logging.debug("subfolder: {subfolder}, {folder}")
 		if isinstance(folder, list):
@@ -2174,13 +2173,13 @@ def modfix(file_list, is_subfolder=False):
 			for fo in folder:
 				if subfolder in fo:
 					rt = True
-					break
 					# logging.debug(f"folder matches: {subfolder}, {folder}")
+					break
 		elif isinstance(folder, str):
 			# logging.debug(f"subfolder in folder: {subfolder}, {folder}")
 			if subfolder in folder:
 				rt = True
-				# logging.debug(folder)
+				logging.debug(folder)
 		elif isinstance(folder, re.Pattern):
 			if folder.search(subfolder):
 				# logging.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
@@ -2192,22 +2191,20 @@ def modfix(file_list, is_subfolder=False):
 			if trigger_key in triggers_in_mod and triggers_in_mod[trigger_key] != basename:
 				# print(f"Found same trigger in mod {trigger_key}")
 				rt = True
-			else:
-				rt = False
-				# print(f"Not same trigger in file {basename}")
+			# else:^print(f"Not same trigger in file {basename}")
 		return rt
 
 	for _file in file_list:
 		_file = os.path.normpath(_file)
 		if not any(_file.startswith(p) for p in exclude_paths) and os.path.isfile(_file) and _file.endswith(".txt"):
 			lines = ""
-			if debug_mode: print(f"Check file: {_file}")
+			if debug_mode: logging.debug(f"Check file: {_file}")
 			with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
 
 				subfolder = os.path.relpath(_file, mod_path)
 				subfolder, basename = os.path.split(subfolder)
 				subfolder = subfolder.replace("\\", "/")
-				if debug_mode: print(f"subfolder: '{subfolder}', basename: '{basename}'")
+				# if debug_mode: print(f"subfolder: '{subfolder}', basename: '{basename}'")
 				# out = ""
 				changed = False
 				lines = txtfile.readlines()
@@ -2250,12 +2247,12 @@ def modfix(file_list, is_subfolder=False):
 						else:
 							folder, rt, repl = repl
 						if folder:
-							rt = process_folder(folder)
+							rt = check_folder(folder)
 
 					# Folder check
 					elif isinstance(repl, tuple):
 						folder, repl = repl
-						rt = process_folder(folder)
+						rt = check_folder(folder)
 					else: # isinstance(repl, str) or callable?
 						rt = True
 
@@ -2291,7 +2288,7 @@ def modfix(file_list, is_subfolder=False):
 					folder = True
 					if isinstance(msg, tuple):
 						folder, msg = msg
-						folder = process_folder(folder)
+						folder = check_folder(folder)
 					if folder:
 						# for i, line in valid_lines:
 						for l, (i, line) in enumerate(valid_lines):
@@ -2317,31 +2314,35 @@ def modfix(file_list, is_subfolder=False):
 					#     changed = True
 
 				for pattern, repl in tar4:  # new list way
-					rt = False # check valid folder before loop
+					folder = False # check valid folder before loop
 					replace = False
 					# Folder check
 					if isinstance(repl, list): # subreplace
-						if isinstance(repl[1], tuple):
-							folder, repl[1] = repl[1]
-							rt  = process_folder(folder)
 						replace = repl.copy()
-					
+						if isinstance(repl[1], tuple):
+							# print(f"check_folder on tar4 before: {repl[1][0]}, {repl[1][1]}")
+							folder, replace[1] = repl[1]
+							folder = check_folder(folder)
+							# print(f"check_folder on tar4 after: {folder}, {repl[1]}")
+						else: folder = True
 					elif isinstance(repl, tuple):
 						# if len(repl) < 2 and isinstance(repl[0], tuple): print("DAMN!", repl)
 						# if len(repl) > 2: print("TOO TUPLE!", repl)
 						folder, repl = repl
-						rt  = process_folder(folder)
+						folder = check_folder(folder)
 					elif isinstance(repl, dict): # Trigger filename
 						file, repl = list(repl.items())[0]
-						# print(pattern, file, type(file), replace, type(basename))
-						if file != basename:
-							rt = True
-							if isinstance(repl, list):
-								replace = repl.copy()
+						if debug_mode:
+							print(pattern, file, type(file), replace, type(basename))
+						if file == basename:
+							folder = False
+						elif isinstance(repl, list):
+							replace = repl.copy()
 						# else: print("\tEXCLUDED:", pattern, "from", basename)
 					else: # isinstance(repl, str) or callable?
-						rt = True
-					if not rt or not pattern.search(out):
+						folder = True
+
+					if not folder or not pattern.search(out):
 						continue
 
 					if not replace and isinstance(repl, str):
@@ -2371,13 +2372,13 @@ def modfix(file_list, is_subfolder=False):
 							if rt != 1:
 								repl_str = False
 
-							if repl_str and isinstance(repl_str, str):
-								# (and isinstance(tar, str) and tar != replace):
+							if repl_str and (isinstance(repl_str, str)
+								and isinstance(tar, str) and tar != repl_str):
 								logger.info(f"Match: {tar}\nMultiline replace: {repl_str}")
 								out = out[:t.start()] + repl_str + out[t.end():]
 								changed = True
 							else:
-								logger.debug(f"BLIND MATCH: '{tar}' {repl} {type(repl)} {replace}")
+								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
 						logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
 				if changed and not only_warning:
@@ -2574,9 +2575,7 @@ if __name__ == "__main__":
 		targets3[r"\bcountry_resource_(influence|unity)_"] = r"country_base_\1_produces_"
 		targets3[r"\bplanet_unrest_add"] = "planet_stability_add"
 		targets3[r"\bshipclass_military_station_hit_points_"] = "shipclass_military_station_hull_"
-		targets3[r"(.+?)\sorbital_bombardment = (\w{4:})"] = (
-			r"\1has_orbital_bombardment_stance = \2"  # exclude country_type option
-		)
+		targets3[r"(.+?)\sorbital_bombardment = (\w{4:})"] = r"\1has_orbital_bombardment_stance = \2" # exclude country_type option
 		targets3[r"\bNAME_Space_Amoeba\b"] = "space_amoeba"
 		targets3[r"\btech_spaceport_(\d)\b"] = r"tech_starbase_\1"
 		targets3[r"\btech_mining_network_(\d)\b"] = r"tech_mining_\1"
