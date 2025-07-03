@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Stellaris Diff Scanner (Optimized with Rename Block Caching)
 ------------------------------------------------------------
@@ -186,6 +187,7 @@ def compare_stellaris_data(old_path, new_path):
         "buildings":   (re.compile(r'^(building_\w+) = \{', re.MULTILINE), "common/buildings"),
         "starbase_buildings": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_buildings"),
         "starbase_modules": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_modules"),
+        "districts": (re.compile(r'^(district_\w+) = \{', re.MULTILINE), "common/districts"),
         "civics":      (re.compile(r'^((?:civic|origin)_\w+) = \{', re.MULTILINE), "common/governments/civics"),
         "governments": (re.compile(r'^(gov_\w+) = \{', re.MULTILINE), "common/governments"),
         "variables": (re.compile(r'^@(\w+) =', re.MULTILINE), "common/scripted_variables"), # \s*-?[.\d]+

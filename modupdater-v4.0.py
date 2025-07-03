@@ -1,4 +1,5 @@
-# ============== Import libs Python 3.8 ===============
+#!/usr/bin/env python
+# ============== Import libs Python 3.9 ===============
 import os
 import glob
 import re
@@ -12,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/01
+# @Revision: 2025/07/03
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -160,6 +161,8 @@ v4_0 = {
 		[r"\bhas_uncollected_system_trade_value\b", "REMOVED in v4.0"],
 		[r"\bis_half_species\b", "REMOVED in v4.0"],
 		[r"\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
+		# Districts
+		[r"\bdistrict_(?:arcology_religious|machine_coordination|(?:hab|rw)?_?industrial)\b", "REPLACED with Zones in v4.0"],
 		# Scope
 		[r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
 		# [r"\blast_refugee_country\b", "REMOVED in v4.0"],
@@ -200,7 +203,8 @@ v4_0 = {
 
 	],
 	"targets3": {
-		r"\b((?:%s)_species_pop)\b" % VANILLA_PREFIXES: r"\1_group",
+		r"\bdefense_armies_add\b": r"planet_\g<0>",
+		r"\b(?:%s)_species_pop\b" % VANILLA_PREFIXES: r"\g<0>_group",
 		r"\b((?:leader_)?trait_)(adaptable|aggressive|agrarian_upbringing|architectural_interest|army_veteran|bureaucrat|butcher|cautious|eager|engineer|enlister|environmental_engineer|defence_engineer|politician|resilient|restrained|retired_fleet_officer|ruler_fertility_preacher|shipwright|skirmisher|trickster|unyielding)_2":
 			r"\1\2",
 		r"\b((?:leader_)?trait_)(annihilator|archaeo_specialization|armada_logistician|artillerist|artillery_specialization|border_guard|carrier_specialization|commanding_presence|conscripter|consul_general|corsair|crew_trainer|crusader|demolisher|dreaded|frontier_spirit|gale_speed|guardian|gunship_specialization|hardy|heavy_hitter|home_guard|interrogator|intimidator|juryrigger|martinet|observant|overseer|reinforcer|rocketry_specialization|ruler_fortifier|ruler_from_the_ranks|ruler_military_pioneer|ruler_recruiter|scout|shadow_broker|shipbreaker|slippery|surgical_bombardment|tuner|warden|wrecker)_3":
@@ -280,10 +284,11 @@ v4_0 = {
 		# Modifier trigger
 		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
 		# Modifier effect
-		r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b" % PLANET_MODIFIER: multiply_by_hundred,
+		r"\b((?:planet_(?:jobs|amenities|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
 		# r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
 	},
 	"targets4": {
+		r"(?!\bmodifier = \{\s+)(planet_housing_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # (?<!\s+\}\s+mult =)
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
 		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
 			[r"\bcount\b", "size"],
