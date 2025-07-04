@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/03
+# @Revision: 2025/07/04
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -24,7 +24,7 @@ ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.22' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
-mod_path = "" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"  "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod"
+mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"  
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -74,7 +74,7 @@ def setBoolean(s):
 
 VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe" # |gestalt_consciousnes
 VANILLA_PREFIXES = r"any|every|random|count|ordered"
-PLANET_MODIFIER = r"jobs|housing|amenities"
+PLANET_MODIFIER = r"jobs|housing|amenities|amenities_no_happiness"
 RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
 NO_TRIGGER_FOLDER = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+)_[^/_]+$)?")  # 2lvl, only 1lvl folder: ^([^_]+)(_(?!trigger)[^_]+|[^_]*)$ only
 EFFECT_FOLDERS = {
@@ -162,7 +162,7 @@ v4_0 = {
 		[r"\bis_half_species\b", "REMOVED in v4.0"],
 		[r"\bleader_trait_expeditionist\b", "REMOVED in v4.0"],
 		# Districts
-		[r"\bdistrict_(?:arcology_religious|machine_coordination|(?:hab|rw)?_?industrial)\b", "REPLACED with Zones in v4.0"],
+		[r"(?<!icon = )\bdistrict_(?:arcology_religious|machine_coordination|(?:hab|rw)?_?industrial)\b[^.]", "REPLACED with Zones in v4.0"],
 		# Scope
 		[r"\blast_created_pop\b", "REMOVED in v4.0, use event_target:last_created_pop_group"],
 		# [r"\blast_refugee_country\b", "REMOVED in v4.0"],
@@ -284,12 +284,14 @@ v4_0 = {
 		# Modifier trigger
 		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
 		# Modifier effect
-		r"\b((?:planet_(?:jobs|amenities|amenities_no_happiness)|job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
-		# r"\b((?:planet_(?:%s|amenities_no_happiness)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
+		r"\b(job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
+		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
 	},
 	"targets4": {
-		r"(?!\bmodifier = \{\s+)(planet_housing_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # (?<!\s+\}\s+mult =)
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
+		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
+			r"(planet_(?:%s)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b" % PLANET_MODIFIER, multiply_by_hundred
+		],
 		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
 			[r"\bcount\b", "size"],
 		r"\s+every_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
@@ -2350,7 +2352,7 @@ def modfix(file_list, is_subfolder=False):
 					if not folder or not pattern.search(out):
 						continue
 
-					if not replace and isinstance(repl, str):
+					if not replace and isinstance(repl, str): # or callable(repl)
 						replace = [pattern, repl]
 
 					if replace and isinstance(replace, list):
