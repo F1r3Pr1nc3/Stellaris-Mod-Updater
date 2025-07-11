@@ -351,6 +351,9 @@ v4_0 = {
 		r"(group = \{\s+(?:limit = \{\s+)?(?:\bNO[RT] = \{\s+)?)(\b(?:owner_)?species = \{\s+)?is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
 			r"\1is_robot_pop_group = \3",
 		r"(?:(\s+)pop_group_has_trait = \"?trait_(?:mechanical|machine_unit)\"?){2}": r"\1is_robot_pop_group = yes",
+		# Temp back fix
+		r"\bany_system_colony = (\{[^{}#]*?(?:limit = \{)?)(\s+)(?:has_owner = yes\s+)?": r"any_system_colony = \1\2has_owner = yes\2",
+		r"\b((?:every|random|count|ordered)_system_colony = \{\s+limit = \{)(\s+)(?:has_owner = yes\s+)?": r"\1\2has_owner = yes\2",
 	},
 }
 
@@ -869,7 +872,7 @@ v3_5 = {
 	},
 	"targets4": {
 		# r"\bany_system_(?:planet|colony) = (\{[^{}#]*?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b": r"any_system_colony = \1", # has_owner = yes
-		r"\b(%s)_system_(?:planet|colony) = (\{[^{}#]*?(?:limit = \{)?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b" % VANILLA_PREFIXES: r"\1_system_colony = \2", # has_owner = yes
+		r"\b(%s)_system_(?:planet|colony) = (\{[^{}#]*?(?:limit = \{)?\s+)(?:has_owner = yes|is_colony = yes|exists = owner)" % VANILLA_PREFIXES: r"\1_system_colony = \2has_owner = yes",
 		r"(?:(\s+)has_trait = trait_(?:plantoid|lithoid)_budding){2}\}": (NO_TRIGGER_FOLDER, r"\1has_budding_trait = yes"),
 		# r"(_pop = \{\s+)unemploy_pop = yes\s+(kill_pop = yes)": r"\1\2", # ghost pop bug fixed: obsolete
 	},
