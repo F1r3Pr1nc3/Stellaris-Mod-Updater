@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/04
+# @Revision: 2025/07/11
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -24,7 +24,7 @@ ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.22' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
-mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"  
+mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0
@@ -255,7 +255,7 @@ v4_0 = {
 		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
 		r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
-		r"\bis_pop_category = specialist\b": (("NO_TRIGGER", "is_specialist_category"), "is_specialist_category = yes"),
+		r"\bis_pop_category = specialist\b": (("TRIGGER", "is_specialist_category"), "is_specialist_category = yes"),
 		r"\bguardian_warden\b": "guardian_opus_sentinel",
 		r"\bbuilding_clinic\b": "building_medical_2",
 		# r"\boffspring_drone\b": "spawning_drone",
@@ -277,6 +277,7 @@ v4_0 = {
 		r"\bpop_job_trade_(mult|add)\b": r"trader_jobs_bonus_workforce_\1",
 		r"\bpop_demotion_time_(mult|add)\b": r"pop_unemployment_demotion_time_\1",
 		r"\bplanet_(?:priests|administrators)_(\w+_(?:mult|add))\s+":  r"planet_bureaucrats_\1 ",
+		r"\bplanet_administrators\b": ("common/pop_jobs", "planet_bureaucrats"), # revert from v3.6
 		r"\bplanet_pop_assembly_organic_(mult|add)\b": r"bonus_pop_growth_\1",
 		r"\bplanet_jobs_robotic_produces_(mult|add)\b": r"pop_bonus_workforce_\1",
 		r"\bplanet_jobs_robot_worker_produces_(mult|add)\b": r"worker_and_simple_drone_cat_bonus_workforce_\1",
@@ -625,7 +626,7 @@ v3_10 = {
 	"targets4": {
 		r'\bleader_class = "?commander"?\s+leader_class = "?commander"?\b': "leader_class = commander",
 		# r"^\s+leader_class = \{\s*((?:admiral|scientist|general|governor)\s+){1,4}": [r'(admiral|general|governor)', (["common/traits", "common/governments/councilors"], lambda p: {"governor": "official", "admiral": "commander", "general": "commander" }[p.group(1)])],
-		r"(?:\s+has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3}\s*":  (NO_TRIGGER_FOLDER, " is_terraforming_candidate = yes "),
+		r"(?:\s+has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3}\s*":  (NO_TRIGGER_FOLDER, " is_terraforming_candidate = yes "),# FIXME also no rules folder!?
 	},
 }
 # CAELUM
@@ -814,7 +815,7 @@ v3_6 = {
 			"common/species_rights",
 			"is_assimilation = yes",
 		),
-		r"\bplanet_bureaucrats\b": ("common/pop_jobs", "planet_administrators"),
+		# r"\bplanet_bureaucrats\b": ("common/pop_jobs", "planet_administrators"), reverted on v4.0
 		r"\btoken = citizenship_full(?:_machine)?\b": (
 			"common/species_rights",
 			"is_full_citizenship = yes",
@@ -942,14 +943,11 @@ v3_4 = {
 		r"(?:has_trait = trait_(?:zombie|nerve_stapled|robot_suppressed|syncretic_proles)(\s+)){2,4}":
 			(NO_TRIGGER_FOLDER, r"can_think = no\1"),
 		r"(?:(\s+)species_portrait = human(?:_legacy)?\b){1,2}": (NO_TRIGGER_FOLDER, r"\1is_human_species = yes"),
-		r"\bNO[RT] = \{\s*has_modifier = doomsday_\d[\w\s=]+\}": [
-			r"NO[RT] = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
-			"is_doomsday_planet = no",
-		],
-		r"\bOR = \{\s*has_modifier = doomsday_\d[\w\s=]+\}": [
-			r"OR = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
-			"is_doomsday_planet = yes",
-		],
+		# r"\bNO[RT] = \{\s*has_modifier = doomsday_\d[\w\s=]+\}": [
+		# 	r"NO[RT] = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
+		# 	"is_doomsday_planet = no",
+		# ],
+		r"(?:(\s+)has_modifier = doomsday_\d){5}": (NO_TRIGGER_FOLDER, r"\1is_doomsday_planet = yes"),
 		# r"\bvalue = subject_loyalty_effects\s+\}\s+\}": [ # Not valid for preset_protectorate
 		#     r"(subject_loyalty_effects\s+\})(\s+)\}",
 		#     ("common/agreement_presets", r"\1\2\t{ key = protectorate value = subject_is_not_protectorate }\2}"),
@@ -1025,7 +1023,7 @@ v3_2 = {
 		[r"\bspecies_planet_slave_percentage\b", "REMOVED in v3.2"],
 	],
 	"targets3": {
-		# r"\bis_planet_class = pc_ringworld_habitable\b": "is_ringworld = yes",
+		r"(?:(\s+)is_planet_class = pc_ringworld_habitabl(?:e|e_damaged)\b){2}": r"\1is_ringworld = yes",
 		r"\bfree_guarantee_days = \d+": "",
 		r"\badd_tech_progress_effect": "add_tech_progress",
 		r"\bgive_scaled_tech_bonus_effect": "add_monthly_resource_mult",
@@ -1038,14 +1036,7 @@ v3_2 = {
 		),
 	},
 	"targets4": {
-		r"\bNO[RT] = \{\s*is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)(?:\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex))?\s*\}": [
-			r"\bNO[RT] = \{\s*is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)(?:\s+is_planet_class = (?:pc_ringworld_habitable|pc_cybrex))?\s*\}",
-			r"is_artificial = no",
-		],
-		r"\n\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)(?:\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex))?\b": [
-			r"\bis_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)\s+is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex)(?:\s+is_planet_class = (?:pc_ringworld_habitable|pc_cybrex))?\b",
-			r"is_artificial = yes",
-		],
+		r"(?:(\s+)(?:is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex|pc_cosmogenesis_world)|has_ringworld_output_boost = yes|is_artificial = yes)){3,5}\b": r"\1is_artificial = yes",
 		r"\n\s+possible = \{(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?|\s*)|\s*)|\s*)|\s*)|\s*)|\s*)(?:drone|worker|specialist|ruler)_job_check_trigger = yes\s*": [
 			r"(\s+)(possible = \{(\1\t)?(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?))(drone|worker|specialist|ruler)_job_check_trigger = yes\s*",
 			("common/pop_jobs", r"\1possible_precalc = can_fill_\4_job\1\2"),
