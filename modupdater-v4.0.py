@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/11
+# @Revision: 2025/07/12
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -351,9 +351,6 @@ v4_0 = {
 		r"(group = \{\s+(?:limit = \{\s+)?(?:\bNO[RT] = \{\s+)?)(\b(?:owner_)?species = \{\s+)?is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
 			r"\1is_robot_pop_group = \3",
 		r"(?:(\s+)pop_group_has_trait = \"?trait_(?:mechanical|machine_unit)\"?){2}": r"\1is_robot_pop_group = yes",
-		# Temp back fix
-		r"\bany_system_colony = (\{[^{}#]*?(?:limit = \{)?)(\s+)(?:has_owner = yes\s+)?": r"any_system_colony = \1\2has_owner = yes\2",
-		r"\b((?:every|random|count|ordered)_system_colony = \{\s+limit = \{)(\s+)(?:has_owner = yes\s+)?": r"\1\2has_owner = yes\2",
 	},
 }
 
@@ -871,8 +868,16 @@ v3_5 = {
 		# r"(\"NAME_[^-\s\"]+)-([^-\s\"]+)\"": r'\1_\2"', mostly but not generally done
 	},
 	"targets4": {
-		# r"\bany_system_(?:planet|colony) = (\{[^{}#]*?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b": r"any_system_colony = \1", # has_owner = yes
 		r"\b(%s)_system_(?:planet|colony) = (\{[^{}#]*?(?:limit = \{)?\s+)(?:has_owner = yes|is_colony = yes|exists = owner)" % VANILLA_PREFIXES: r"\1_system_colony = \2has_owner = yes",
+		# r"\bany_system_(?:planet|colony) = (\{[^{}#]*?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b": r"any_system_colony = \1", # has_owner = yes
+		# r"((\s+)any_system_colony = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[^}#]+\})": [
+		# 	r"(\s+)any_system_colony = \{\1\t?([^{}#]*?)(?:(?:has_owner = yes|is_colony = yes|exists = owner)\1\t?)([^}#]*?\s+\})",
+		# 	r"\1any_system_colony = {\1\t\2\3"
+		# ],
+		# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[^}#]*?\s+\})": [
+		# 	r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2\t?([^}#]*?)(?:(?:has_owner = yes|is_colony = yes|exists = owner)\2\t?)([^}#]*?\s+\})",
+		# 	r"\1\2\t\3\4",
+		# ],
 		r"(?:(\s+)has_trait = trait_(?:plantoid|lithoid)_budding){2}\}": (NO_TRIGGER_FOLDER, r"\1has_budding_trait = yes"),
 		# r"(_pop = \{\s+)unemploy_pop = yes\s+(kill_pop = yes)": r"\1\2", # ghost pop bug fixed: obsolete
 	},
@@ -1445,7 +1450,19 @@ actuallyTargets = {
 			+ " ",
 		],
 		r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
-		# r"\bany_(?:playable_)?country = \{[^{}#]*(?:NO[RT] = \{)?\s*is_same_value\b": ["is_same_value", "is_same_empire"],
+		# Just move on the first place if present
+		r"((\s+)any_system_colony = \{\2(?!\s*has_owner = yes)[^}#]+\})": [
+			r"(\s+)any_system_colony = \{\1\t?([^{}#]*?)(?:has_owner = yes\1\t?)([^}#]*?\s+\})",
+			r"\1any_system_colony = {\1\thas_owner = yes\1\t\2\3"
+		],
+		r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{\2(?!\s*has_owner = yes)[^}#]*?\s+\})": [
+			r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2\t?([^}#]*?)(?:has_owner = yes\2\t?)([^}#]*?\s+\})",
+			r"\1\2\thas_owner = yes\2\t\3\4",
+		],
+		# Temp back fix
+		# Just add on the first place
+		# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
+		# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
 	},
 }
 
