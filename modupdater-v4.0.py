@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/12
+# @Revision: 2025/07/24
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -200,6 +200,7 @@ v4_0 = {
 		# [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
 		[r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_assigned_pop_amount ..."],
 		[r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
+		[r"@(ap_technological_ascendancy|dimensional_worship)_rare_tech\b", ("common/tech","REMOVED in v4.0, ")], 
 
 	],
 	"targets3": {
@@ -212,6 +213,7 @@ v4_0 = {
 		r"^[^#]*?(\s+)country_event = \{\s+id = first_contact.1060[^{}#]+\}": r"\1if = {\n\1\tlimit = { very_first_contact_paragon = yes }\n\1\tset_country_flag = first_contact_protocol_event_happened\n\1}",
 		r"\bplanet_storm_dancers\b": "planet_entertainers",
 		r"((?<!_as =)[\s.])planet_owner": r"\1planet.owner",
+		r"\bis_pleasure_seeker\b": "is_pleasure_seeker_empire",
 		r"\bhas_any_industry_district\b": (NO_TRIGGER_FOLDER, "has_any_industry_zone"),
 		r"\bhas_any_mining_district\b": (NO_TRIGGER_FOLDER, "has_any_capped_planet_mining_district"),
 		r"\b(?:add|remove)_leader_traits_after_modification\b": "update_leader_after_modification",
@@ -287,6 +289,10 @@ v4_0 = {
 		# Modifier effect
 		r"\b(job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
 		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
+		# Variables TODO
+		# economic_plan_food_target_extra -> economic_plan_trade_target (78.26%)
+		# economic_plan_minerals_target -> economic_plan_mineral_target (95.65%)
+
 	},
 	"targets4": {
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
@@ -445,7 +451,6 @@ v3_12 = {
 			NO_TRIGGER_FOLDER,
 			"has_synthetic_ascension = yes",
 		),
-		r"\b(?:is_artificial = yes\s+is_planet_class = pc_cosmogenesis_world|is_planet_class = pc_cosmogenesis_world\s+is_artificial = yes)": "is_artificial = yes",
 		r"(?:(\s+)is_(?:synthetic_empire|individual_machine) = yes){2}": r"\1is_synthetic_empire = yes",
 	},
 }
@@ -869,15 +874,7 @@ v3_5 = {
 	},
 	"targets4": {
 		r"\b(%s)_system_(?:planet|colony) = (\{[^{}#]*?(?:limit = \{)?\s+)(?:has_owner = yes|is_colony = yes|exists = owner)" % VANILLA_PREFIXES: r"\1_system_colony = \2has_owner = yes",
-		# r"\bany_system_(?:planet|colony) = (\{[^{}#]*?)\s+(?:has_owner = yes|is_colony = yes|exists = owner)\b": r"any_system_colony = \1", # has_owner = yes
-		# r"((\s+)any_system_colony = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[^}#]+\})": [
-		# 	r"(\s+)any_system_colony = \{\1\t?([^{}#]*?)(?:(?:has_owner = yes|is_colony = yes|exists = owner)\1\t?)([^}#]*?\s+\})",
-		# 	r"\1any_system_colony = {\1\t\2\3"
-		# ],
-		# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[^}#]*?\s+\})": [
-		# 	r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2\t?([^}#]*?)(?:(?:has_owner = yes|is_colony = yes|exists = owner)\2\t?)([^}#]*?\s+\})",
-		# 	r"\1\2\t\3\4",
-		# ],
+		r"\b((?:%s)_system_colony = \{)\s*(limit = \{\s*|\s*)\}" % VANILLA_PREFIXES: r"\1 \2has_owner = yes }",
 		r"(?:(\s+)has_trait = trait_(?:plantoid|lithoid)_budding){2}\}": (NO_TRIGGER_FOLDER, r"\1has_budding_trait = yes"),
 		# r"(_pop = \{\s+)unemploy_pop = yes\s+(kill_pop = yes)": r"\1\2", # ghost pop bug fixed: obsolete
 	},
@@ -1044,7 +1041,7 @@ v3_2 = {
 		),
 	},
 	"targets4": {
-		r"(?:(\s+)(?:is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex|pc_cosmogenesis_world)|has_ringworld_output_boost = yes|is_artificial = yes)){3,5}\b": r"\1is_artificial = yes",
+		r"(?:(\s+)(?:is_planet_class = (?:pc_ringworld_habitable|pc_habitat|pc_cybrex|pc_cosmogenesis_world)|has_ringworld_output_boost = yes)\b){3,5}": r"\1is_artificial = yes",
 		r"\n\s+possible = \{(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?|\s*)|\s*)|\s*)|\s*)|\s*)|\s*)(?:drone|worker|specialist|ruler)_job_check_trigger = yes\s*": [
 			r"(\s+)(possible = \{(\1\t)?(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?))(drone|worker|specialist|ruler)_job_check_trigger = yes\s*",
 			("common/pop_jobs", r"\1possible_precalc = can_fill_\4_job\1\2"),
@@ -1297,7 +1294,7 @@ v3_0 = {
 		# "any_ship_in_system": "any_fleet_in_system", # works only sure for single size fleets
 		r"\bspawn_megastructure = \{([^{}#]+)location =": r"spawn_megastructure = {\1planet =",  # s.a. multiline coords_from
 		# r"(\s+)planet = (solar_system|planet)\b": "",  # REMOVE???
-		r"(\s+)any_system_within_border = \{\s*any_system_planet = (.*?\s*\})\s*\}": r"\1any_planet_within_border = \2",  # very rare, maybe put to cosmetic
+		r"(\s+)any_system_within_border = \{\s*any_system_planet = ([\s\S]*?\s*\})\s*\}": r"\1any_planet_within_border = \2",  # very rare, maybe put to cosmetic
 		r"is_country_type = default\s+has_monthly_income = \{\s*resource = (\w+) value <=? \d": r"no_resource_for_component = { RESOURCE = \1",
 		## Since Megacorp removed: change_species_characteristics was false documented until 3.2
 		r"[\s#]+(pops_can_(be_colonizers|migrate|reproduce|join_factions|be_slaves)|can_generate_leaders|pops_have_happiness|pops_auto_growth|pop_maintenance) = (yes|no)\s*": "",
@@ -1326,6 +1323,13 @@ if code_cosmetic and not only_warning:
 		NO_TRIGGER_FOLDER,
 		"has_been_declared_crisis = yes",
 	)
+
+dedent_tab_re = re.compile(r'^\s+', flags=re.MULTILINE)
+
+def dedent_block(block_match):
+	block_indent = block_match.group(1)
+	block_match = block_match.group(2)
+	return f"{block_indent}{dedent_tab_re.sub(block_indent, block_match)}"
 
 actuallyTargets = {
 	"targetsR": [
@@ -1396,8 +1400,6 @@ actuallyTargets = {
 			r"NOR = {\n\2\3\4\5\6",
 		],  # only right indent for 5 items (sub-trigger)
 		### End boolean operator merge
-		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES: # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
-			r"\1_playable_country = \2",
 		r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
 		r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
 		r"(?:(\s+)is_country_type = (?:default|awakened_fallen_empire)\b){2}": (NO_TRIGGER_FOLDER, r"\1is_country_type_with_subjects = yes"),
@@ -1413,6 +1415,7 @@ actuallyTargets = {
 			r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
 			r"\1any_planet_within_border = {\2\3\1}",
 		],
+		r"\bany_system_planet = {\s+is_capital = yes\s+}": "is_capital_system = yes",
 		r"\s+any_system = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
 			r"(\n?\s+)any_system = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
 			r"\1any_galaxy_planet = {\2\3\1}",
@@ -1450,15 +1453,10 @@ actuallyTargets = {
 			+ " ",
 		],
 		r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
-		# Just move on the first place if present
-		r"((\s+)any_system_colony = \{\2(?!\s*has_owner = yes)[^}#]+\})": [
-			r"(\s+)any_system_colony = \{\1\t?([^{}#]*?)(?:has_owner = yes\1\t?)([^}#]*?\s+\})",
-			r"\1any_system_colony = {\1\thas_owner = yes\1\t\2\3"
-		],
-		r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{\2(?!\s*has_owner = yes)[^}#]*?\s+\})": [
-			r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2\t?([^}#]*?)(?:has_owner = yes\2\t?)([^}#]*?\s+\})",
-			r"\1\2\thas_owner = yes\2\t\3\4",
-		],
+		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES: 
+			r"\1_playable_country = \2", # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
+		r"^\b(is_artificial = yes\s+(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))|(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))\s+is_artificial = yes)":
+			"is_artificial = yes",
 		# Temp back fix
 		# Just add on the first place
 		# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
@@ -1469,7 +1467,7 @@ actuallyTargets = {
 ACTUAL_STELLARIS_VERSION_FLOAT = float(ACTUAL_STELLARIS_VERSION_FLOAT)
 print("ACTUAL_STELLARIS_VERSION_FLOAT", ACTUAL_STELLARIS_VERSION_FLOAT)
 
-exclude_paths = [
+exclude_paths = {
 	"achievements",
 	"agreement_presets",
 	"component_sets",
@@ -1480,7 +1478,7 @@ exclude_paths = [
 	"start_screen_messages",
 	"section_templates",
 	"ship_sizes",
-]
+}
 
 # 1. Define a list of version configurations, sorted from newest to oldest.
 # Each item is a tuple: (version_threshold_float, data_dictionary_for_that_version)
@@ -1617,13 +1615,14 @@ def do_code_cosmetic():
 	]
 	# targets3[r"# *([A-Z][\w ={}]+?)\.$"] = r"# \1" # remove comment punctuation mark
 	# targets4[r"\n{3,}"] = "\n\n" # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
+	# targets4[r"\n\s+\}\n\s+else"] = [r"\}\s*else", "} else"] # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
+
 	# only for planet galactic_object
 	targets4[
 		r"(?:(?:neighbor|rim|random|every|count|closest|ordered)_system|_planet|_system_colony|_within_border) = \{\s*?(?:limit = \{)?\s*exists = (?:space_)?owner\b"
 	] = [r"exists = (?:space_)?owner", "has_owner = yes"]  # only for planet galactic_object
 	targets4[r"_event = \{\s+id = \"[\w.]+\""] = [r"\bid = \"([\w.]+)\"", ("events", r"id = \1")]  # trim id quote marks
 
-	# targets4[r"\n\s+\}\n\s+else"] = [r"\}\s*else", "} else"] # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
 	# WARNING not valid if in OR: NOR <=> AND = { NOT NOT } , # only 2 items (sub-trigger)
 	targets4[r"\n\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}"] = [
 		r"([\t ]+)NO[RT] = \{\s*([^{}#\r\n]+)\s*\}\s*?\n\s*NO[RT] = \{\s*([^{}#\r\n]+)\s*\}",
@@ -1726,6 +1725,29 @@ def do_code_cosmetic():
 	targets4[r"(?:(\s+)merg_is_(?:fallen_empire|awakened_fe) = yes){2}"] = r"\1is_fallen_empire = yes"
 	targets4[r"(?:(\s+)merg_is_(?:default_empire|awakened_fe) = yes){2}"] = r"\1is_country_type_with_subjects = yes"
 	targets4[r"(?:(\s+)merg_is_(?:default|fallen)_empire = yes){2}"] = r"\1is_default_or_fallen = yes"
+	targets4[r"\n\ttrigger = \{\n\t\towner\b"] = ("events", r"\n\ttrigger = {\n\t\texists = owner\n\t\towner"),
+	## More than cosmetic
+	## Just move on the first place if present (but a lot of blind matches)
+	targets4[r"((\s+)any_system_(?:colony|planet) = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})"] = [
+			r"(\s+)any_system_(?:colony|planet) = \{(\1[^#]*?)(\1\t(?:has_owner = yes|is_colony = yes|exists = owner))",
+			r"\1any_system_colony = {\3\2"
+		]
+	targets4[r"\b((?:every|random|count|ordered)_system_(?:colony|planet) = \{(\s+)[^{}#]*limit = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})"] = [
+			r"(every|random|count|ordered)_system_(?:colony|planet) = \{(\s+)([^{}#]*limit = \{)(\2\t?[^#]*?)(\2\t(?:has_owner = yes|is_colony = yes|exists = owner))",
+			r"\1_system_colony = {\2\3\5\4",
+		]
+	targets4[r"((\s+)any_(?:playable_)?country = \{\2[\s\S]*?\2\})"] = [
+			r"(\s+)any_(?:playable_)?country = \{(\1[^#]*?)(\1\t(?:has_event_chain = \w+|is_ai = no|is_country_type = default|has_policy_flag = \w+|(?:is_zofe_compatible|merg_is_default_empire) = yes))",
+			r"\1any_playable_country = {\3\2",
+		]
+	targets4[r"\b((?:every|random|count|ordered)_(?:playable_)?country = \{(\s+)[^{}#]*limit = \{\2[\s\S]*?\2\})"] = [
+			r"^(every|random|count|ordered)_(?:playable_)?country = \{(\s+)([^{}#]*limit = \{)(\2[^#]*?)(\2\t(?:has_event_chain = \w+|is_ai = no|is_country_type = default|has_policy_flag = \w+|(?:is_zofe_compatible|merg_is_default_empire) = yes))",
+			r"\1_playable_country = {\2\3\5\4",
+		]
+	targets4[r"(?:(\s+)(?:exists = federation|has_federation = yes)){2}"] = r"\1has_federation = yes"
+	targets4[r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$"] = [
+			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
+		]
 
 def is_float(s):
 	try:
@@ -1922,9 +1944,9 @@ def parse_dir():
 	):
 		mod_outpath = mod_path
 		if only_warning:
-			print("Attention: files are ONLY checked!")
+			print("ATTENTION: files are ONLY checked!")
 		else:
-			print("Warning: Mod files will be overwritten!")
+			print("WARNING: Mod files will be overwritten!")
 	else:
 		mod_outpath = os.path.normpath(mod_outpath)
 
@@ -1933,7 +1955,7 @@ def parse_dir():
 	# Using the custom formatter
 	# Prevent adding multiple handlers if this setup code is run more than once
 	if logger.handlers or logger.hasHandlers():
-		logging.debug("Logger handler already exists")
+		logger.debug("Logger handler already exists")
 		logger.handlers.clear()
 
 	# Create a handler for sys.stdout
@@ -1962,7 +1984,7 @@ def parse_dir():
 
 	if debug_mode:
 		logger.setLevel(logging.DEBUG)
-		logging.debug("\tLoading folder %s" % mod_path)
+		logger.debug("\tLoading folder %s" % mod_path)
 	start_time = datetime.datetime.now()
 
 	# if os.path.isfile(mod_path + os.sep + 'descriptor.mod'):
@@ -2030,12 +2052,12 @@ def parse_dir():
 						logger.warning("No Mod structure found!")
 
 def modfix(file_list, is_subfolder=False):
-	logging.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
+	logger.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
 
 	triggers_in_mod = extract_scripted_triggers()
 	tar3, tar4 = apply_merger_of_rules(list(targets3), list(targets4), triggers_in_mod, is_subfolder)
 
-	# logging.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
+	# logger.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
 	subfolder = ""
 	# file_pattern = re.compile(r"^[\s#]")
 
@@ -2055,13 +2077,13 @@ def modfix(file_list, is_subfolder=False):
 	}
 	# Optimized Set-Function
 	def find_with_set_optimized(lines, valid_lines, changed):
-		""" Finds unique constants in the text """
+		""" Finds unique constants in the defines text """
 		# TARGETS_DEF_R = re.compile(r'\b(?:' + '|'.join(c for c in target_strings) + r')\b')
 		# nonlocal lines, valid_lines, changed
 
 		# for l, (i, stripped) in enumerate(valid_lines):
-		for i, line in valid_lines:
-			stripped = line.lstrip()
+		for i, line, stripped in valid_lines:
+			# stripped = line.lstrip()
 			if TARGETS_DEF_R.match(stripped):
 				lines[i] = line = line[:len(line)-len(stripped)] + '# ' + stripped
 				# valid_lines[l] = (i, line)
@@ -2103,8 +2125,8 @@ def modfix(file_list, is_subfolder=False):
 		skip_block = False
 		block_depth = 0
 
-		for l, (i, line) in enumerate(valid_lines):
-			stripped = line.lstrip()
+		for l, (i, line, stripped) in enumerate(valid_lines):
+			# stripped = line.lstrip()
 			line_changed = False
 
 			# Detect block start
@@ -2158,8 +2180,7 @@ def modfix(file_list, is_subfolder=False):
 				#             logger.debug("BLIND trait match")
 					if line_changed:
 						lines[i] = line
-						line_changed = line.lstrip()
-						valid_lines[l] = (i, line_changed)
+						valid_lines[l] = (i, line, line.lstrip())
 						changed = True
 						logger.info(
 							   "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
@@ -2185,24 +2206,24 @@ def modfix(file_list, is_subfolder=False):
 
 	def check_folder(folder):
 		rt = False
-		# logging.debug("subfolder: {subfolder}, {folder}")
+		# logger.debug("subfolder: {subfolder}, {folder}")
 		if isinstance(folder, list):
-			# logging.debug("folder list: {subfolder}, {folder}")
+			# logger.debug("folder list: {subfolder}, {folder}")
 			for fo in folder:
 				if subfolder in fo:
 					rt = True
-					# logging.debug(f"folder matches: {subfolder}, {folder}")
+					# logger.debug(f"folder matches: {subfolder}, {folder}")
 					break
 		elif isinstance(folder, str):
-			# logging.debug(f"subfolder in folder: {subfolder}, {folder}")
+			# logger.debug(f"subfolder in folder: {subfolder}, {folder}")
 			if subfolder in folder:
 				rt = True
-				logging.debug(folder)
+				# logger.debug(folder)
 		elif isinstance(folder, re.Pattern):
 			if folder.search(subfolder):
-				# logging.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
+				# logger.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
 				rt = True
-			# logging.debug("Folder EXCLUDED: {subfolder}, {repl}")
+			# logger.debug("Folder EXCLUDED: {subfolder}, {repl}")
 		elif isinstance(folder, tuple):
 			trigger_key = folder[1]
 			# not the same file name for triggers
@@ -2216,7 +2237,7 @@ def modfix(file_list, is_subfolder=False):
 		_file = os.path.normpath(_file)
 		if not any(_file.startswith(p) for p in exclude_paths) and os.path.isfile(_file) and _file.endswith(".txt"):
 			lines = ""
-			if debug_mode: logging.debug(f"Check file: {_file}")
+			if debug_mode: logger.debug(f"Check file: {_file}")
 			with open(_file, "r", encoding="utf-8", errors="ignore") as txtfile:
 
 				subfolder = os.path.relpath(_file, mod_path)
@@ -2230,12 +2251,47 @@ def modfix(file_list, is_subfolder=False):
 				for i, line in enumerate(lines):
 					stripped = line.lstrip()
 					if stripped and not stripped.startswith("#") and len(stripped) > 8:
-						stripped = line.split('#', 1)
+						stripped = stripped.split('#', 1)
 						if len(stripped) > 1:
 							stripped = stripped[0].rstrip() + '\n'
 						else:
 							stripped = stripped[0]
-						valid_lines.append((i, stripped))
+						valid_lines.append((i, line, stripped))
+				# For syntax fix debug
+				num_lines = len(valid_lines)
+				old_line = False
+				no_dbl_line = {
+					"add_",
+					"create",
+					"spawn",
+					"swarm",
+					"roll",
+					"generate",
+					"complete",
+					"module",
+					'\"',
+					'remove_',
+					'ruin_',
+					# ' yes\n',
+				}
+
+				for i, line, stripped in reversed(valid_lines):
+					if (stripped == old_line and
+						i == valid_lines[num_lines][0] - 1 and
+						not any(stripped.startswith(p) for p in no_dbl_line) and
+						not stripped.endswith('$\n') and
+						# not '$' in stripped and
+						# lines[i] == lines[i+1] fully identically
+						stripped == line.lstrip()
+						):
+						num_lines -= 1
+						logger.warning(f"Double line({i}): {stripped} at {basename}")
+						# del lines[i]
+						# del valid_lines[num_lines]
+						# changed = True
+						continue
+					num_lines -= 1
+					old_line = stripped
 
 				# Since v4.0
 				if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
@@ -2260,7 +2316,7 @@ def modfix(file_list, is_subfolder=False):
 							if file != basename:
 								rt = True
 						elif file in basename:
-							# logging.debug("\tFILE match:", file, basename)
+							# logger.debug("\tFILE match:", file, basename)
 							folder, repl, rt = repl
 						else:
 							folder, rt, repl = repl
@@ -2275,7 +2331,7 @@ def modfix(file_list, is_subfolder=False):
 						rt = True
 
 					if rt:  # , flags=re.I # , count=0, flags=0
-						for l, (i, line) in enumerate(valid_lines):
+						for l, (i, line, stripped) in enumerate(valid_lines):
 							m = pattern.search(line)  # , flags=re.I
 							if m:
 								line_changed = line
@@ -2283,15 +2339,15 @@ def modfix(file_list, is_subfolder=False):
 								if rt == 1:
 									if line_changed != line:
 										lines[i] = line_changed
-										valid_lines[l] = (i, line_changed)
-										line_changed = line_changed.lstrip()
+										stripped = line_changed.lstrip()
+										valid_lines[l] = (i, line_changed, stripped)
 										changed = True
 										logger.info(
 											"\tUpdated file: %s on %s (at line %i) with %s\n"
-											% (basename, line.lstrip(), i, line_changed)
+											% (basename, line.lstrip(), i, stripped)
 										)
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
-										if m.start() <= 6 and m.end() >= len(line_changed) - 6:
+										if m.start() <= 6 and m.end() >= len(stripped) - 6:
 											logger.debug("The entire line is matched; no further matches possible")
 											del valid_lines[l] # just one hit per line
 											# break
@@ -2309,9 +2365,9 @@ def modfix(file_list, is_subfolder=False):
 						folder = check_folder(folder)
 					if folder:
 						# for i, line in valid_lines:
-						for l, (i, line) in enumerate(valid_lines):
-							line = line.lstrip()
-							m = pattern.search(line)
+						for l, (i, line, stripped) in enumerate(valid_lines):
+							# line = line.lstrip()
+							m = pattern.search(stripped)
 							if m:
 								logger.warning(
 									"Potentially deprecated Syntax (%s): %s in line %i file %s\n"
@@ -2381,10 +2437,10 @@ def modfix(file_list, is_subfolder=False):
 							tar = t.group(0) # match
 							# print(type(repl), tar, type(tar))
 							repl_str = False
-							# if isinstance(replace, list):
-								# if len(t.groups()) > 1:
-								#     tar = t.group(1)  # Take only first group
-								#     logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
+							if isinstance(repl, list):
+								if len(t.groups()) > 1:
+								    tar = t.group(1)  # Take only first group
+								    logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
 								# print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
 							repl_str, rt = replace[0].subn(replace[1], tar, count=1)
 							if rt != 1:
@@ -2423,7 +2479,7 @@ def modfix(file_list, is_subfolder=False):
 			pattern = re.compile(r'supported_version="v?(.*?)"')
 			m = pattern.search(out) # old game version
 			if m: m = m.group(1)
-			logging.debug(m, isinstance(m, str), len(m))
+			# logger.debug(f"{m}, {isinstance(m, str)}, {len(m)}")
 
 			if isinstance(m, str) and m != FULL_STELLARIS_VERSION:
 				old_ver_len = m.rfind(".")
@@ -2631,7 +2687,7 @@ if __name__ == "__main__":
 
 	### Pre-Compile regexps
 	targets3 = [(re.compile(k, flags=0), v) for k, v in targets3.items()]
-	targets4 = [(re.compile(k, flags=re.I), v) for k, v in targets4.items()]
+	targets4 = [(re.compile(k, flags=re.I|re.M), v) for k, v in targets4.items()]
 
 	### General Fixes (needs to be last)
 	items_to_add = [

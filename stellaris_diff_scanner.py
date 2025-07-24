@@ -32,7 +32,7 @@ import argparse
 old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris3.14"
 new_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
 # Add/Remove more categories if needed
-rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", } # "starbase_buildings", "jobs" , "starbase_modules"
+rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", "variables" } # "starbase_buildings", "jobs" , "starbase_modules"
 scan_events = True # False #  Event ID tracking
 scan_common = True # False # Common folder tracking
 debug = False # True #
@@ -40,7 +40,15 @@ debug = False # True #
 # Configure basic logging - this can be overridden by argparse later
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+file = 'scanned_diff.list'
 
+try:
+    os.remove(os.path.join(old_version_folder, file))
+    logger.debug(f"File '{file}' deleted successfully.")
+except FileNotFoundError:
+    logger.debug(f"Error: File '{file}' not found.")
+except Exception as e:
+    logger.debug(f"Error deleting file: {e}")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Compare two Stellaris directories and list modding diffs")
@@ -51,11 +59,12 @@ def parse_args():
     parser.add_argument("--common", action="store_true", help="Enable common folder name scanning")
     return parser.parse_args()
 
-def write_if_not_empty(path, file, lines, info):
+def write_if_not_empty(path, title, lines, info):
     if lines:
-        with open(os.path.join(path, file), 'w', encoding='utf-8') as f:
+        with open(os.path.join(path, file), 'a', encoding='utf-8') as f:
+            f.write(f'\n\n{title}\n\n')
             f.write('\n'.join(lines))
-        logging.info(f"{info} written to: {file}")
+        logger.info(f"{info} written to: {file}")
 
 def extract_keys(folder, compiled_pattern):
     keys = {}
@@ -106,6 +115,11 @@ def extract_all_blocks(folder, pattern):
     if not os.path.exists(folder):
         return blocks
 
+    is_block = "\n" # False
+    if (pattern.flags & re.MULTILINE) == re.MULTILINE:
+        is_block = "\n}\n" # True
+        # logger.info(f"pattern is MULTILINE {pattern}")
+
     for file in os.listdir(folder):
         path = os.path.join(folder, file)
         if not os.path.isfile(path) or not file.endswith(".txt"):
@@ -116,8 +130,9 @@ def extract_all_blocks(folder, pattern):
 
         for match in pattern.finditer(content):
             key = match.group(1)
-            start = match.end()
-            end_idx = content.find("\n}\n", start)
+            # start = match.end()
+            start = match.start()
+            end_idx = content.find(is_block, match.end())
             if end_idx == -1:
                 end_idx = len(content)
             block_text = content[start:end_idx].strip()
@@ -127,7 +142,7 @@ def extract_all_blocks(folder, pattern):
 def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshold=0.75):
     renames = []
     matched_new_keys = set()
-    logging.info(f"Starting renamed block detection: {len(removed_keys)} removed keys, {len(added_keys)} added keys")
+    logger.info(f"Starting renamed block detection: {len(removed_keys)} removed keys, {len(added_keys)} added keys")
     for old_key in removed_keys:
         if old_key not in old_dict:
             continue
@@ -149,10 +164,10 @@ def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshol
             new_file = new_dict[best_match][1]
             renames.append((old_key, best_match, best_ratio, old_file, new_file))
             matched_new_keys.add(best_match)
-            logging.info(f"Potentially renamed: {old_key} -> {best_match} ({best_ratio}%)")
+            logger.info(f"Potentially renamed: {old_key} -> {best_match} ({best_ratio}%)")
             if debug: print(f"Compare\nOLD ===:\n{new_dict[best_match][0]}\nNEW ===:\n{old_body}")
 
-    logging.info(f"Renamed block detection completed: {len(renames)} potentially renamed pairs found")
+    logger.info(f"Renamed block detection completed: {len(renames)} potentially renamed pairs found")
     return renames
 
 def write_diffs(old_items, new_items, category, old_path, new_path, summary_lines, renamed_pairs=None):
@@ -167,10 +182,11 @@ def write_diffs(old_items, new_items, category, old_path, new_path, summary_line
 
     # write_if_not_empty(old_path, f"{category}_list_old.txt", old_items, category)
     # write_if_not_empty(new_path, f"{category}_list_new.list", new_items, category)
-    write_if_not_empty(new_path, f"{category}_diff_added.list", added, category)
+    # write_if_not_empty(new_path, f"{category}_diff_added.list", added, category)
+    write_if_not_empty(old_path, f"{category}_diff_added.list", added, category)
     write_if_not_empty(old_path, f"{category}_diff_removed.list", removed, category)
 
-    logging.info(f"[{category.upper()}] Added: {len(added)}, Removed: {len(removed)}")
+    logger.info(f"[{category.upper()}] Added: {len(added)}, Removed: {len(removed)}")
     summary_lines.append(f"{category.upper()}:")
     summary_lines.append(f"  Added:   {len(added)}")
     summary_lines.append(f"  Removed: {len(removed)}\n")
@@ -187,15 +203,15 @@ def compare_stellaris_data(old_path, new_path):
         "buildings":   (re.compile(r'^(building_\w+) = \{', re.MULTILINE), "common/buildings"),
         "starbase_buildings": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_buildings"),
         "starbase_modules": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_modules"),
-        "districts": (re.compile(r'^(district_\w+) = \{', re.MULTILINE), "common/districts"),
+        "districts":   (re.compile(r'^(district_\w+) = \{', re.MULTILINE), "common/districts"),
         "civics":      (re.compile(r'^((?:civic|origin)_\w+) = \{', re.MULTILINE), "common/governments/civics"),
         "governments": (re.compile(r'^(gov_\w+) = \{', re.MULTILINE), "common/governments"),
-        "variables": (re.compile(r'^@(\w+) =', re.MULTILINE), "common/scripted_variables"), # \s*-?[.\d]+
-        "defines": (re.compile(r'^\t+([A-Z0-9_]+)\s*=', re.MULTILINE), "common/defines"),
+        "variables":   (re.compile(r'\n@(\w+) ='), "common/scripted_variables"), # \s*-?[.\d]+
+        "defines":     (re.compile(r'\n\t+([A-Z0-9_]+)\s*='), "common/defines"),
     }
 
     for cat, (pattern, subpath) in category_configs.items():
-        logging.info(f"Processing category: {cat.upper()}")
+        logger.info(f"Processing category: {cat.upper()}")
         old_dir = os.path.join(old_path, subpath)
         new_dir = os.path.join(new_path, subpath)
 
@@ -269,7 +285,7 @@ def compare_stellaris_data(old_path, new_path):
     write_diffs(old_items, new_items, "modifiers", old_path, new_path, summary_lines, renamed)
 
     if scan_events:
-        logging.info("Processing category: EVENTS...")
+        logger.info("Processing category: EVENTS...")
         event_dir_old = os.path.join(old_path, "events")
         event_dir_new = os.path.join(new_path, "events")
 
@@ -282,7 +298,7 @@ def compare_stellaris_data(old_path, new_path):
         write_diffs(old_ids, new_ids, "events", old_path, new_path, summary_lines)
 
     if scan_common:
-        logging.info("Processing COMMON subdirectory structure...")
+        logger.info("Processing COMMON subdirectory structure...")
         old_folders = os.path.join(old_path, "common")
         new_folders = os.path.join(new_path, "common")
 

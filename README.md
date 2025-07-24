@@ -33,7 +33,7 @@ Automate the process of updating a modpack's version metadata. It includes funct
 
 Alternatively, download and extract the ZIP manually from the [GitHub releases page](https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/releases).
 
-2. Execute `python modupdater-v4.0.py`
+2. Execute `py modupdater-v4.0.py`
 
 ### ⚙️ Optional Parameters
 
@@ -56,7 +56,7 @@ These can be set directly in the script or passed as arguments when launching.
 
 ### ⌨️ Example 
  ```bash
-python modupdater-v4.0.py -a 1 -m 1 -input "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\ADeadlyTempest"
+py modupdater-v4.0.py -a 1 -m 1 -input "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\ADeadlyTempest"
 ```
 Note: To use <b>double backslashes</b> or <b>forward slashes</b> for the path strings you are passing as arguments (on Windows).
 Or just use: ```py modupdater-v4.0.py``` (if same folder)
