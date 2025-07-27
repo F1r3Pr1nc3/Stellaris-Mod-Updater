@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/24
+# @Revision: 2025/07/27
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -27,7 +27,7 @@ FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.22' # @last supporte
 mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.22_mod" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
-code_cosmetic = 0
+code_cosmetic = 0 # Still Beta
 also_old = 0
 debug_mode = 0  # without writing file=log_file
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
@@ -77,6 +77,7 @@ VANILLA_PREFIXES = r"any|every|random|count|ordered"
 PLANET_MODIFIER = r"jobs|housing|amenities|amenities_no_happiness"
 RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
 NO_TRIGGER_FOLDER = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+)_[^/_]+$)?")  # 2lvl, only 1lvl folder: ^([^_]+)(_(?!trigger)[^_]+|[^_]*)$ only
+SCOPES = r"megastructure|planet|country|owner|controller|space_owner|ship|pop|fleet|galactic_object|leader|army|ambient_object|species|pop_faction|war|federation|starbase|deposit|sector|archaeological_site|first_contact|spy_network|espionage_operation|espionage_asset"
 EFFECT_FOLDERS = {
 	"events",
 	"common/agendas",
@@ -105,6 +106,9 @@ EFFECT_FOLDERS = {
 	"common/traditions",
 	"common/traits",
 }
+
+ACTUAL_STELLARIS_VERSION_FLOAT = float(ACTUAL_STELLARIS_VERSION_FLOAT)
+print("ACTUAL_STELLARIS_VERSION_FLOAT", ACTUAL_STELLARIS_VERSION_FLOAT)
 
 def multiply_by_hundred(m):
 	"Multiply regexp str integer by hundred"
@@ -200,7 +204,7 @@ v4_0 = {
 		# [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
 		[r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_assigned_pop_amount ..."],
 		[r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
-		[r"@(ap_technological_ascendancy|dimensional_worship)_rare_tech\b", ("common/tech","REMOVED in v4.0, ")], 
+		[r"@(ap_technological_ascendancy|dimensional_worship)_rare_tech\b", ("common/tech","REMOVED in v4.0, ")],
 
 	],
 	"targets3": {
@@ -346,7 +350,7 @@ v4_0 = {
 								else 'demand_surrender = ""'
 					) + " }"
 			)],
-		r"\n(?:\t(?:condition_string|building_icon|icon) = \w+\n){1,3}": [
+		r"^(?:\t(?:condition_string|building_icon|icon) = \w+\n){1,3}": [
 			r"(\t(?:condition_string|building_icon|icon) = \w+\n)\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?", ("common/pop_jobs", lambda m:
 				'\tswappable_data = {\n\t\tdefault = {\n\t\t'+m.group(1)+
 				('\t\t'+m.group(2) if m.group(2) else '')+
@@ -511,7 +515,8 @@ v3_11 = {
 		),
 	},
 }
-if code_cosmetic and not only_warning:
+
+if code_cosmetic and not only_warning and ACTUAL_STELLARIS_VERSION_FLOAT < 4.0: # Reactivated with v4.0
 	v3_11["targets3"][r"^(\s+[^#]*?\btech_)((?:society|physics|engineering)_\d)"] = lambda p: p.group(1) + {
 			"society_1": "genome_mapping",
 			"society_2": "colonization_3",
@@ -523,7 +528,7 @@ if code_cosmetic and not only_warning:
 			"engineering_2": "space_mining_4",
 			"engineering_3": "advanced_metallurgy_2",
 		}[p.group(2)]
-	
+
 # """== 3.10 PYXIS (Astral Planes DLC) Quick stats ==
 # BTW: the modifier leader_age has been renamed to leader_lifespan_add, the trigger leader_lifespan has been introduced
 # Removed paragon.5001
@@ -1237,7 +1242,7 @@ v3_1 = {
 			r"(\s*which = \"?(\w+)\"?\s+value\s*[<=>]+\s*(prev|from|root|event_target:[^\.\s])+)",
 			r"\1.\2",
 		],
-		r"\bset_variable = \{\s*which = \"?\w+\"?\s+value = (?:event_target:[^\d:{}#\s=\.]+|(prev\.?|from\.?|root|this|megastructure|planet|country|owner|controller|space_owner|ship|pop|fleet|galactic_object|leader|army|ambient_object|species|pop_faction|war|federation|starbase|deposit|sector|archaeological_site|first_contact|spy_network|espionage_operation|espionage_asset)+)\s*\}": [
+		r"\bset_variable = \{\s*which = \"?\w+\"?\s+value = (?:event_target:[^\d:{}#\s=\.]+|(prev\.?|from\.?|root|this|%s)+)\s*\}" % SCOPES: [
 			r"set_variable = \{\s*which = \"?(\w+)\"?\s+value = (event_target:\w+|\w+)\s*\}",
 			r"set_variable = { which = \1 value = \2.\1 }",
 		],
@@ -1379,7 +1384,7 @@ actuallyTargets = {
 			r"\1NAND = {\n\2\3\4\5\6\7\8\9\10\11\12\13\14\15",
 		],  # up to 7 items (sub-trigger)
 		# NOR <=> AND = { NOT
-		r"\n\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,}\s+\}?": [
+		r"^\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,}\s+\}?": [
 			r"(\n\s+)AND = \{\s*?(?:(\n\s+)NOT = \{\s*([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s+\})(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\4(?(4)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\7(?(7)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\10(?(10)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\13(?(13)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\16(?(16)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\19)?)?)?)?)?\1\}",
 			r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
 		],  # up to 7 items (sub-trigger)
@@ -1390,15 +1395,45 @@ actuallyTargets = {
 			r"\1NOR = {\1\t\2\1\t\3\1}"
 		)],  # only 2 items (sub-trigger)
 		# NAND <=> NOT = { AND
-		r"\n\s+NO[RT] = \{\s*AND = \{[^{}#]*?\}\s*\}": [
+		r"^\s+NO[RT] = \{\s*AND = \{[^{}#]*?\}\s*\}": [
 			r"(\t*)NO[RT] = \{\s*AND = \{[ \t]*\n(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?\s*\}[ \t]*\n",
 			r"\1NAND = {\n\2\3\4\5",
 		],  # only 4 items (sub-trigger)
 		# NOR <=> NOT = { OR (only sure if base is AND)
-		r"\n\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
+		r"^\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
 			r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
 			r"NOR = {\n\2\3\4\5\6",
 		],  # only right indent for 5 items (sub-trigger)
+		# NAND <=> OR = { NOT
+		# TODO: fix yes ending with tab
+		r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|\w+ = \{[^{}#]+? = no)\s+?\}\s+?){2}\s*\}\n": [
+			r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}\s+(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}",
+			lambda p: "NAND = {"+p.group(1)+(p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else p.group(3)+"yes }")+p.group(1)+(p.group(4) if isinstance(p.group(4), str) and p.group(4) != "" else p.group(5)+"yes }")
+		],
+		r"((\s+)OR = \{(?:(?:\s+NOT = \{[^\n#]+?\s+?\}|\s+(\w+ = \{)?[^\n#]+? = no(?(3)\s*?\}))){2}\2\})": [
+			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(5)\s+?\})\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(7)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(9)\s+?\})",
+			lambda p: "NAND = {"
+			+ p.group(1)
+			+ (
+				p.group(2)
+				if p.group(2) and p.group(2) != ""
+				else p.group(4) + "yes" + (" }" if p.group(5) and p.group(5) != "" else "")
+			)
+			+ p.group(1)
+			+ (
+				p.group(6)
+				if p.group(6) and p.group(6) != ""
+				else p.group(8) + "yes" + (" }" if p.group(9) and p.group(9) != "" else "")
+			),
+		],  # NAND = {\1\2\4yes\1\6\8yes
+		# MERGE 'NO' ONLY NOT IN OR
+		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+\w+ = no\b(?: NO[RT] = \{|\s+NO[RT] = \{\s*[^{}#\n]+\s*\})": [
+			r"(\w+) = no(\s+)NO[RT] = \{\s*([^{}#\n]+)\s*\}",
+			r"NOR = {\2\t\1 = yes\2\t\3\2}"],
+		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+NO[RT] = \{[^{}#\n]+\}\s+\w+ = no\b": [
+			r"NO[RT] = \{\s*([^{}#\n]+?)\s*\}(\s+)(\w+) = no$",
+			r"NOR = {\2\t\1\2\t\3 = yes\2}"],
+
 		### End boolean operator merge
 		r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
 		r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
@@ -1410,16 +1445,6 @@ actuallyTargets = {
 		r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}": r"\1 != \2 }",
 		# r"change_species_characteristics = \{\s*?[^{}\n]*?
 		r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
-		# very rare, maybe put to cosmetic
-		r"\s+any_system_within_border = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
-			r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
-			r"\1any_planet_within_border = {\2\3\1}",
-		],
-		r"\bany_system_planet = {\s+is_capital = yes\s+}": "is_capital_system = yes",
-		r"\s+any_system = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
-			r"(\n?\s+)any_system = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
-			r"\1any_galaxy_planet = {\2\3\1}",
-		],
 		# Near cosmetic
 		r"\bcount_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}": r"has_starbase_module = \1",
 		# TODO performance: a lot of blind matches
@@ -1453,7 +1478,7 @@ actuallyTargets = {
 			+ " ",
 		],
 		r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
-		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES: 
+		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES:
 			r"\1_playable_country = \2", # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
 		r"^\b(is_artificial = yes\s+(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))|(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))\s+is_artificial = yes)":
 			"is_artificial = yes",
@@ -1463,9 +1488,6 @@ actuallyTargets = {
 		# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
 	},
 }
-
-ACTUAL_STELLARIS_VERSION_FLOAT = float(ACTUAL_STELLARIS_VERSION_FLOAT)
-print("ACTUAL_STELLARIS_VERSION_FLOAT", ACTUAL_STELLARIS_VERSION_FLOAT)
 
 exclude_paths = {
 	"achievements",
@@ -1554,7 +1576,7 @@ def do_code_cosmetic():
 	targetsR.append([r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT]\s*=\s*\{\s*[^{}#\n]+\s*\}", "can be merged into NOR if not in an OR"])  #  [^\d{$@] too rare (could also be auto fixed)
 
 	targets3[r"(?:[<=>{]\s|\.|\t|PREV|FROM|Prev|From)+(PREV|FROM|ROOT|THIS|Prev|From|Root|This)+\b" ] = lambda p: p.group(0).lower()
-	targets3[r"\b(IF|ELSE|ELSE_IF|OWNER|Owner|CONTROLLER|Controller|LIMIT)\s*="] = lambda p: p.group(1).lower() + " ="
+	targets3[r"\b(IF|ELSE|ELSE_IF|Owner|CONTROLLER|Controller|LIMIT)\s*="] = lambda p: p.group(1).lower() + " =" # OWNER
 	targets3[r"\b(or|not|nor|and)\s*="] = lambda p: p.group(1).upper() + " ="
 	targets3[r" {4}"] = r"\t"  # r" {4}": r"\t", # convert space to tabs
 	targets3[r"^(\s+)limit\s*=\s*\{\s*\}"] = r"\1# limit = { }"
@@ -1567,10 +1589,11 @@ def do_code_cosmetic():
 		),
 	)
 	# targets3[r"\s*days = -1\s*"] = ' ' # still needed to execute immediately
-	targets3[r"(?<!(?:e\.g|.\.\.))([#.])[\t ]{1,3}([a-z])([a-z]+ +[^;:\s#=<>]+)"] = lambda p: p.group(1) + " " + p.group(2).upper() + p.group(3) # format comment
-	targets3[r"#([^\-\s#])"] = r"# \1"  # r"#([^\s#])": r"# \1", # format comment
+	# Format Comment
+	targets3[r"(?<!(?:e\.g|.\.\.))([#.])[\t ]{1,3}([a-z])([a-z]+ +[^;:\s#=<>]+)"] = lambda p:	(p.group(1) + " " + p.group(2).upper() + p.group(3)) if not re.match(r"(%s)" % SCOPES, p.group(2) + p.group(3)) else p.group(0)
+	targets3[r"#([^\-\s#])"] = r"# \1"
 	#  targets3[r"# +([A-Z][^\n=<>{}\[\]# ]+? [\w,\.;\'\//+\- ()&]+? \w+ \w+ \w+)$"] = r"# \1." # set comment punctuation mark
-	targets3[r"(?<!(?:e\.g|.\.\.))([#.][\t ][a-z])([a-z]+ +[^;:\s#=<>]+ [^\n]+?[\.!?])$" ] = lambda p: p.group(1).upper() + p.group(2)  # format comment
+	targets3[r"(?<!(?:e\.g|.\.\.))([#.][\t ])([a-z])([a-z]+ +[^;:\s#=<>]+ [^\n]+?[\.!?])$" ] = lambda p: (p.group(1) + p.group(2).upper() + p.group(3)) if not re.match(r"(%s)" % SCOPES, p.group(2) + p.group(3)) else p.group(0)
 	# NOT NUM triggers.
 	targets3[r"\bNOT = \{\s*(\w+)\s*([<=>]+)\s*(@\w+|-?[\d.]+)\s+\}"] = lambda p: p.group(1) +" "+ ({
 				">": "<=",
@@ -1601,153 +1624,149 @@ def do_code_cosmetic():
 			if p.group(1) == "."
 			else p.group(1) + "can_generate_trade_value = yes"
 	)
-	# Collect same scope
-	targets4[r"exists\s*=\s*(\w+)\n(?:\s+\1 = \{\s*\w+ = [^{}#\n]+?\s*\}[ \t]*\n)+"] = [
-			r"(\s+\w+ = \{)\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?",
-			r"\1 \2\3\4\5\6\7}\n"]  # up to 6 items
-	targets4[r"\bany_system_planet\s*=\s*\{\s*is_capital\s*=\s*(?:yes|no)\s*\}"] = [
-		r"any_system_planet\s*=\s*\{\s*is_capital\s*=\s*(yes|no)\s*\}",
-		r"is_capital_system = \1",
-	]
-	targets4[r"(?:species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*[\w\.:]+?\.?species\s*\}"] = [
-		r"(species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*([\w\.:]+?\.?species)\s*\}",
-		r"\1 = { is_same_species = \2 }"
-	]
-	# targets3[r"# *([A-Z][\w ={}]+?)\.$"] = r"# \1" # remove comment punctuation mark
-	# targets4[r"\n{3,}"] = "\n\n" # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
-	# targets4[r"\n\s+\}\n\s+else"] = [r"\}\s*else", "} else"] # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
-
-	# only for planet galactic_object
-	targets4[
-		r"(?:(?:neighbor|rim|random|every|count|closest|ordered)_system|_planet|_system_colony|_within_border) = \{\s*?(?:limit = \{)?\s*exists = (?:space_)?owner\b"
-	] = [r"exists = (?:space_)?owner", "has_owner = yes"]  # only for planet galactic_object
-	targets4[r"_event = \{\s+id = \"[\w.]+\""] = [r"\bid = \"([\w.]+)\"", ("events", r"id = \1")]  # trim id quote marks
-
-	# WARNING not valid if in OR: NOR <=> AND = { NOT NOT } , # only 2 items (sub-trigger)
-	targets4[r"\n\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}"] = [
-		r"([\t ]+)NO[RT] = \{\s*([^{}#\r\n]+)\s*\}\s*?\n\s*NO[RT] = \{\s*([^{}#\r\n]+)\s*\}",
-		(r"^(?!governments)\w+", r"\1NOR = {\n\1\t\2\n\1\t\3\n\1}"),
-	]
-	# Merge no
-	targets4[r"[^#]\s+\w+ = no(?: NO[RT] = \{|\s+NO[RT] = \{\s*[^{}#\n]+\s*\})"] = [r"\b(\w+) = no\s+NO[RT] = \{", r"NOR = { \1 = yes"]
-	targets4[r"[^#]\s+NO[RT] = \{[^{}#\n]+\}\s+\w+ = no"] = [r"NO[RT] = \{\s*([^{}#\n]+?)\s*\}\s+(\w+) = no$", r"NOR = { \1 \2 = yes }"]
-	targets4[r"\n\s+random_country = \{\s*limit = \{\s*is_country_type = global_event\s*\}" ] = [r"random_country = \{\s*limit = \{\s*is_country_type = global_event\s*\}", "event_target:global_event_country = {"]
-	# unnecessary AND
-	targets4[
-		r"\b((?:%s) = \{(\s+)(?:AND|this) = \{(?:\2\t[^\n]+)+\2\}\n)" % triggerScopes] = [
-		r"(%s) = \{\n(\s+)(?:AND|this) = \{\n\t(\2[^\n]+\n)(?(3)\t)(\2[^\n]+\n)?(?(4)\t)(\2[^\n]+\n)?(?(5)\t)(\2[^\n]+\n)?(?(6)\t)(\2[^\n]+\n)?(?(7)\t)(\2[^\n]+\n)?(?(8)\t)(\2[^\n]+\n)?(?(9)\t)(\2[^\n]+\n)?(?(10)\t)(\2[^\n]+\n)?(?(11)\t)(\2[^\n]+\n)?(?(12)\t)(\2[^\n]+\n)?(?(13)\t)(\2[^\n]+\n)?(?(14)\t)(\2[^\n]+\n)?(?(15)\t)(\2[^\n]+\n)?(?(16)\t)(\2[^\n]+\n)?(?(17)\t)(\2[^\n]+\n)?(?(18)\t)(\2[^\n]+\n)?(?(19)\t)(\2[^\n]+\n)?(?(20)\t)(\2[^\n]+\n)?\2\}\n"
-		% triggerScopes,
-		r"\1 = {\n\3\4\5\6\7\8\9\10\11\12\13\14\15\16\17\18\19\20\21",
-	]
-	targets4[r"(?:\s+add_resource = \{\s*\w+ = [^\s{}#]+\s*\}){2,}"] = [
-		r"(\s+add_resource = \{)(\s*\w+ = [^\s{}#]+)\s*\}\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\}(?(3)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(4)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(5)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(6)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(7)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?",
-		r"\1\2\3\4\5\6\7 }",
-	]  # 6 items
-	### 3.4
-	targets4[r"\s(?:NO[RT]|OR) = \{\s*has_modifier = doomsday_\d[\w\s=]+\}"] = [
-		r"(N)?O[RT] = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
-		lambda p: "is_doomsday_planet = " + ("yes" if not p.group(1) or p.group(1) == "" else "no"),
-	]
-	# targets4[r"\bOR = \{\s*has_modifier = doomsday_\d[\w\s=]+\}"] = [r"OR = \{\s*(has_modifier = doomsday_\d\s+){5}\}", "is_doomsday_planet = yes"]
-	targets4[
-		r"\b(?:is_gestalt = (?:yes|no)\s+is_(?:machine|hive)_empire = (?:yes|no)|is_(?:machine|hive)_empire = (?:yes|no)\s+is_gestalt = (?:yes|no))"
-	] = [
-		r"(?:is_gestalt = (yes|no)\s+is_(?:machine|hive)_empire = \1|is_(?:machine|hive)_empire = (yes|no)\s+is_gestalt = \2)",
-		r"is_gestalt = \1\2",
-	]
-	targets4[
-		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes"
-	] = "is_fallen_empire_machine = yes"
-	targets4[
-		r"\b(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(?:%s)|has_ethic = ethic_fanatic_(?:%s)\s+is_fallen_empire = yes)"
-		% (VANILLA_ETHICS, VANILLA_ETHICS)
-	] = [
-		r"(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(%s)|has_ethic = ethic_fanatic_(%s)\s+is_fallen_empire = yes)"
-		% (VANILLA_ETHICS, VANILLA_ETHICS),
-		r"is_fallen_empire_\1\2 = yes",
-	]
-	targets4[
-		r'\b(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (?:yes|no)|has_machine_age_dlc = (?:yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")'
-	] = [
-		r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")',
-		lambda p: "has_synthetic_dawn_"
-		+ (
-			"not"
-			if (not p.group(2) and p.group(1) == "not")
-			or (not p.group(1) and p.group(2) == "not")
-			else "and"
-		)
-		+ "_machine_age = yes",
-	]
-	targets4[r"\n\w+_event = \{\n\s*#[^\n]+"] = [r"(\n\w+_event = \{)\n (#[^\n]+)", ("events", r"\n\2\1")]
+	targets3[r"\bresource_stockpile_compare = \{\s+resource = (\w+)\s+value\s*([<=>]+\s*\d+)\s+\}"] = r"has_country_resource = { type = \1 amount \2 }"
 	targets3[r"\bNOT = \{\s*any(_\w+ = {)([^{}#]+?)\}\s*\}"] = r"count\1 count = 0 limit = {\2} }"
 	targets3[r"\bany(_\w+ = {)\s*\}"] = r"count\1 count > 0 }"
-	targets4[r"\bexists = owner\s+can_generate_trade_value = yes"] = "can_generate_trade_value = yes"
-	targets4[r"\bfederation = \{\s+any_member = \{\s+[^{}#]+\s+\}"] = [r"\bfederation = \{\s+any_member = \{\s+([^{}#]+)\s+\}", r"any_federation_ally = { \1"]
-	targets4[r"\n((\t+)NOT = \{\s+any_\w+ = {(?:[^#\n]+?\s+|(?:\s\t\t\2[^#\n]+?){1,}\s\t\2)\}\n?\2\})\n"] = [r"(\s+)NOT = \{((\1)\s|(\s))any(_\w+ = {)([^#]+)\}(?:\1|\s)\}", r"\1count\5\2count = 0 limit = {\6}\2\3\4}" ]
-	targets3[r"\bresource_stockpile_compare = \{\s+resource = (\w+)\s+value\s*([<=>]+\s*\d+)\s+\}"] = r"has_country_resource = { type = \1 amount \2 }"
-	# targets4[r"\bresource_stockpile_compare = \{\s+resource = \w+\s+value\s*[<=>]+\s*\d+\s+\}"] = [ r"resource_stockpile_compare = \{\s+resource = (\w+)\s+value\s*([<=>]+\s*\d+)\s+\}", r"has_country_resource = { type = \1 amount \2 }" ]
+	# targets3[r"# *([A-Z][\w ={}]+?)\.$"] = r"# \1" # remove comment punctuation mark
 
-	# NAND <=> OR = { NOT
-	# targets4[r"\s+OR = \{\s*(?:(?:NOT = \{[^{}#]+?|\w+ = \{[^{}#]+? = no)\s+?\}\s+?){2}\s*\}\n"] = [r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}\s+(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}", lambda p: "NAND = {"+p.group(1)+(p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else p.group(3)+"yes }")+p.group(1)+(p.group(4) if isinstance(p.group(4), str) and p.group(4) != "" else p.group(5)+"yes }")]
-	targets4[
-		r"((\s+)OR = \{(?:(?:\s+NOT = \{[^\n#]+?\s+?\}|\s+(\w+ = \{)?[^\n#]+? = no(?(3)\s*?\}))){2}\2\})"
-	] = [
-		r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(5)\s+?\})\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(7)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(9)\s+?\})",
-		lambda p: "NAND = {"
-		+ p.group(1)
-		+ (
-			p.group(2)
-			if p.group(2) and p.group(2) != ""
-			else p.group(4) + "yes" + (" }" if p.group(5) and p.group(5) != "" else "")
-		)
-		+ p.group(1)
-		+ (
-			p.group(6)
-			if p.group(6) and p.group(6) != ""
-			else p.group(8) + "yes" + (" }" if p.group(9) and p.group(9) != "" else "")
-		),
-	]  # NAND = {\1\2\4yes\1\6\8yes
-
-	targets4[r"\b(?:NO[RT] = \{(?:\s+has_trait = trait_(?:hive_mind|mechanical|machine_unit)){3}\s+\})"] = (NO_TRIGGER_FOLDER, "is_valid_pop_for_PLANET_KILLER_NANOBOTS = yes")
-	targets4[r"\bcount_\w+ = \{\s+limit = \{[^#]+?\}\s+count\s*[<=>]+\s*[^{}\s]+"] = [r"(count_\w+ = \{)(\s+)(limit = \{[^#]+?\})\2(count\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put count first
 	if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
-		targets4[r"\bpop_amount_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [r"(\s+)(limit = \{[^#]+?\})\1(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\3\1\2"] # Put percentage first
+		targets4[r"\bpop_amount_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [
+			r"(\s+)(limit = \{[^#]+?\})\1(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\3\1\2"] # Put percentage first
 	else:
-		targets4[r"\bpop_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [r"(pop_percentage = \{)(\s+)(limit = \{[^#]+?\})\2(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put percentage first
+		targets4[r"\bpop_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [
+			r"(pop_percentage = \{)(\s+)(limit = \{[^#]+?\})\2(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put percentage first
 
-	targets4[
-		r"\b(?:has_country_flag = synthetic_empire\s+owner_species = \{ has_trait = trait_mechanical \}|owner_species = \{ has_trait = trait_mechanical \}\s+has_country_flag = synthetic_empire)\b"
-	] = (NO_TRIGGER_FOLDER, "is_mechanical_empire = yes")
-	targets4[
-		r"\b(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\b"
-	] = (NO_TRIGGER_FOLDER, "is_robot_empire = yes")
-	targets4[r"(?:(\s+)merg_is_(?:fallen_empire|awakened_fe) = yes){2}"] = r"\1is_fallen_empire = yes"
-	targets4[r"(?:(\s+)merg_is_(?:default_empire|awakened_fe) = yes){2}"] = r"\1is_country_type_with_subjects = yes"
-	targets4[r"(?:(\s+)merg_is_(?:default|fallen)_empire = yes){2}"] = r"\1is_default_or_fallen = yes"
-	targets4[r"\n\ttrigger = \{\n\t\towner\b"] = ("events", r"\n\ttrigger = {\n\t\texists = owner\n\t\towner"),
-	## More than cosmetic
-	## Just move on the first place if present (but a lot of blind matches)
-	targets4[r"((\s+)any_system_(?:colony|planet) = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})"] = [
+	
+	tar4 = {
+		# Collect same scope
+		r"exists\s*=\s*(\w+)\n(?:\s+\1 = \{\s*\w+ = [^{}#\n]+?\s*\}[ \t]*\n)+": [
+			r"(\s+\w+ = \{)\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?(?:\1\s*(\w+ = [^{}#\n]+)\s*\}[ \t]*\n+)?",
+			r"\1 \2\3\4\5\6\7}\n"],  # up to 6 items,
+		r"\bany_system_planet\s*=\s*\{\s*is_capital\s*=\s*(?:yes|no)\s*\}": [
+			r"any_system_planet\s*=\s*\{\s*is_capital\s*=\s*(yes|no)\s*\}",
+			r"is_capital_system = \1",
+		],
+		r"(?:species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*[\w\.:]+?\.?species\s*\}": [
+			r"(species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*([\w\.:]+?\.?species)\s*\}",
+			r"\1 = { is_same_species = \2 }"
+		],
+		# targets4[r"\n{3,}"] = "\n\n" # r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
+		# targets4[r"\n\s+\}\n\s+else": [r"\}\s*else", "} else"],
+		# r"\s*\n{2,}": "\n\n", # cosmetic remove surplus lines
+		# very rare, now cosmetic
+		r"\s+any_system_within_border = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
+			r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
+			r"\1any_planet_within_border = {\2\3\1}",
+		],
+		r"\bany_system_planet = {\s+is_capital = yes\s+}": "is_capital_system = yes",
+		r"\s+any_system = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
+			r"(\n?\s+)any_system = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
+			r"\1any_galaxy_planet = {\2\3\1}",
+		],
+
+		# Only for planet galactic_object
+		r"(?:(?:neighbor|rim|random|every|count|closest|ordered)_system|_planet|_system_colony|_within_border) = \{\s*?(?:limit = \{)?\s*exists = (?:space_)?owner\b": [
+			r"exists = (?:space_)?owner", "has_owner = yes"],  # only for planet galactic_object,
+		r"_event = \{\s+id = \"[\w.]+\"": [r"\bid = \"([\w.]+)\"", ("events", r"id = \1")],  # trim id quote marks
+		# WARNING not valid if in OR: NOR <=> AND = { NOT NOT } , # only 2 items (sub-trigger),
+		r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}": [
+			r"([\t ]+)NO[RT] = \{\s*([^{}#\r\n]+)\s*\}\s*?\n\s*NO[RT] = \{\s*([^{}#\r\n]+)\s*\}",
+			(r"^(?!governments)\w+", r"\1NOR = {\n\1\t\2\n\1\t\3\n\1}"),
+		],
+		r"^\s+random_country = \{\s*limit = \{\s*is_country_type = global_event\s*\}": [r"random_country = \{\s*limit = \{\s*is_country_type = global_event\s*\}", "event_target:global_event_country = {"],
+		# Unnecessary AND
+		r"\b((?:%s) = \{(\s+)(?:AND|this) = \{(?:\2\t[^\n]+)+\2\}\n)" % triggerScopes: [
+			r"(%s) = \{\n(\s+)(?:AND|this) = \{\n\t(\2[^\n]+\n)(?(3)\t)(\2[^\n]+\n)?(?(4)\t)(\2[^\n]+\n)?(?(5)\t)(\2[^\n]+\n)?(?(6)\t)(\2[^\n]+\n)?(?(7)\t)(\2[^\n]+\n)?(?(8)\t)(\2[^\n]+\n)?(?(9)\t)(\2[^\n]+\n)?(?(10)\t)(\2[^\n]+\n)?(?(11)\t)(\2[^\n]+\n)?(?(12)\t)(\2[^\n]+\n)?(?(13)\t)(\2[^\n]+\n)?(?(14)\t)(\2[^\n]+\n)?(?(15)\t)(\2[^\n]+\n)?(?(16)\t)(\2[^\n]+\n)?(?(17)\t)(\2[^\n]+\n)?(?(18)\t)(\2[^\n]+\n)?(?(19)\t)(\2[^\n]+\n)?(?(20)\t)(\2[^\n]+\n)?\2\}\n"
+			% triggerScopes,
+			r"\1 = {\n\3\4\5\6\7\8\9\10\11\12\13\14\15\16\17\18\19\20\21",
+		],
+		r"(?:\s+add_resource = \{\s*\w+ = [^\s{}#]+\s*\}){2,}": [
+			r"(\s+add_resource = \{)(\s*\w+ = [^\s{}#]+)\s*\}\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\}(?(3)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(4)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(5)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(6)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?(?(7)\s+add_resource = \{(\s*\w+ = [^\s{}#]+)\s*\})?",
+			r"\1\2\3\4\5\6\7 }",
+		],  # 6 items
+		### 3.4,
+		r"\s(?:NO[RT]|OR) = \{\s*has_modifier = doomsday_\d[\w\s=]+\}": [
+			r"(N)?O[RT] = \{\s*(has_modifier = doomsday_\d\s+){5}\}",
+			lambda p: "is_doomsday_planet = " + ("yes" if not p.group(1) or p.group(1) == "" else "no"),
+		],
+		# targets4[r"\bOR = \{\s*has_modifier = doomsday_\d[\w\s=]+\}": [r"OR = \{\s*(has_modifier = doomsday_\d\s+){5}\}", "is_doomsday_planet = yes"],
+		# Obsolete since v3.12 r"\b(?:is_gestalt = (?:yes|no)\s+is_(?:machine|hive)_empire = (?:yes|no)|is_(?:machine|hive)_empire = (?:yes|no)\s+is_gestalt = (?:yes|no))": [
+		# 	r"(?:is_gestalt = (yes|no)\s+is_(?:machine|hive)_empire = \1|is_(?:machine|hive)_empire = (yes|no)\s+is_gestalt = \2)",
+		# 	r"is_gestalt = \1\2",
+		# ],
+		r"\b(?:is_gestalt = (?:yes|no)\s+is_hive_empire = (?:yes|no)|is_hive_empire = (?:yes|no)\s+is_gestalt = (?:yes|no))": [
+			r"(?:is_gestalt = (yes|no)\s+is_hive_empire = \1|is_hive_empire = (yes|no)\s+is_gestalt = \2)",
+			r"is_gestalt = \1\2",
+		],
+		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes": "is_fallen_empire_machine = yes",
+		r"\b(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(?:%s)|has_ethic = ethic_fanatic_(?:%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS): [
+			r"(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(%s)|has_ethic = ethic_fanatic_(%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS),
+			r"is_fallen_empire_\1\2 = yes",
+		],
+		r'\b(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (?:yes|no)|has_machine_age_dlc = (?:yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")': [
+			r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")',
+			lambda p: "has_synthetic_dawn_"
+			+ (
+				"not"
+				if (not p.group(2) and p.group(1) == "not")
+				or (not p.group(1) and p.group(2) == "not")
+				else "and"
+			)
+			+ "_machine_age = yes",
+		],
+		r"^\w+_event = \{\n\s*#[^\n]+": [r"(\w+_event = \{)\s+(#[^\n]+)", ("events", r"\2\n\1")],
+		r"\bexists = owner\s+can_generate_trade_value = yes": "can_generate_trade_value = yes",
+		r"\bfederation = \{\s+any_member = \{\s+[^{}#]+\s+\}": [
+			r"\bfederation = \{\s+any_member = \{\s+([^{}#]+)\s+\}", r"any_federation_ally = { \1"],
+		r"^((\t+)NOT = \{\s+any_\w+ = {(?:[^#\n]+?\s+|(?:\s\t\t\2[^#\n]+?){1,}\s\t\2)\}\n?\2\})$": [
+			r"(\s+)NOT = \{((\1)\s|(\s))any(_\w+ = {)([^#]+)\}(?:\1|\s)\}", r"\1count\5\2count = 0 limit = {\6}\2\3\4}" ],
+		r"\bresource_stockpile_compare = \{\s+resource = \w+\s+value\s*[<=>]+\s*\d+\s+\}": [
+	 		r"resource_stockpile_compare = \{\s+resource = (\w+)\s+value\s*([<=>]+\s*\d+)\s+\}", r"has_country_resource = { type = \1 amount \2 }"
+	 	],
+
+		r"\b(?:NO[RT] = \{(?:\s+has_trait = trait_(?:hive_mind|mechanical|machine_unit)){3}\s+\})": (NO_TRIGGER_FOLDER, "is_valid_pop_for_PLANET_KILLER_NANOBOTS = yes"),
+		r"\bcount_\w+ = \{\s+limit = \{[^#]+?\}\s+count\s*[<=>]+\s*[^{}\s]+": [
+			r"(count_\w+ = \{)(\s+)(limit = \{[^#]+?\})\2(count\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"], # Put count first
+
+		r"\b(?:has_country_flag = synthetic_empire\s+owner_species = \{ has_trait = trait_mechanical \}|owner_species = \{ has_trait = trait_mechanical \}\s+has_country_flag = synthetic_empire)\b": (NO_TRIGGER_FOLDER, "is_mechanical_empire = yes"),
+		r"\b(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\s+(?:has_country_flag = synthetic_empire|owner_species = \{ has_trait = trait_mechanical \}|has_authority = \"?auth_machine_intelligence\"?)\b": (NO_TRIGGER_FOLDER, "is_robot_empire = yes"),
+		r"(?:(\s+)merg_is_(?:fallen_empire|awakened_fe) = yes){2}": r"\1is_fallen_empire = yes",
+		r"(?:(\s+)merg_is_(?:default_empire|awakened_fe) = yes){2}": r"\1is_country_type_with_subjects = yes",
+		r"(?:(\s+)merg_is_(?:default|fallen)_empire = yes){2}": r"\1is_default_or_fallen = yes",
+		r"^\ttrigger = \{\n\t\towner\b": ("events", r"\ttrigger = {\n\t\texists = owner\n\t\towner"),
+		## More than cosmetic
+		## Just move on the first place if present (but a lot of blind matches)
+		r"((\s+)any_system_(?:colony|planet) = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})": [
 			r"(\s+)any_system_(?:colony|planet) = \{(\1[^#]*?)(\1\t(?:has_owner = yes|is_colony = yes|exists = owner))",
 			r"\1any_system_colony = {\3\2"
-		]
-	targets4[r"\b((?:every|random|count|ordered)_system_(?:colony|planet) = \{(\s+)[^{}#]*limit = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})"] = [
+		],
+		r"\b((?:every|random|count|ordered)_system_(?:colony|planet) = \{(\s+)[^{}#]*limit = \{\2(?!\s*(?:has_owner = yes|is_colony = yes|exists = owner))[\s\S]*?\2\})": [
 			r"(every|random|count|ordered)_system_(?:colony|planet) = \{(\s+)([^{}#]*limit = \{)(\2\t?[^#]*?)(\2\t(?:has_owner = yes|is_colony = yes|exists = owner))",
 			r"\1_system_colony = {\2\3\5\4",
-		]
-	targets4[r"((\s+)any_(?:playable_)?country = \{\2[\s\S]*?\2\})"] = [
+		],
+		r"((\s+)any_system_planet = \{\2[\s\S]+?\2\})": [
+			r"(\s+)any_system_planet = \{(\1[^#]*?\1\t(?:owner|controller))",
+			r"\1any_system_colony = {\1\thas_owner = yes\2"
+		],
+		r"\b(?:every|random|count|ordered)_system_(planet = \{(\s+)[^{}#]*limit = \{\2[\s\S]+?)\2\}": [
+			r"planet = \{((\s+)[^{}#]*limit = \{)(\2\t?[^#]*?\2\t(?:owner|controller) = \{)",
+			r"colony = {\1\2\thas_owner = yes\3",
+		],
+		r"((\s+)any_(?:playable_)?country = \{\2[\s\S]*?\2\})": [
 			r"(\s+)any_(?:playable_)?country = \{(\1[^#]*?)(\1\t(?:has_event_chain = \w+|is_ai = no|is_country_type = default|has_policy_flag = \w+|(?:is_zofe_compatible|merg_is_default_empire) = yes))",
 			r"\1any_playable_country = {\3\2",
-		]
-	targets4[r"\b((?:every|random|count|ordered)_(?:playable_)?country = \{(\s+)[^{}#]*limit = \{\2[\s\S]*?\2\})"] = [
+		],
+		r"\b((?:every|random|count|ordered)_(?:playable_)?country = \{(\s+)[^{}#]*limit = \{\2[\s\S]*?\2\})": [
 			r"^(every|random|count|ordered)_(?:playable_)?country = \{(\s+)([^{}#]*limit = \{)(\2[^#]*?)(\2\t(?:has_event_chain = \w+|is_ai = no|is_country_type = default|has_policy_flag = \w+|(?:is_zofe_compatible|merg_is_default_empire) = yes))",
 			r"\1_playable_country = {\2\3\5\4",
-		]
-	targets4[r"(?:(\s+)(?:exists = federation|has_federation = yes)){2}"] = r"\1has_federation = yes"
-	targets4[r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$"] = [
+		],
+		r"(?:(\s+)(?:exists = federation|has_federation = yes)){2}": r"\1has_federation = yes",
+		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
-		]
+		],
+	}
+
+	targets4.update(tar4)
 
 def is_float(s):
 	try:
@@ -1901,7 +1920,7 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 			elif trigger in merger_reverse_triggers:
 				tar3[merger_reverse_triggers[trigger][0]] = merger_reverse_triggers[trigger][1]
 				logger.debug(f"Removing nonexistent MoR trigger: {trigger}")
-	
+
 	### Pre-Compile regexps
 	tar3 = [(re.compile(k, flags=0), tar3[k]) for k in tar3]
 	tar4 = [(re.compile(k, flags=re.I), tar4[k]) for k in tar4]
@@ -2198,7 +2217,7 @@ def modfix(file_list, is_subfolder=False):
 		structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
 		out_file = os.path.normpath(os.path.join(structure, basename))
 		# print("\t# WRITE FILE:", out_file, file=log_file, )
-		logger.info("\tWRITE FILE: %s" % out_file)
+		logger.info("\tWRITE FILE: %s" % os.path.normpath(os.path.join(subfolder, basename)))
 		if not os.path.exists(structure):
 			os.makedirs(structure)
 			# print('Create folder:', subfolder)
@@ -2280,9 +2299,10 @@ def modfix(file_list, is_subfolder=False):
 						i == valid_lines[num_lines][0] - 1 and
 						not any(stripped.startswith(p) for p in no_dbl_line) and
 						not stripped.endswith('$\n') and
+						stripped == line.lstrip() and
+						not 'create_' in stripped
 						# not '$' in stripped and
 						# lines[i] == lines[i+1] fully identically
-						stripped == line.lstrip()
 						):
 						num_lines -= 1
 						logger.warning(f"Double line({i}): {stripped} at {basename}")
@@ -2308,12 +2328,12 @@ def modfix(file_list, is_subfolder=False):
 				for pattern, repl in tar3:  # new list way
 					folder = False
 					rt = False # check valid folder
-					# File name check
+					# File name check (currently always with folder)
 					if isinstance(repl, dict):
 						# is a 3 tuple
 						file, repl = list(repl.items())[0]
 						if isinstance(repl, str):
-							if file != basename:
+							if file not in basename:
 								rt = True
 						elif file in basename:
 							# logger.debug("\tFILE match:", file, basename)
@@ -2390,29 +2410,32 @@ def modfix(file_list, is_subfolder=False):
 				for pattern, repl in tar4:  # new list way
 					folder = False # check valid folder before loop
 					replace = False
+					sr = False # check sub-replace
 					# Folder check
 					if isinstance(repl, list): # subreplace
 						replace = repl.copy()
+						sr = True
 						if isinstance(repl[1], tuple):
 							# print(f"check_folder on tar4 before: {repl[1][0]}, {repl[1][1]}")
 							folder, replace[1] = repl[1]
 							folder = check_folder(folder)
 							# print(f"check_folder on tar4 after: {folder}, {repl[1]}")
+						# TODO: not used yet
+						# elif isinstance(repl, dict): # Trigger filename
+						# 	folder, replace[1] = list(repl.items())[0]
+						# 	# if debug_mode:
+						# 	print(pattern, file, type(file), replace, type(basename))
+						# 	if folder not in basename:
+						# 		folder = True
+						# 		print("\tINCLUDED:", pattern, "from file", basename)
 						else: folder = True
+
 					elif isinstance(repl, tuple):
 						# if len(repl) < 2 and isinstance(repl[0], tuple): print("DAMN!", repl)
 						# if len(repl) > 2: print("TOO TUPLE!", repl)
 						folder, repl = repl
 						folder = check_folder(folder)
-					elif isinstance(repl, dict): # Trigger filename
-						file, repl = list(repl.items())[0]
-						if debug_mode:
-							print(pattern, file, type(file), replace, type(basename))
-						if file == basename:
-							folder = False
-						elif isinstance(repl, list):
-							replace = repl.copy()
-						# else: print("\tEXCLUDED:", pattern, "from", basename)
+
 					else: # isinstance(repl, str) or callable?
 						folder = True
 
@@ -2421,6 +2444,7 @@ def modfix(file_list, is_subfolder=False):
 
 					if not replace and isinstance(repl, str): # or callable(repl)
 						replace = [pattern, repl]
+						sr = False
 
 					if replace and isinstance(replace, list):
 						targets = pattern.finditer(out) # findall
@@ -2430,18 +2454,21 @@ def modfix(file_list, is_subfolder=False):
 						else:
 							continue
 
-						if isinstance(replace[0], str):
+						if sr and isinstance(replace[0], str):
 							repl[0] = replace[0] = re.compile(replace[0], flags=re.I | re.M | re.A)
 							logger.debug(f"Compiled: {tar4[1][0]} - {type(tar4[1][0])}")
 						for t in reversed(targets):
 							tar = t.group(0) # match
 							# print(type(repl), tar, type(tar))
 							repl_str = False
-							if isinstance(repl, list):
-								if len(t.groups()) > 1:
-								    tar = t.group(1)  # Take only first group
-								    logger.warning(f"ONLY GROUP1: {type(replace)}, {replace}")
-								# print(f"TRY replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+
+
+							if sr and len(t.groups()) > 1:
+							    tar = t.group(1)  # Take only first group
+							    t_start, t_end = t.span(1)
+							    logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+							else:
+								t_start, t_end = t.span()
 							repl_str, rt = replace[0].subn(replace[1], tar, count=1)
 							if rt != 1:
 								repl_str = False
@@ -2449,7 +2476,7 @@ def modfix(file_list, is_subfolder=False):
 							if repl_str and (isinstance(repl_str, str)
 								and isinstance(tar, str) and tar != repl_str):
 								logger.info(f"Match: {tar}\nMultiline replace: {repl_str}")
-								out = out[:t.start()] + repl_str + out[t.end():]
+								out = out[:t_start] + repl_str + out[t_end:]
 								changed = True
 							else:
 								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
