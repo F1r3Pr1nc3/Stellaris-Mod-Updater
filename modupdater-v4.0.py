@@ -1404,28 +1404,6 @@ actuallyTargets = {
 			r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
 			r"NOR = {\n\2\3\4\5\6",
 		],  # only right indent for 5 items (sub-trigger)
-		# NAND <=> OR = { NOT
-		# TODO: fix yes ending with tab
-		r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|\w+ = \{[^{}#]+? = no)\s+?\}\s+?){2}\s*\}\n": [
-			r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}\s+(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}",
-			lambda p: "NAND = {"+p.group(1)+(p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else p.group(3)+"yes }")+p.group(1)+(p.group(4) if isinstance(p.group(4), str) and p.group(4) != "" else p.group(5)+"yes }")
-		],
-		r"((\s+)OR = \{(?:(?:\s+NOT = \{[^\n#]+?\s+?\}|\s+(\w+ = \{)?[^\n#]+? = no(?(3)\s*?\}))){2}\2\})": [
-			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(5)\s+?\})\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(7)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(9)\s+?\})",
-			lambda p: "NAND = {"
-			+ p.group(1)
-			+ (
-				p.group(2)
-				if p.group(2) and p.group(2) != ""
-				else p.group(4) + "yes" + (" }" if p.group(5) and p.group(5) != "" else "")
-			)
-			+ p.group(1)
-			+ (
-				p.group(6)
-				if p.group(6) and p.group(6) != ""
-				else p.group(8) + "yes" + (" }" if p.group(9) and p.group(9) != "" else "")
-			),
-		],  # NAND = {\1\2\4yes\1\6\8yes
 		# MERGE 'NO' ONLY NOT IN OR
 		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+\w+ = no\b(?: NO[RT] = \{|\s+NO[RT] = \{\s*[^{}#\n]+\s*\})": [
 			r"(\w+) = no(\s+)NO[RT] = \{\s*([^{}#\n]+)\s*\}",
@@ -1764,6 +1742,29 @@ def do_code_cosmetic():
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
 		],
+		# NAND <=> OR = { NOT
+		# TODO fix overlord_subject_events.txt line 2165
+		r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|(?!AND)\w+ = \{[^{}#]+? = no)\s+?\}\s+?){2}\s*\}\n": [
+			r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}\s+(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}",
+			lambda p: "NAND = {"+p.group(1)+(p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else p.group(3)+"yes }")+p.group(1)+(p.group(4) if isinstance(p.group(4), str) and p.group(4) != "" else p.group(5)+"yes }")
+		],
+		# TODO: fix yes ending with tab
+		r"((\s+)OR = \{(?:(?:\s+NOT = \{[^\n#]+?\s+?\}|\s+(\w+ = \{)?[^\n#]+? = no(?(3)\s*?\}))){2}\2\})": [
+			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(5)\s+?\})\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(7)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(9)\s+?\})",
+			lambda p: "NAND = {"
+			+ p.group(1)
+			+ (
+				p.group(2)
+				if p.group(2) and p.group(2) != ""
+				else p.group(4) + "yes" + (" }" if p.group(5) and p.group(5) != "" else "")
+			)
+			+ p.group(1)
+			+ (
+				p.group(6)
+				if p.group(6) and p.group(6) != ""
+				else p.group(8) + "yes" + (" }" if p.group(9) and p.group(9) != "" else "")
+			),
+		],  # NAND = {\1\2\4yes\1\6\8yes
 	}
 
 	targets4.update(tar4)
