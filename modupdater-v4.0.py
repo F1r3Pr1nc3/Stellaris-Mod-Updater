@@ -759,8 +759,8 @@ v3_8 = {
 			(NO_TRIGGER_FOLDER, r"is_default_or_fallen = yes\2"),
 		],
 		# r"\bspecies = \{ has_trait = trait_hive_mind \}": r'is_hive_species = yes',
-		r"\t?(?:species|pop) = \{\s+(?:limit = \{\s+)?(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(1)\s*\})": [
-			r"((\t?)(?:species|pop) = \{\s*?(limit = \{)?(\s+))(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}((?(4)\s*\}))", (NO_TRIGGER_FOLDER,
+		r"(\t?(?:species|pop|pop_group) = \{\s+(?:limit = \{\s+)?(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(2)\s*\}))": [
+			r"((\t?)(?:species|pop|pop_group) = \{\s*?(?:limit = \{)?(\s+))(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}((?(4)\s*\}))", (NO_TRIGGER_FOLDER,
 			lambda p: p.group(2)
 			+ (
 				p.group(1)
@@ -1473,9 +1473,9 @@ actuallyTargets = {
 				)
 			),
 		],
-		r"\brandom_list = \{\s+\d+ = \{\s*(?:(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|\w+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s+\d+ = \{\s*\}|\s*\}\s+\d+ = \{\s*(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|\w+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s*)\s*\}": [
-			r"\brandom_list = \{\s+(?:(\d+) = \{\s+(\w+ = \{[^{}#\n]+\}|[^{}#\n]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+(\w+ = \{[^{}#\n]+\}|[^{}#\n]+)\s+\})\s*",  # r"random = { chance = \1\5 \2\6 "
-			lambda p: "random = { chance = "
+		r"\brandom_list = \{\s+\d+ = \{\s*(?:(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s+\d+ = \{\s*\}|\}\s+\d+ = \{\s*(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s*)\s*\}": [
+				r"list = \{\s+(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\})\s*",  # r"random = { chance = \1\5 \2\6 "
+			lambda p: " = { chance = "
 			+ str(
 				round(
 					(
@@ -2480,7 +2480,7 @@ def modfix(file_list, is_subfolder=False):
 							if sr and len(t.groups()) > 1:
 							    tar = t.group(1)  # Take only first group
 							    t_start, t_end = t.span(1)
-							    logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+							    # logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
 							else:
 								t_start, t_end = t.span()
 							repl_str, rt = replace[0].subn(replace[1], tar, count=1)
@@ -2492,7 +2492,7 @@ def modfix(file_list, is_subfolder=False):
 								logger.info(f"Match: {tar}\nMultiline replace: {repl_str}")
 								out = out[:t_start] + repl_str + out[t_end:]
 								changed = True
-							else:
+							elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
 								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
 						logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
