@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/27
+# @Revision: 2025/07/29
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -77,7 +77,7 @@ VANILLA_PREFIXES = r"any|every|random|count|ordered"
 PLANET_MODIFIER = r"jobs|housing|amenities|amenities_no_happiness"
 RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
 NO_TRIGGER_FOLDER = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+)_[^/_]+$)?")  # 2lvl, only 1lvl folder: ^([^_]+)(_(?!trigger)[^_]+|[^_]*)$ only
-SCOPES = r"megastructure|planet|country|owner|controller|space_owner|ship|pop|fleet|galactic_object|leader|army|ambient_object|species|pop_faction|war|federation|starbase|deposit|sector|archaeological_site|first_contact|spy_network|espionage_operation|espionage_asset"
+SCOPES = r"design|megastructure|planet|owner|controller|space_owner|species_owner|ship|pop_group|fleet|cosmic_storm|capital_scope|sector_capital|capital_star|system_star|solar_system|star|orbit|leader|army|ambient_object|species|bypass|pop_faction|war|federation|starbase|deposit|sector|archaeological_site|first_contact|spy_network|espionage_operation|espionage_asset|agreement|situation|astral_rift"
 EFFECT_FOLDERS = {
 	"events",
 	"common/agendas",
@@ -1411,6 +1411,41 @@ actuallyTargets = {
 		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+NO[RT] = \{[^{}#\n]+\}\s+\w+ = no\b": [
 			r"NO[RT] = \{\s*([^{}#\n]+?)\s*\}(\s+)(\w+) = no$",
 			r"NOR = {\2\t\1\2\t\3 = yes\2}"],
+		# NAND <=> OR = { 'NO'/'NOT' (simple faster)
+		# r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|[\w:@]+ = \{\s+\w+ = no)\s+?\}\s+?){2}\s*\}$": [
+		# 	r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}\s+(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}",
+		# 	lambda p: "NAND = {"
+		# 		+p.group(1)
+		# 		+ (
+		# 			p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else f"{p.group(3)}yes{p.group(4)}}}"
+		# 		)
+		# 		+p.group(1)
+		# 		+(
+		# 			p.group(5) if isinstance(p.group(5), str) and p.group(5) != "" else f"{p.group(6)}yes{p.group(7)}}}"
+		# 		)
+		# ],
+		# NAND <=> OR = { 'NO'/'NOT' (extended)
+		r"((\s+)OR = \{\s*(?:(?:NOT = \{[^{}#]+?\s+\}|[\w:@]+ = \{\s+\w+ = no\s+\}|\w+ = no)\s+?){2})\2\}": [
+			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(5)(\s+?\}))\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(8)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(10)(\s+?\}))",
+			lambda p: "NAND = {"
+			+ p.group(1)
+			+ (
+				p.group(2)
+				if p.group(2)
+				else p.group(4) + "yes" + (p.group(6) if p.group(5) else "")
+			)
+			+ p.group(1)
+			+ (
+				p.group(7)
+				if p.group(7)
+				else p.group(9) + "yes" + (p.group(11) if p.group(10) else "")
+			),
+		],  # NAND = {\1\2\4yes\6\1\7\9yes\11
+		# Fix NOR/OR wasting scope (simplify)
+		r"^((\s+)\bN?OR = \{(\s+%s) = \{\s+[^#\n]+?\s*\}\3 = \{\s+[^#\n]+?\s*\})\2\}" % SCOPES: [
+			r"(N?OR = \{)(\s+)(%s) = \{\s+([^#\n]+?)\s*\}\s+\3 = \{\s+([^#\n]+?)\s+\}" % SCOPES,
+			r"\3 = {\2\1\2\t\4\2\t\5\2}",
+		],
 
 		### End boolean operator merge
 		r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
@@ -1742,29 +1777,7 @@ def do_code_cosmetic():
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
 		],
-		# NAND <=> OR = { NOT
-		# TODO fix overlord_subject_events.txt line 2165
-		r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|(?!AND)\w+ = \{[^{}#]+? = no)\s+?\}\s+?){2}\s*\}\n": [
-			r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}\s+(?:NOT = \{\s*([^{}#]+?)|(\w+ = \{[^{}#]+? = )no)\s+?\}",
-			lambda p: "NAND = {"+p.group(1)+(p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else p.group(3)+"yes }")+p.group(1)+(p.group(4) if isinstance(p.group(4), str) and p.group(4) != "" else p.group(5)+"yes }")
-		],
-		# TODO: fix yes ending with tab
-		r"((\s+)OR = \{(?:(?:\s+NOT = \{[^\n#]+?\s+?\}|\s+(\w+ = \{)?[^\n#]+? = no(?(3)\s*?\}))){2}\2\})": [
-			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(5)\s+?\})\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(7)\s+?\}))\s+?\}|((\w+ = \{)?[^{}#]+? = )no)(?(9)\s+?\})",
-			lambda p: "NAND = {"
-			+ p.group(1)
-			+ (
-				p.group(2)
-				if p.group(2) and p.group(2) != ""
-				else p.group(4) + "yes" + (" }" if p.group(5) and p.group(5) != "" else "")
-			)
-			+ p.group(1)
-			+ (
-				p.group(6)
-				if p.group(6) and p.group(6) != ""
-				else p.group(8) + "yes" + (" }" if p.group(9) and p.group(9) != "" else "")
-			),
-		],  # NAND = {\1\2\4yes\1\6\8yes
+
 	}
 
 	targets4.update(tar4)
