@@ -759,21 +759,10 @@ v3_8 = {
 			(NO_TRIGGER_FOLDER, r"is_default_or_fallen = yes\2"),
 		],
 		# r"\bspecies = \{ has_trait = trait_hive_mind \}": r'is_hive_species = yes',
-		r"(\t?(?:species|pop|pop_group) = \{\s+(?:limit = \{\s+)?(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(2)\s*\}))": [
-			r"((\t?)(?:species|pop|pop_group) = \{\s*?(?:limit = \{)?(\s+))(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}((?(4)\s*\}))", (NO_TRIGGER_FOLDER,
-			lambda p: p.group(2)
-			+ (
-				p.group(1)
-				if p.group(3)
-				else ("" if p.group(2) and len(p.group(2)) > 0 else p.group(1))
-			)
-			+ "is_hive_species = "
-			+ ("no" if p.group(5) else "yes")
-			+ (
-				p.group(6)
-				if (p.group(3) and p.group(6) or not p.group(2) or len(p.group(2)) == 0)
-				else ""
-			)),
+		# TODO (?:limit = \{\s+)?
+		r"(\b(species|pop|pop_group) = \{\s+(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(2)\s*\})\s*\})": [
+			r"(\w+ = \{\s*)?(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(1)\s*\})(?(2)\s*\})", (NO_TRIGGER_FOLDER,
+			lambda p: "is_hive_species = " + ("no" if p.group(2) else "yes"))
 		],
 	},
 }
@@ -1052,7 +1041,7 @@ v3_2 = {
 			("common/pop_jobs", r"\1possible_precalc = can_fill_\4_job\1\2"),
 		],  # only with 6 possible prior lines
 		r"(?:[^b]\n\n|[^b][^b]\n)\s+possible = \{(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?(?:\n.*\s*?|\s*)|\s*)|\s*)|\s*)|\s*)|\s*)complex_specialist_job_check_trigger = yes\s*": [
-			r"\n(\s+)(possible = \{(\1\t)?(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)complex_specialist_job_check_trigger = yes\s*)",
+			r"(\n\s+)(possible = \{(\1\t)?(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)complex_specialist_job_check_trigger = yes\s*)",
 			("common/pop_jobs", r"\1possible_precalc = can_fill_specialist_job\1\2"),
 		],  # only with 6 possible prior lines
 	},
