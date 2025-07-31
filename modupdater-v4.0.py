@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/29
+# @Revision: 2025/07/31
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -154,8 +154,7 @@ v4_0 = {
 		# [r"\bcount_owned_pops\b", "REMOVED in v4.0"],
 		[r"\bhas_collected_system_trade_value\b", "REMOVED in v4.0"],
 		# [r"\bhas_system_trade_value\b", "REMOVED in v4.0"],
-		[r"\bhas_trade_route\b", "REMOVED in v4.0"],
-		[r"\bnum_trade_routes\b", "REMOVED in v4.0"],
+		[r"\b(has|num)_trade_route\b", "REMOVED in v4.0"],
 		[r"\btrade_income\b", "REMOVED in v4.0"],
 		[r"\btrade_(protected|intercepted)_(value|percentage)\b", "REMOVED in v4.0"],
 		# [r"\btrade_protected_(value|percentage)\b", "REMOVED in v4.0"],
@@ -200,7 +199,7 @@ v4_0 = {
 		# [r"\btrait_(advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b", "REMOVED in v4.0"],
 		# Events
 		[r"\bid = (?:action\.(?:202[01]|64|655?)|ancrel\.1000[4-9]|first_contact\.106[01]|game_start\.6[25]|megastructures\.(?:1(?:00|1[05]?|[23]0)|50)|pop\.(?:1[0-4]|[235-9])|advisor\.26|cyber\.7|distar\.305|enclave\.2015|fedev\.655|origin\.5081|subject\.2145)\b", "EVENT REMOVED in v4.0"],
-		# [r"\bis_unemployed\b", "REMOVED in v4.0"],
+		# [r"\bis_unemployed\b", "REMOVED in v4.0"], native -> scripted
 		# [r"\bpop_produces_resource\b", "REMOVED in v4.0"],
 		[r"\bunemploy_pop\b", "REMOVED in v4.0, use resettle_pop_group or kill_assigned_pop_amount ..."],
 		[r"\btech_(?:leviathan|lithoid|plantoid)_transgenesis\b", "REMOVED in v4.0, use something like can_add_or_remove_leviathan_traits"], # The only techs
@@ -225,7 +224,8 @@ v4_0 = {
 		r"\bmake_pop_zombie\b": "create_zombie_pop_group",
 		r"\btrait_frozen_planet_preference\b": "trait_cold_planet_preference",
 		r"\btrait_cyborg_climate_adjustment_frozen\b": "trait_cyborg_climate_adjustment_cold",
-		r"\b(count_owned_pop)\b": r"\1_amount",
+		r"\bis_pop\b": r"is_same_value",
+		r"\b(count_owned_pop)s?\b": r"\1_amount",
 		r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
 		r"\b((?:any|every|ordered)_owned_pop|create_pop) =": r"\1_group =",
 		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
@@ -254,10 +254,12 @@ v4_0 = {
 		r"\bhas_skill\b": "has_total_skill",
 		r"\bhas_level\b": "has_base_skill",
 		r"\bhas_job\b": "has_job_type",
+		r"\bhas_colony_progress [<=>]+ \d+\b": "colony_age > 0",
 		# r"\bis_robot_pop\b": "is_robot_pop_group", needs to be concrete
 		r"\bcategory = pop\b": "category = pop_group",
 		r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
 		r"^(\s+)pop_change_ethic = ([\d\w\.:]+)\b":  r"\1pop_group_transfer_ethic = {\n\1\tPOP_GROUP = this\n\1\tETHOS = \2\n\1\tPERCENTAGE = 1\n\1}", # AMOUNT = 100
+		r"\bpop_force_add_ethic = ([\d\w\.:]+)\b":  r"pop_force_add_ethic = { ethic = \1 percentage = 100 }", # AMOUNT = 100
 		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
 		r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
@@ -1449,19 +1451,6 @@ actuallyTargets = {
 		r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
 		# Near cosmetic
 		r"\bcount_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}": r"has_starbase_module = \1",
-		# TODO performance: a lot of blind matches
-		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
-			r"days = (\d{2,})\b",
-			lambda p: (
-				"years = " + str(int(p.group(1)) // 360)
-				if int(p.group(1)) > 320 and int(p.group(1)) % 360 < 41
-				else (
-					"months = " + str(int(p.group(1)) // 30)
-					if int(p.group(1)) > 28 and int(p.group(1)) % 30 < 3
-					else "days = " + p.group(1)
-				)
-			),
-		],
 		r"\brandom_list = \{\s+\d+ = \{\s*(?:(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s+\d+ = \{\s*\}|\}\s+\d+ = \{\s*(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s*)\s*\}": [
 				r"_list = \{\s+(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\})\s*",  # r"random = { chance = \1\5 \2\6 "
 			lambda p: " = { chance = "
@@ -1766,7 +1755,19 @@ def do_code_cosmetic():
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
 		],
-
+		# TODO performance: a lot of blind matches
+		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
+			r"days = (\d{2,})\b",
+			lambda p: (
+				"years = " + str(int(p.group(1)) // 360)
+				if int(p.group(1)) > 320 and int(p.group(1)) % 360 < 41
+				else (
+					"months = " + str(int(p.group(1)) // 30)
+					if int(p.group(1)) > 28 and int(p.group(1)) % 30 < 3
+					else "days = " + p.group(1)
+				)
+			),
+		],
 	}
 
 	targets4.update(tar4)
@@ -2481,7 +2482,8 @@ def modfix(file_list, is_subfolder=False):
 								logger.info(f"Match: {tar}\nMultiline replace: {repl_str}")
 								out = out[:t_start] + repl_str + out[t_end:]
 								changed = True
-							elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
+							# elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
+							else:
 								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
 						logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
