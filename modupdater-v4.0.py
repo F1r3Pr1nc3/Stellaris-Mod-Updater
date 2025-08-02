@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/07/31
+# @Revision: 2025/08/02
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -293,7 +293,7 @@ v4_0 = {
 		# Modifier trigger
 		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
 		# Modifier effect
-		r"\b(job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap)\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
+		r"\b(job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap|knight_commander)\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
 		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
 		# Variables TODO
 		# economic_plan_food_target_extra -> economic_plan_trade_target (78.26%)
@@ -1320,12 +1320,11 @@ if code_cosmetic and not only_warning:
 		"has_been_declared_crisis = yes",
 	)
 
-dedent_tab_re = re.compile(r'^\s+', flags=re.MULTILINE)
-
 def dedent_block(block_match):
-	block_indent = block_match.group(1)
-	block_match = block_match.group(2)
-	return f"{block_indent}{dedent_tab_re.sub(block_indent, block_match)}"
+	"Simple block dedent"
+	# block_indent = block_match.group(1)
+	# block_match = block_match.group(2)
+	return re.sub(r'^\t', '', block_match, flags=re.MULTILINE)
 
 actuallyTargets = {
 	"targetsR": [
@@ -1451,22 +1450,25 @@ actuallyTargets = {
 		r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
 		# Near cosmetic
 		r"\bcount_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}": r"has_starbase_module = \1",
-		r"\brandom_list = \{\s+\d+ = \{\s*(?:(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s+\d+ = \{\s*\}|\}\s+\d+ = \{\s*(?:[\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s*\}\s*)\s*\}": [
-				r"_list = \{\s+(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\n?[^{}#\n]+\}\s*\}|[\w:]+ = \{\n?[^{}#\n]+\}|[^{}#\n]+)\s+\})\s*",  # r"random = { chance = \1\5 \2\6 "
+		# TODO extend (current just one-liner)
+		r"((\s+)random_list = \{(\s+)\d+ = \{\s*?(?:\}\3\d+ = \{\3\t(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}|(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}\3\d+ = \{\s*\})\2\}?)":	[
+		# r"((\s+)random_list = \{(\s+)\d+ = \{(?:\s*\}\3\d+ = \{(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}|(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}\3\d+ = \{\s*\})\2\}?)":	[
+			# r"_list = \{(\s+)(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\})\s*",
+			r"_list = \{(\s+)(?:(\d+) = \{\1\t([\s\S]+?)\1\}\1(\d+) = \{\s*\}|(\d+) = \{\s*\}\1(\d+) = \{\1\t([\s\S]+?)\1\})\s+\}",
+			# r"random = { chance = \2\6 \3\7 "
 			lambda p: " = { chance = "
 			+ str(
 				round(
 					(
-						int(p.group(1)) / (int(p.group(1)) + int(p.group(3)))
-						if p.group(1) and len(p.group(1)) > 0
-						else int(p.group(5)) / (int(p.group(5)) + int(p.group(4)))
+						int(p.group(2)) / (int(p.group(2)) + int(p.group(4)))
+						if p.group(2) and len(p.group(2)) > 0
+						else int(p.group(6)) / (int(p.group(6)) + int(p.group(5)))
 					)
 					* 100
 				)
 			)
-			+ " "
-			+ (p.group(2) or p.group(6))
-			+ " ",
+			+ p.group(1)
+			+ dedent_block(f"{(p.group(3) or p.group(7))}{p.group(1)}}}")
 		],
 		r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
 		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES:
@@ -1753,7 +1755,7 @@ def do_code_cosmetic():
 		],
 		r"(?:(\s+)(?:exists = federation|has_federation = yes)){2}": r"\1has_federation = yes",
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
-			r"(\t+)modifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), dedent_block)
+			r"\t\tmodifier = \{\n?(\s+[^{}]*?)\s*\}", (re.compile(r'^(?!events)'), lambda p: dedent_block(p.group(1)))
 		],
 		# TODO performance: a lot of blind matches
 		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
