@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/08/02
+# @Revision: 2025/08/07
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -34,6 +34,8 @@ mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (M
 keep_default_country_trigger = 0
 mod_outpath = ""  # if you don't want to overwrite the original
 log_file = "modupdater.log"
+basic_fixes = True
+any_merger_check = False
 
 def parse_arguments():
 	parser = argparse.ArgumentParser(
@@ -71,7 +73,6 @@ def setBoolean(s):
 #   print("Python 3.6 or higher is required.")
 #   print("You are using Python {}.{}.".format(sys.version_info.major, sys.version_info.minor))
 #   sys.exit(1)
-
 VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe" # |gestalt_consciousnes
 VANILLA_PREFIXES = r"any|every|random|count|ordered"
 PLANET_MODIFIER = r"jobs|housing|amenities|amenities_no_happiness"
@@ -554,7 +555,7 @@ v3_10 = {
 		[r"\bselectable_weight = @class_trait_weight", (["common/traits"],
 							"Replaced in v3.10 with inline_script'"),
 		],
-		[r"^leader_class = \{\s*((?:admiral|general|governor)\s+){1,2}", (["common/traits", "common/governments/councilors"],
+		[r"^leader_class = \{(\s+(?:admiral|general|governor)){1,2}", (["common/traits", "common/governments/councilors"],
 							"Needs to be replaced with 'official' or 'commander' in v3.10"),
 		],
 	],
@@ -611,12 +612,12 @@ v3_10 = {
 			"common/traits",
 			r"\1# \2 removed in v3.10",
 		),
-		r"\sleader_class = \{\s*((?:(?:admiral|general|governor|scientist)\s+){2,4})": (
+		r"\bleader_class = \{((?:\s+(?:admiral|general|governor|scientist)){1,4})": (
 			["common/traits", "common/governments/councilors"],
 			lambda p: (
 				p.group(0)
 				if not p.group(1)
-				else "  leader_class = { "
+				else "leader_class = {"
 				+ re.sub(
 					r"(admiral|general|governor)",
 					lambda p2: (
@@ -1326,161 +1327,163 @@ def dedent_block(block_match):
 	# block_match = block_match.group(2)
 	return re.sub(r'^\t', '', block_match, flags=re.MULTILINE)
 
-actuallyTargets = {
-	"targetsR": [
-	],
-	# targets2 = {
-	#   r"MACHINE_species_trait_points_add = \d" : ["MACHINE_species_trait_points_add ="," ROBOT_species_trait_points_add = ",""],
-	#   r"job_replicator_add = \d":["if = {limit = {has_authority = \"?auth_machine_intelligence\"?} job_replicator_add = ", "} if = {limit = {has_country_flag = synthetic_empire} job_roboticist_add = ","}"]
-	# }
-	"targets3": {
-		r"\bstatic_rotation = yes\s*": ("common/component_templates", ""),
-		r"\bowner\.species\b": "owner_species",
-		### < 2.2
-		r"\bhas_job = unemployed\b": "is_unemployed = yes",
-		### somewhat older
-		r"(\s+)ship_upkeep_mult =": r"\1ships_upkeep_mult =",
-		r"\b(contact_rule = )script_only": (
-			"common/country_types",
-			r"\1on_action_only",
-		),
-		r"\b(any|every|random)_(research|mining)_station\b": r"\2_station", # ??
-		r"(\s+)add_(%s) = (-?@\w+|-?\d+)" % RESOURCE_ITEMS: r"\1add_resource = { \2 = \3 }",
-		r"\bhas_ethic = (\"?)ethic_gestalt_consciousness\1\b":  (NO_TRIGGER_FOLDER, "is_gestalt = yes"),
-		r"\bhas_authority = (\"?)auth_machine_intelligence\1\b":  (NO_TRIGGER_FOLDER, "is_machine_empire = yes"),
-		r"\bhas_authority = (\"?)auth_hive_mind\1\b":  (NO_TRIGGER_FOLDER, "is_hive_empire = yes"),
-		r"\bhas_authority = (\"?)auth_corporate\1\b":  (NO_TRIGGER_FOLDER, "is_megacorp = yes"),
-		r"\bis_country\b": "is_same_empire",
-		r"(\s+)is_same_value = ([\w\.:]+\.(?:controller|(?:space_)?owner)(?:\.overlord)?(?:[\s}]+|$))": r"\1is_same_empire = \2",
-		r"((?:controller|(?:space_)?owner|overlord|country) = \{|is_ai = (?:yes|no))\s+is_same_value\b": r"\1 is_same_empire",
-		r"([^\._])owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}": r"\1is_owned_by = \2",
-	},
-	"targets4": {
-		### < 3.0
-		r"\bevery_planet_army = \{\s*remove_army = yes\s*\}": "remove_all_armies = yes",
-		r"\s(?:%s)_neighbor_system = \{[^{}]+?\s+ignore_hyperlanes = (?:yes|no)\n?" % VANILLA_PREFIXES: [
-			r"(_neighbor_system)( = \{[^{}]+?)\s+ignore_hyperlanes = (yes|no)\n?",
-			lambda p: (
-				p.group(1) + p.group(2)
-				if p.group(3) == "no"
-				else p.group(1) + "_euclidean" + p.group(2)
-			),
+# 
+if basic_fixes:
+	actuallyTargets = {
+		"targetsR": [
 		],
-		r"\bhas_ethic = \"?ethic_(?:fanatic_)?(%s)\"?\s+?has_ethic = \"?ethic_(?:fanatic_)?\1\"?" % VANILLA_ETHICS: (NO_TRIGGER_FOLDER, r"is_\1 = yes"),
-		### Boolean operator merge
-		# NAND <=> OR = { NOT
-		r"\s+OR = \{(?:\s*NOT = \{[^{}#]*?\})+\s*\}[ \t]*\n": [
-			r"^(\s+)OR = \{\s*?\n(?:(\s+)NOT = \{\s+)?([^{}#]*?)\s*\}(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?",
-			r"\1NAND = {\n\2\3\4\5\6\7\8\9\10\11\12\13\14\15",
-		],  # up to 7 items (sub-trigger)
-		# NOR <=> AND = { NOT
-		r"^\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,}\s+\}?": [
-			r"(\n\s+)AND = \{\s*?(?:(\n\s+)NOT = \{\s*([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s+\})(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\4(?(4)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\7(?(7)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\10(?(10)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\13(?(13)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\16(?(16)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\19)?)?)?)?)?\1\}",
-			r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
-		],  # up to 7 items (sub-trigger)
-		# NOR <=> (AND) = { NOT
-		# TODO a lot of BLIND MATCHES
-		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
-			r"(\n\s+)NO[RT] = \{\s+([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)\w"),
-			r"\1NOR = {\1\t\2\1\t\3\1}"
-		)],  # only 2 items (sub-trigger)
-		# NAND <=> NOT = { AND
-		r"^\s+NO[RT] = \{\s*AND = \{[^{}#]*?\}\s*\}": [
-			r"(\t*)NO[RT] = \{\s*AND = \{[ \t]*\n(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?\s*\}[ \t]*\n",
-			r"\1NAND = {\n\2\3\4\5",
-		],  # only 4 items (sub-trigger)
-		# NOR <=> NOT = { OR (only sure if base is AND)
-		r"^\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
-			r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
-			r"NOR = {\n\2\3\4\5\6",
-		],  # only right indent for 5 items (sub-trigger)
-		# MERGE 'NO' ONLY NOT IN OR
-		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+\w+ = no\b(?: NO[RT] = \{|\s+NO[RT] = \{\s*[^{}#\n]+\s*\})": [
-			r"(\w+) = no(\s+)NO[RT] = \{\s*([^{}#\n]+)\s*\}",
-			r"NOR = {\2\t\1 = yes\2\t\3\2}"],
-		r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+NO[RT] = \{[^{}#\n]+\}\s+\w+ = no\b": [
-			r"NO[RT] = \{\s*([^{}#\n]+?)\s*\}(\s+)(\w+) = no$",
-			r"NOR = {\2\t\1\2\t\3 = yes\2}"],
-		# NAND <=> OR = { 'NO'/'NOT' (simple faster)
-		# r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|[\w:@]+ = \{\s+\w+ = no)\s+?\}\s+?){2}\s*\}$": [
-		# 	r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}\s+(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}",
-		# 	lambda p: "NAND = {"
-		# 		+p.group(1)
-		# 		+ (
-		# 			p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else f"{p.group(3)}yes{p.group(4)}}}"
-		# 		)
-		# 		+p.group(1)
-		# 		+(
-		# 			p.group(5) if isinstance(p.group(5), str) and p.group(5) != "" else f"{p.group(6)}yes{p.group(7)}}}"
-		# 		)
-		# ],
-		# NAND <=> OR = { 'NO'/'NOT' (extended)
-		r"((\s+)OR = \{\s*(?:(?:NOT = \{[^{}#]+?\s+\}|[\w:@]+ = \{\s+\w+ = no\s+\}|\w+ = no)\s+?){2})\2\}": [
-			r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(5)(\s+?\}))\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(8)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(10)(\s+?\}))",
-			lambda p: "NAND = {"
-			+ p.group(1)
-			+ (
-				p.group(2)
-				if p.group(2)
-				else p.group(4) + "yes" + (p.group(6) if p.group(5) else "")
-			)
-			+ p.group(1)
-			+ (
-				p.group(7)
-				if p.group(7)
-				else p.group(9) + "yes" + (p.group(11) if p.group(10) else "")
+		# targets2 = {
+		#   r"MACHINE_species_trait_points_add = \d" : ["MACHINE_species_trait_points_add ="," ROBOT_species_trait_points_add = ",""],
+		#   r"job_replicator_add = \d":["if = {limit = {has_authority = \"?auth_machine_intelligence\"?} job_replicator_add = ", "} if = {limit = {has_country_flag = synthetic_empire} job_roboticist_add = ","}"]
+		# }
+		"targets3": {
+			r"\bstatic_rotation = yes\s*": ("common/component_templates", ""),
+			r"\bowner\.species\b": "owner_species",
+			### < 2.2
+			r"\bhas_job = unemployed\b": "is_unemployed = yes",
+			### somewhat older
+			r"(\s+)ship_upkeep_mult =": r"\1ships_upkeep_mult =",
+			r"\b(contact_rule = )script_only": (
+				"common/country_types",
+				r"\1on_action_only",
 			),
-		],  # NAND = {\1\2\4yes\6\1\7\9yes\11
-		# Fix NOR/OR wasting scope (simplify)
-		r"^((\s+)\bN?OR = \{(\s+%s) = \{\s+[^#\n]+?\s*\}\3 = \{\s+[^#\n]+?\s*\})\2\}" % SCOPES: [
-			r"(N?OR = \{)(\s+)(%s) = \{\s+([^#\n]+?)\s*\}\s+\3 = \{\s+([^#\n]+?)\s+\}" % SCOPES,
-			r"\3 = {\2\1\2\t\4\2\t\5\2}",
-		],
-
-		### End boolean operator merge
-		r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
-		r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
-		r"(?:(\s+)is_country_type = (?:default|awakened_fallen_empire)\b){2}": (NO_TRIGGER_FOLDER, r"\1is_country_type_with_subjects = yes"),
-		r"(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\s+(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\b": (NO_TRIGGER_FOLDER, "is_synthetic_empire = yes"),
-		r'(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?){3}': (NO_TRIGGER_FOLDER, r"\1is_homicidal = yes"),
-		r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm|barbaric_despoilers)\"?){4}": (NO_TRIGGER_FOLDER, r"\1is_unfriendly = yes"),
-		r"is_homicidal = yes\s+has_(?:valid_)?civic = \"?barbaric_despoilers\"?": "is_unfriendly = yes",
-		r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}": r"\1 != \2 }",
-		# r"change_species_characteristics = \{\s*?[^{}\n]*?
-		r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
-		# Near cosmetic
-		r"\bcount_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}": r"has_starbase_module = \1",
-		# TODO extend (current just one-liner)
-		r"((\s+)random_list = \{(\s+)\d+ = \{\s*?(?:\}\3\d+ = \{\3\t(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}|(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}\3\d+ = \{\s*\})\2\}?)":	[
-		# r"((\s+)random_list = \{(\s+)\d+ = \{(?:\s*\}\3\d+ = \{(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}|(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}\3\d+ = \{\s*\})\2\}?)":	[
-			# r"_list = \{(\s+)(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\})\s*",
-			r"_list = \{(\s+)(?:(\d+) = \{\1\t([\s\S]+?)\1\}\1(\d+) = \{\s*\}|(\d+) = \{\s*\}\1(\d+) = \{\1\t([\s\S]+?)\1\})\s+\}",
-			# r"random = { chance = \2\6 \3\7 "
-			lambda p: " = { chance = "
-			+ str(
-				round(
-					(
-						int(p.group(2)) / (int(p.group(2)) + int(p.group(4)))
-						if p.group(2) and len(p.group(2)) > 0
-						else int(p.group(6)) / (int(p.group(6)) + int(p.group(5)))
-					)
-					* 100
+			r"\b(any|every|random)_(research|mining)_station\b": r"\2_station", # ??
+			r"(\s+)add_(%s) = (-?@\w+|-?\d+)" % RESOURCE_ITEMS: r"\1add_resource = { \2 = \3 }",
+			r"\bhas_ethic = (\"?)ethic_gestalt_consciousness\1\b":  (NO_TRIGGER_FOLDER, "is_gestalt = yes"),
+			r"\bhas_authority = (\"?)auth_machine_intelligence\1\b":  (NO_TRIGGER_FOLDER, "is_machine_empire = yes"),
+			r"\bhas_authority = (\"?)auth_hive_mind\1\b":  (NO_TRIGGER_FOLDER, "is_hive_empire = yes"),
+			r"\bhas_authority = (\"?)auth_corporate\1\b":  (NO_TRIGGER_FOLDER, "is_megacorp = yes"),
+			r"\bis_country\b": "is_same_empire",
+			r"(\s+)is_same_value = ([\w\.:]+\.(?:controller|(?:space_)?owner)(?:\.overlord)?(?:[\s}]+|$))": r"\1is_same_empire = \2",
+			r"((?:controller|(?:space_)?owner|overlord|country) = \{|is_ai = (?:yes|no))\s+is_same_value\b": r"\1 is_same_empire",
+			r"([^\._])owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}": r"\1is_owned_by = \2",
+		},
+		"targets4": {
+			### < 3.0
+			r"\bevery_planet_army = \{\s*remove_army = yes\s*\}": "remove_all_armies = yes",
+			r"\s(?:%s)_neighbor_system = \{[^{}]+?\s+ignore_hyperlanes = (?:yes|no)\n?" % VANILLA_PREFIXES: [
+				r"(_neighbor_system)( = \{[^{}]+?)\s+ignore_hyperlanes = (yes|no)\n?",
+				lambda p: (
+					p.group(1) + p.group(2)
+					if p.group(3) == "no"
+					else p.group(1) + "_euclidean" + p.group(2)
+				),
+			],
+			r"\bhas_ethic = \"?ethic_(?:fanatic_)?(%s)\"?\s+?has_ethic = \"?ethic_(?:fanatic_)?\1\"?" % VANILLA_ETHICS: (NO_TRIGGER_FOLDER, r"is_\1 = yes"),
+			### Boolean operator merge
+			# NAND <=> OR = { NOT
+			r"\s+OR = \{(?:\s*NOT = \{[^{}#]*?\})+\s*\}[ \t]*\n": [
+				r"^(\s+)OR = \{\s*?\n(?:(\s+)NOT = \{\s+)?([^{}#]*?)\s*\}(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?(?:(\s+)?NOT = \{\s*([^{}#]*?)\s*\})?",
+				r"\1NAND = {\n\2\3\4\5\6\7\8\9\10\11\12\13\14\15",
+			],  # up to 7 items (sub-trigger)
+			# NOR <=> AND = { NOT
+			r"^\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,}\s+\}?": [
+				r"(\n\s+)AND = \{\s*?(?:(\n\s+)NOT = \{\s*([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s+\})(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\4(?(4)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\7(?(7)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\10(?(10)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\13(?(13)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\16(?(16)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\19)?)?)?)?)?\1\}",
+				r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
+			],  # up to 7 items (sub-trigger)
+			# NOR <=> (AND) = { NOT
+			# TODO a lot of BLIND MATCHES
+			r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
+				r"(\n\s+)NO[RT] = \{\s+([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)\w"),
+				r"\1NOR = {\1\t\2\1\t\3\1}"
+			)],  # only 2 items (sub-trigger)
+			# NAND <=> NOT = { AND
+			r"^\s+NO[RT] = \{\s*AND = \{[^{}#]*?\}\s*\}": [
+				r"(\t*)NO[RT] = \{\s*AND = \{[ \t]*\n(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?(?:\t([^{}#\n]+\n))?\s*\}[ \t]*\n",
+				r"\1NAND = {\n\2\3\4\5",
+			],  # only 4 items (sub-trigger)
+			# NOR <=> NOT = { OR (only sure if base is AND)
+			r"^\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
+				r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
+				r"NOR = {\n\2\3\4\5\6",
+			],  # only right indent for 5 items (sub-trigger)
+			# MERGE 'NO' ONLY NOT IN OR
+			r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+\w+ = no\b(?: NO[RT] = \{|\s+NO[RT] = \{\s*[^{}#\n]+\s*\})": [
+				r"(\w+) = no(\s+)NO[RT] = \{\s*([^{}#\n]+)\s*\}",
+				r"NOR = {\2\t\1 = yes\2\t\3\2}"],
+			r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*\s+NO[RT] = \{[^{}#\n]+\}\s+\w+ = no\b": [
+				r"NO[RT] = \{\s*([^{}#\n]+?)\s*\}(\s+)(\w+) = no$",
+				r"NOR = {\2\t\1\2\t\3 = yes\2}"],
+			# NAND <=> OR = { 'NO'/'NOT' (simple faster)
+			# r"\bOR = \{\s*(?:(?:NOT = \{[^{}#]+?|[\w:@]+ = \{\s+\w+ = no)\s+?\}\s+?){2}\s*\}$": [
+			# 	r"OR = \{(\s*)(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}\s+(?:NOT = \{\s*([^{}#]+?)|((?!(?:any|count)_)[\w:@]+ = \{\s+\w+ = )no)(\s+)\}",
+			# 	lambda p: "NAND = {"
+			# 		+p.group(1)
+			# 		+ (
+			# 			p.group(2) if isinstance(p.group(2), str) and p.group(2) != "" else f"{p.group(3)}yes{p.group(4)}}}"
+			# 		)
+			# 		+p.group(1)
+			# 		+(
+			# 			p.group(5) if isinstance(p.group(5), str) and p.group(5) != "" else f"{p.group(6)}yes{p.group(7)}}}"
+			# 		)
+			# ],
+			# NAND <=> OR = { 'NO'/'NOT' (extended)
+			r"((\s+)OR = \{\s*(?:(?:NOT = \{[^{}#]+?\s+\}|[\w:@]+ = \{\s+\w+ = no\s+\}|\w+ = no)\s+?){2})\2\}": [
+				r"OR = \{(\s*)(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(3)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(5)(\s+?\}))\s+(?:NOT = \{\s*((\w+ = \{)?[^{}#]+?(?(8)\s+?\}))\s+?\}|(((?!(?:any|count)_)[\w:@]+ = \{)?[^{}#]+? = )no)(?(10)(\s+?\}))",
+				lambda p: "NAND = {"
+				+ p.group(1)
+				+ (
+					p.group(2)
+					if p.group(2)
+					else p.group(4) + "yes" + (p.group(6) if p.group(5) else "")
 				)
-			)
-			+ p.group(1)
-			+ dedent_block(f"{(p.group(3) or p.group(7))}{p.group(1)}}}")
-		],
-		r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
-		r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES:
-			r"\1_playable_country = \2", # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
-		r"^\b(is_artificial = yes\s+(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))|(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))\s+is_artificial = yes)":
-			"is_artificial = yes",
-		# Temp back fix
-		# Just add on the first place
-		# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
-		# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
-	},
-}
+				+ p.group(1)
+				+ (
+					p.group(7)
+					if p.group(7)
+					else p.group(9) + "yes" + (p.group(11) if p.group(10) else "")
+				),
+			],  # NAND = {\1\2\4yes\6\1\7\9yes\11
+			# Fix NOR/OR wasting scope (simplify)
+			r"^((\s+)\bN?OR = \{(\s+%s) = \{\s+[^#\n]+?\s*\}\3 = \{\s+[^#\n]+?\s*\})\2\}" % SCOPES: [
+				r"(N?OR = \{)(\s+)(%s) = \{\s+([^#\n]+?)\s*\}\s+\3 = \{\s+([^#\n]+?)\s+\}" % SCOPES,
+				r"\3 = {\2\1\2\t\4\2\t\5\2}",
+			],
+
+			### End boolean operator merge
+			r"\{\s+owner = \{\s*is_same_(?:empire|value) = ([\w\.:]+)\s*\}\s*\}": r"{ is_owned_by = \1 }",
+			r"(?:(\s+)is_country_type = (?:awakened_)?fallen_empire\b){2}": (NO_TRIGGER_FOLDER, r"\1is_fallen_empire = yes"),
+			r"(?:(\s+)is_country_type = (?:default|awakened_fallen_empire)\b){2}": (NO_TRIGGER_FOLDER, r"\1is_country_type_with_subjects = yes"),
+			r"(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\s+(?:has_authority = \"?auth_machine_intelligence\"?|has_country_flag = synthetic_empire|is_machine_empire = yes)\b": (NO_TRIGGER_FOLDER, "is_synthetic_empire = yes"),
+			r'(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm)\"?){3}': (NO_TRIGGER_FOLDER, r"\1is_homicidal = yes"),
+			r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:fanatic_purifiers|machine_terminator|hive_devouring_swarm|barbaric_despoilers)\"?){4}": (NO_TRIGGER_FOLDER, r"\1is_unfriendly = yes"),
+			r"is_homicidal = yes\s+has_(?:valid_)?civic = \"?barbaric_despoilers\"?": "is_unfriendly = yes",
+			r"NOT = \{\s*(check_variable = \{\s*which = \"?\w+\"?\s+value) = ([^{}#\s=])\s*\}\s*\}": r"\1 != \2 }",
+			# r"change_species_characteristics = \{\s*?[^{}\n]*?
+			r"[\s#]+new_pop_resource_requirement = \{[^{}]+\}[ \t]*": "",
+			# Near cosmetic
+			r"\bcount_starbase_modules = \{\s+type = (\w+)\s+count\s*>\s*0\s+\}": r"has_starbase_module = \1",
+			# TODO extend (current just one-liner)
+			r"((\s+)random_list = \{(\s+)\d+ = \{\s*?(?:\}\3\d+ = \{\3\t(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}|(?:[\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|(?!modifier)[\w:]+ = \{[^{}#]\}|[^{}#]+)\3\}\3\d+ = \{\s*\})\2\}?)":	[
+			# r"((\s+)random_list = \{(\s+)\d+ = \{(?:\s*\}\3\d+ = \{(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}|(?!\s*\})\3\t(?!modifier)[\s\S]*?\3\}\3\d+ = \{\s*\})\2\}?)":	[
+				# r"_list = \{(\s+)(?:(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\}\s+(\d+) = \{\s*\}|(\d+) = \{\s*\}\s+(\d+) = \{\s+([\w:]+ = \{\s+\w+ = \{\s+[^{}#]+\}\s*\}|[\w:]+ = \{[^{}#]+\}|[^{}#]+)\s+\})\s*",
+				r"_list = \{(\s+)(?:(\d+) = \{\1\t([\s\S]+?)\1\}\1(\d+) = \{\s*\}|(\d+) = \{\s*\}\1(\d+) = \{\1\t([\s\S]+?)\1\})\s+\}",
+				# r"random = { chance = \2\6 \3\7 "
+				lambda p: " = { chance = "
+				+ str(
+					round(
+						(
+							int(p.group(2)) / (int(p.group(2)) + int(p.group(4)))
+							if p.group(2) and len(p.group(2)) > 0
+							else int(p.group(6)) / (int(p.group(6)) + int(p.group(5)))
+						)
+						* 100
+					)
+				)
+				+ p.group(1)
+				+ dedent_block(f"{(p.group(3) or p.group(7))}{p.group(1)}}}")
+			],
+			r"\b(?:%s)_(?:playable_)?country = \{[^{}#]*?(?:limit = \{\s*)?(?:NO[RT] = \{)?\s*is_same_value\b" % VANILLA_PREFIXES: ["is_same_value", "is_same_empire"],
+			r"\b(%s)_country = (\{[^{}#]*?(?:limit = \{\s*)?(?:has_event_chain|is_ai = no|is_country_type = default|has_policy_flag|(?:is_zofe_compatible|merg_is_default_empire) = yes))" % VANILLA_PREFIXES:
+				r"\1_playable_country = \2", # Invalid for FE in v4.0 is_galactic_community_member|is_part_of_galactic_council
+			r"^\b(is_artificial = yes\s+(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))|(?:has_ringworld_output_boost = yes|is_planet_class = (?:pc_ringworld_habitable(_damaged)?|pc_habitat|pc_cybrex|pc_cosmogenesis_world))\s+is_artificial = yes)":
+				"is_artificial = yes",
+			# Temp back fix
+			# Just add on the first place
+			# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
+			# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
+		},
+	}
 
 exclude_paths = {
 	"achievements",
@@ -1492,7 +1495,7 @@ exclude_paths = {
 	"scripted_variables",
 	"start_screen_messages",
 	"section_templates",
-	"ship_sizes",
+	# "ship_sizes",
 }
 
 # 1. Define a list of version configurations, sorted from newest to oldest.
@@ -1581,6 +1584,7 @@ def do_code_cosmetic():
 			else p.group(0)
 		),
 	)
+	targets3[r"\bexists = this\b"] = 'is_scope_valid = yes' 
 	# targets3[r"\s*days = -1\s*"] = ' ' # still needed to execute immediately
 	# Format Comment
 	targets3[r"(?<!(?:e\.g|.\.\.))([#.])[\t ]{1,3}([a-z])([a-z]+ +[^;:\s#=<>]+)"] = lambda p:	(p.group(1) + " " + p.group(2).upper() + p.group(3)) if not re.match(r"(%s)" % SCOPES, p.group(2) + p.group(3)) else p.group(0)
@@ -1755,7 +1759,7 @@ def do_code_cosmetic():
 		],
 		r"(?:(\s+)(?:exists = federation|has_federation = yes)){2}": r"\1has_federation = yes",
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
-			r"\t\tmodifier = \{\n?(\s+[^{}]*?)\s*\}", (re.compile(r'^(?!events)'), lambda p: dedent_block(p.group(1)))
+			r"\t\tmodifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), lambda p: dedent_block(f'\t\t\t{p.group(1)}'))
 		],
 		# TODO performance: a lot of blind matches
 		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
@@ -2080,9 +2084,12 @@ def modfix(file_list, is_subfolder=False):
 	logger.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
 
 	triggers_in_mod = extract_scripted_triggers()
-	tar3, tar4 = apply_merger_of_rules(list(targets3), list(targets4), triggers_in_mod, is_subfolder)
+	tar3, tar4 = list(targets3), list(targets4)
+	if any_merger_check:
+		tar3, tar4 = apply_merger_of_rules(tar3, tar4, triggers_in_mod, is_subfolder)
 
-	# logger.debug(f"len tar3={len(tar3)} len tar3={len(tar3)}")
+
+	logger.debug(f"len tar3={len(tar3)} len tar4={len(tar4)}:\n{tar3}")
 	subfolder = ""
 	# file_pattern = re.compile(r"^[\s#]")
 
@@ -2146,6 +2153,8 @@ def modfix(file_list, is_subfolder=False):
 		# Patterns for detecting the start of excluded blocks and the trait assignment
 		# block_start_pattern = re.compile(r'\b(modify_species|change_species_characteristics) = \{')
 		# nonlocal lines, valid_lines, changed
+		# if basename == "demon_events.txt":
+		# 	print("Check add_trait in ", subfolder, basename)
 
 		skip_block = False
 		block_depth = 0
@@ -2157,11 +2166,13 @@ def modfix(file_list, is_subfolder=False):
 			# Detect block start
 			# if block_start_pattern.match(stripped):
 			if stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {'):
-				if not stripped.endswith('}'):
+				if not stripped.endswith('}\n'):
 					skip_block = True
 					block_depth = 1
 				continue
 			if 'modify_species = {' in stripped or 'change_species_characteristics = {' in stripped:
+				skip_block = False
+				block_depth = 0
 				continue
 
 			# Handle lines inside skipped blocks
@@ -2231,31 +2242,30 @@ def modfix(file_list, is_subfolder=False):
 
 	def check_folder(folder):
 		rt = False
-		# logger.debug("subfolder: {subfolder}, {folder}")
+		# logger.debug(f"subfolder: {subfolder}, {folder} {type(folder)}")
 		if isinstance(folder, list):
-			# logger.debug("folder list: {subfolder}, {folder}")
+			# logger.debug(f"folder list: {subfolder}, {folder}")
 			for fo in folder:
 				if subfolder in fo:
 					rt = True
-					# logger.debug(f"folder matches: {subfolder}, {folder}")
+					logger.debug(f"Folder list match: {subfolder}, {folder}")
 					break
 		elif isinstance(folder, str):
 			# logger.debug(f"subfolder in folder: {subfolder}, {folder}")
 			if subfolder in folder:
 				rt = True
-				# logger.debug(folder)
+				logger.debug(f"Folder match in subfolder: {subfolder}, {folder}")
 		elif isinstance(folder, re.Pattern):
 			if folder.search(subfolder):
-				# logger.debug(f"Check folder (regexp) True: {subfolder}, {repl}")
 				rt = True
-			# logger.debug("Folder EXCLUDED: {subfolder}, {repl}")
+				logger.debug(f"Folder EXCLUDED (regexp match): {subfolder}, {repl}")
 		elif isinstance(folder, tuple):
 			trigger_key = folder[1]
 			# not the same file name for triggers
 			if trigger_key in triggers_in_mod and triggers_in_mod[trigger_key] != basename:
 				# print(f"Found same trigger in mod {trigger_key}")
 				rt = True
-			# else:^print(f"Not same trigger in file {basename}")
+			# else: print(f"Not same trigger in file {basename}")
 		return rt
 
 	for _file in file_list:
@@ -2275,7 +2285,7 @@ def modfix(file_list, is_subfolder=False):
 				valid_lines = []
 				for i, line in enumerate(lines):
 					stripped = line.lstrip()
-					if stripped and not stripped.startswith("#") and len(stripped) > 8:
+					if stripped and not stripped.startswith("#") and (len(stripped) > 8 or '}' in stripped or '{' in stripped):
 						stripped = stripped.split('#', 1)
 						if len(stripped) > 1:
 							stripped = stripped[0].rstrip() + '\n'
@@ -2305,6 +2315,8 @@ def modfix(file_list, is_subfolder=False):
 						i == valid_lines[num_lines][0] - 1 and
 						not any(stripped.startswith(p) for p in no_dbl_line) and
 						not stripped.endswith('$\n') and
+						stripped != '}\n' and
+						stripped != '{\n' and
 						stripped == line.lstrip() and
 						not 'create_' in stripped
 						# not '$' in stripped and
@@ -2360,10 +2372,11 @@ def modfix(file_list, is_subfolder=False):
 						for l, (i, line, stripped) in enumerate(valid_lines):
 							m = pattern.search(line)  # , flags=re.I
 							if m:
-								line_changed = line
+								rt = 0
+								line_changed = ""
 								line_changed, rt = pattern.subn(repl, line, count=1)  # , flags=re.I
 								if rt == 1:
-									if line_changed != line:
+									if line_changed and line_changed != line:
 										lines[i] = line_changed
 										stripped = line_changed.lstrip()
 										valid_lines[l] = (i, line_changed, stripped)
@@ -2374,13 +2387,15 @@ def modfix(file_list, is_subfolder=False):
 										)
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
 										if m.start() <= 6 and m.end() >= len(stripped) - 6:
-											logger.debug("The entire line is matched; no further matches possible")
+											logger.debug("The entire line is matched; no further matches possible.")
 											del valid_lines[l] # just one hit per line
 											# break
 									else:
 										logger.debug(f"BLIND MATCH tar3: {line}, {pattern}")
-
-							# elif debug_mode and isinstance(folder, re.Pattern): print("DEBUG Match "tar3":", pattern, repl, type(repl), stripped.encode(errors='replace'))
+								else:
+									logger.debug(f"BLIND MATCH tar3: {line}, {pattern}")
+							# elif debug_mode:
+							# 	print("DEBUG Match tar3:", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
 				out = "".join(lines)
 
