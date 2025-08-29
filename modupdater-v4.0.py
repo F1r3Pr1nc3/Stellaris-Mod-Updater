@@ -37,7 +37,7 @@ log_file = "modupdater.log"
 # Dev options
 basic_fixes = True
 full_code_cosmetic = False # for extended code_cosmetic option
-any_merger_check = True # for mergerofrules option
+any_merger_check = True # for merger_of_rules option
 
 def parse_arguments():
 	parser = argparse.ArgumentParser(
@@ -82,34 +82,6 @@ RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|ex
 # Compare ("TRIGGER", trigger_key) tuple for just same file exclude
 NO_TRIGGER_FOLDER = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+)_[^/_]+$)?")  # 2lvl, only 1lvl folder: ^([^_]+)(_(?!trigger)[^_]+|[^_]*)$ only
 SCOPES = r"design|megastructure|planet|owner|controller|space_owner|species_owner|ship|pop_group|fleet|cosmic_storm|capital_scope|sector_capital|capital_star|system_star|solar_system|star|orbit|leader|army|ambient_object|species|owner_species|owner_main_species|founder_species|bypass|pop_faction|war|federation|starbase|deposit|sector|archaeological_site|first_contact|spy_network|espionage_operation|espionage_asset|agreement|situation|astral_rift"
-EFFECT_FOLDERS = {
-	"events",
-	"common/agendas",
-	"common/anomalies",
-	"common/ascension_perks",
-	"common/buildings",
-	"common/council_agendas",
-	"common/civics",
-	"common/colony_types",
-	"common/component_templates",
-	"common/decisions",
-	"common/deposits",
-	# "common/fallen_empires",
-	"common/governments",
-	"common/inline_scripts",
-	"common/megastructures",
-	"common/policies",
-	"common/pop_faction_types",
-	"common/relics",
-	"common/scripted_effects",
-	"common/solar_system_initializers",
-	"common/species_classes",
-	"common/starbase_buildings",
-	"common/starbase_modules",
-	"common/technology",
-	"common/traditions",
-	"common/traits",
-}
 
 ACTUAL_STELLARIS_VERSION_FLOAT = float(ACTUAL_STELLARIS_VERSION_FLOAT)
 print("ACTUAL_STELLARIS_VERSION_FLOAT", ACTUAL_STELLARIS_VERSION_FLOAT)
@@ -480,7 +452,7 @@ if code_cosmetic and not only_warning:
 	] = (NO_TRIGGER_FOLDER, "is_cyber_creed_advanced_government = yes")
 	v3_12["targets4"][
 		r"((?:(\s+)is_country_type = (?:(?:awakened_)?synth_queen(?:_storm)?)\b){3})"
-	] = (NO_TRIGGER_FOLDER, "\2is_synth_queen_country_type = yes")
+	] = (NO_TRIGGER_FOLDER, r"\2is_synth_queen_country_type = yes")
 
 # """== 3.11 ERIDANUS Quick stats ==
 # the effect 'give_breakthrough_tech_option_or_progress_effect' has been introduced
@@ -774,8 +746,8 @@ v3_8 = {
 			f" = {{ is_hive_species = yes }}" if p.group(1) == '.'
 			else f"{p.group(1)}is_hive_species = yes")),
 		# TODO (?:limit = \{\s+)?
-		r"((?:species|pop|pop_group) = \{\s+(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(2)\s*\})\s*\})": [
-			r"(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(1)\s*\})", (NO_TRIGGER_FOLDER,
+		r"((?:species|pop|pop_group) = \{\s+(NOT = \{\s*)?has_trait = trait_hive_mind\s*\}(?(2)\s*\}))": [
+			r"(NOT = \{\s*)?has_trait = trait_hive_mind(?(1)\s*\})", (NO_TRIGGER_FOLDER,
 			lambda p: "is_hive_species = " + ("no" if p.group(1) else "yes"))
 		],
 	},
@@ -1340,8 +1312,7 @@ def indent_block(block_match):
 
 if basic_fixes:
 	actuallyTargets = {
-		"targetsR": [
-		],
+		"targetsR": [],
 		# targets2 = {
 		#   r"MACHINE_species_trait_points_add = \d" : ["MACHINE_species_trait_points_add ="," ROBOT_species_trait_points_add = ",""],
 		#   r"job_replicator_add = \d":["if = {limit = {has_authority = \"?auth_machine_intelligence\"?} job_replicator_add = ", "} if = {limit = {has_country_flag = synthetic_empire} job_roboticist_add = ","}"]
@@ -1501,9 +1472,8 @@ if basic_fixes:
 			# Just add on the first place if there is no is_owned_by
 			# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
 			# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
-
 			
-		},
+		}
 	}
 
 exclude_paths = {
@@ -1556,7 +1526,7 @@ def _apply_version_data_to_targets(source_data_dict):
 def do_code_cosmetic():
 	global targetsR, targets3, targets4, exclude_paths
 
-	exclude_paths.add("ai_budget")
+	# exclude_paths.add("ai_budget") why? has_been_declared_crisis
 	exclude_paths.discard("agreement_presets")
 	exclude_paths.discard("component_sets")
 	exclude_paths.discard("component_templates")
@@ -1604,6 +1574,7 @@ def do_code_cosmetic():
 
 	# targets3[r"\s*days = -1\s*"] = ' ' # still needed to execute immediately
 	if full_code_cosmetic:
+
 		targets3[r"(?:[<=>{]\s|\.|\t|PREV|FROM|Prev|From)+(PREV|FROM|ROOT|THIS|Prev|From|Root|This)+\b" ] = lambda p: p.group(0).lower()
 		targets3[r"\b(IF|ELSE|ELSE_IF|Owner|CONTROLLER|Controller|LIMIT)\s*="] = lambda p: p.group(1).lower() + " =" # OWNER
 		targets3[r"\bexists = this\b"] = 'is_scope_valid = yes' 
@@ -1632,6 +1603,9 @@ def do_code_cosmetic():
 		targets4[r"\bcount_\w+ = \{\s+limit = \{[^#]+?\}\s+count\s*[<=>]+\s*[^{}\s]+"] = [
 			r"(count_\w+ = \{)(\s+)(limit = \{[^#]+?\})\2(count\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put count first
 		targets4[r"\n{3,6}"] = "\n\n" # cosmetic remove surplus lines
+		logger.info("✨ Running full code cosmetic!\n")
+	else:
+		logger.info("✨ Running some code cosmetic.\n")
 
 
 	# NOT NUM triggers.
@@ -1668,7 +1642,6 @@ def do_code_cosmetic():
 		targets4[r"\bpop_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [
 			r"(pop_percentage = \{)(\s+)(limit = \{[^#]+?\})\2(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put percentage first
 
-	
 	tar4 = {
 		# Collect same scope
 		r"exists\s*=\s*(\w+)\n(?:\s+\1 = \{\s*\w+ = [^{}#\n]+?\s*\}[ \t]*\n)+": [
@@ -1680,11 +1653,6 @@ def do_code_cosmetic():
 			r"\1 = { is_same_species = \2 }"
 		],
 		# targets4[r"\n\s+\}\n\s+else": [r"\}\s*else", "} else"],
-		# very rare, now cosmetic
-		r"\s+any_system_within_border = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
-			r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
-			r"\1any_planet_within_border = {\2\3\1}",
-		],
 		r"\bany_system_planet = {\s+is_capital = yes\s+}": "is_capital_system = yes",
 		r"\s+any_system = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
 			r"(\n?\s+)any_system = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
@@ -1792,8 +1760,13 @@ def do_code_cosmetic():
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"\t\tmodifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), lambda p: dedent_block(f'\t\t\t{p.group(1)}'))
 		],
+		# very rare, now cosmetic
+		# r"\s+any_system_within_border = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
+		# 	r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
+		# 	r"\1any_planet_within_border = {\2\3\1}",
+		# ],
 		r"^((\s+)any_system_within_border = \{\s+any_system_planet = [\s\S]+?)^\2\}": [ # very rare
-			r"(\s+)any_system_within_border = \{\s+any_system_planet = \{([\s\S]+?)\1\}\s?$",
+			r"(\s+)any_system_within_border = \{\s+any_system_planet = ([\s\S]+?)\1\}\s?$",
 			lambda p: (
 				f"{p.group(1)}any_planet_within_border = {dedent_block(p.group(2))}"
 				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(2), re.M)
@@ -1877,7 +1850,7 @@ def extract_scripted_triggers():
 					for trigger_name in found_in_file:
 						custom_triggers[trigger_name] = os.path.basename(filepath)
 		except Exception as e:
-			logger.error(f"Error reading or parsing scripted triggers from {filepath}: {e}")
+			logger.error(f"❌ Can't read or parse scripted triggers from {filepath}: {e}")
 
 	logger.info(f"Discovered {len(custom_triggers)} unique custom scripted trigger(s) in the mod.")
 	if custom_triggers:
@@ -1903,8 +1876,8 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 
 	merger_triggers = {
 		"is_endgame_crisis": (
-			r"\b(?:(?:(?:is_country_type = (?:awakened_)?synth_queen(?:_storm)?|is_endgame_crisis = yes)\s*?){2,3}|(?:is_country_type = (?:extradimensional(?:_[23])?|swarm|ai_empire)\s*?){5})",
-			(NO_TRIGGER_FOLDER, "is_endgame_crisis = yes"),
+			r"(?:(?:(\s+?)(?:is_country_type = (?:awakened_)?synth_queen(?:_storm)?|is_endgame_crisis = yes)\b){2,3}|(?:(\s+?)is_country_type = (?:extradimensional(?:_[23])?|swarm|ai_empire)\b){5})",
+			(NO_TRIGGER_FOLDER, r"\2\3is_endgame_crisis = yes"),
 			4
 		),
 		"merg_is_fallen_empire": (r"\bis_country_type = fallen_empire\b", (NO_TRIGGER_FOLDER, "merg_is_fallen_empire = yes")),
@@ -2027,12 +2000,13 @@ def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 				else:
 					comment_match = ""
 			if re.search(r'\n', m) and not m.startswith("AND "):
-				if not m.startswith(("NOR ", "OR ")) and re.search(indent2 + r'\w', m):
+				if re.search(indent2 + r'\w', m): # and (not m.startswith(("NOR ", "OR "))
+					print(m.encode("utf-8").decode("unicode_escape"))
 					m = "AND = {" + indent2 + "\t\t" + indent_block(m) + indent2 + "\t}"
 			return comment_match + indent_block(m)
 
 		merged = "".join(indent2 + r"\t" + is_AND_block(m) for m in mods)
-		merged = f"{indent}modifier = {{ # Vfix opt{indent2}factor = 0{indent2}OR = {{{merged}{indent2}}}{indent}}}" # \n\t}} 
+		merged = f"{indent}modifier = {{{indent2}factor = 0{indent2}OR = {{{merged}{indent2}}}{indent}}}" # \n\t}} 
 		# print(type(merged), isinstance(merged, str))
 		insert_at = re.search(r'\n\t\tmodifier =', match_parent)
 		insert_at = insert_at.start()
@@ -2043,7 +2017,7 @@ def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 		match_parent = f"{match_parent[:insert_at]}{merged}{match_parent[insert_at:]}".encode("utf-8").decode("unicode_escape")
 		# match_parent = re.sub(r"\t+\}$",merged, match_parent, count=1)
 		# print(match_parent)
-		print(f"Merge multiple factor 0 modifier {merged}".encode("utf-8").decode("unicode_escape"))
+		logger.info(f"Merge multiple factor 0 modifier {merged}".encode("utf-8").decode("unicode_escape"))
 		return match_parent
 
 	# Apply recursively to all scopes that might contain modifiers
@@ -2240,7 +2214,7 @@ def convert_prescripted_countries_flags():
 							flags_dict[shortname] = flags_inside
 							# Replace with new format
 							new_block_body = flag_block_pattern.sub(f"\tflag = {shortname}", block_body, count=1)
-							logger.info(f"✅ Converted flags for {shortname} in: {filename}")
+							logger.info(f"✔ Converted flags for {shortname} in: {filename}")
 						else:
 							new_block_body = flag_block_pattern.sub("", block_body, count=1)
 
@@ -2254,7 +2228,7 @@ def convert_prescripted_countries_flags():
 						f.write(content)
 
 			except Exception as e:
-				logger.error(f"❌ ERROR: Could not process file {filename}. Reason: {e}")
+				logger.error(f"❌ Could not process file {filename}: {e}")
 
 	if not any_file_changed:
 		logger.info("✨ No flag blocks needed conversion.\n")
@@ -2423,6 +2397,36 @@ def modfix(file_list, is_subfolder=False):
 		(re.compile(r"(AI_IS_AMENITIES_JOB_FACTOR\s*=)\s*([1-9]\.\d\d?)\b"), lambda m: f"{m.group(1)} {round(float(m.group(2))*0.01, 4)}"), # divided_by_hundred),
 	]
 	
+	EFFECT_FOLDERS = (
+		"events",
+		"common/agendas",
+		"common/anomalies",
+		"common/ascension_perks",
+		"common/buildings",
+		"common/council_agendas",
+		"common/civics",
+		"common/colony_types",
+		"common/component_templates",
+		"common/decisions",
+		"common/deposits",
+		# "common/fallen_empires",
+		"common/governments",
+		"common/inline_scripts",
+		"common/megastructures",
+		"common/policies",
+		"common/pop_faction_types",
+		"common/relics",
+		"common/scripted_effects",
+		"common/solar_system_initializers",
+		"common/species_classes",
+		"common/starbase_buildings",
+		"common/starbase_modules",
+		"common/technology",
+		"common/traditions",
+		"common/traits",
+	)
+	# FIXME , "resolutions", "situations" needs test
+	WEIGHT_FOLDERS = ("technology", "ai_budget", "megastructures", "pop_faction_types", "solar_system_initializers", "tradition_categories")
 
 	TARGETS_TRAIT = {
 		re.compile(r"\badd_trait = \"?(\w+)\"?\b"): r"add_trait = { trait = \1 }",
@@ -2567,9 +2571,11 @@ def modfix(file_list, is_subfolder=False):
 		open(out_file, "w", encoding="utf-8").write(out)
 
 	def check_folder(folder):
+		# True means passed
 		rt = False
 		# logger.debug(f"subfolder: {subfolder}, {folder} {type(folder)}")
 		def is_valid_folder(folder):
+			nonlocal rt
 			if isinstance(folder, str):
 				# print(f"subfolder in folder: {subfolder}, {folder}")
 				if subfolder in folder:
@@ -2592,9 +2598,9 @@ def modfix(file_list, is_subfolder=False):
 		if isinstance(folder, list):
 			# print(f"folder list: {subfolder}, {folder}")
 			for fo in folder:
-				rt = is_valid_folder(fo)
+				is_valid_folder(fo)
 		else:
-			rt = is_valid_folder(folder)
+			is_valid_folder(folder)
 
 		return rt
 
@@ -2673,7 +2679,7 @@ def modfix(file_list, is_subfolder=False):
 							write_file()
 							txtfile.close()
 						continue
-					elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
+					elif subfolder.startswith(EFFECT_FOLDERS): # any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS)
 						lines, valid_lines, changed = transform_add_trait(lines, valid_lines, changed)
 	
 				for pattern, repl in tar3:  # new list way
@@ -2761,8 +2767,7 @@ def modfix(file_list, is_subfolder=False):
 					#	 out = '\n' + out
 					#	 changed = True
 
-				# FEXME , "resolutions", "situations" needs test
-				if subfolder.endswith(("technology", "ai_budget", "megastructures", "pop_faction_types", "solar_system_initializers", "tradition_categories")):
+				if subfolder.endswith(WEIGHT_FOLDERS):
 					out, changed = merge_factor0_modifiers(out, changed)
 
 				for pattern, repl in tar4:  # new list way
@@ -2840,12 +2845,12 @@ def modfix(file_list, is_subfolder=False):
 							else:
 								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
-						logger.warning(f"SPECIAL TYPE? {type(repl)} {repl}")
+						logger.warning(f"⚠ SPECIAL TYPE? {type(repl)} {repl}")
 				if changed and not only_warning:
 					write_file()
 				txtfile.close()
 
-	logger.info(f"✅ Script completed in {(datetime.datetime.now() - start_time).total_seconds():.2f} seconds")
+	logger.info(f"✔ Script completed in {(datetime.datetime.now() - start_time).total_seconds():.2f} seconds")
 
 	## Update mod descriptor
 	_file = os.path.join(mod_path, "descriptor.mod")
@@ -2930,7 +2935,7 @@ def modfix(file_list, is_subfolder=False):
 				open(_file, "w", encoding="utf-8", errors="ignore").write(out.strip())
 
 	# print("\n# Done!", mod_outpath, file=log_file)
-	logger.info("✅ Done! %s" % mod_outpath)
+	logger.info("✔ Done! %s" % mod_outpath)
 
 class SafeFormatter(logging.Formatter):
 	def format(self, record):
