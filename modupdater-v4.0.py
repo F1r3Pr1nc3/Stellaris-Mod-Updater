@@ -1760,22 +1760,6 @@ def do_code_cosmetic():
 		r"^\ttriggered_\w+?_modifier = \{\n([\s\S]+?)\n\t\}$": [
 			r"\t\tmodifier = \{\s+([^{}]*?)\s*\}", (re.compile(r'^(?!events)'), lambda p: dedent_block(f'\t\t\t{p.group(1)}'))
 		],
-		# very rare, now cosmetic
-		# r"\s+any_system_within_border = \{\s*any_system_planet = \{\s*(?:\w+ = \{[\w\W]+?\}|[\w\W]+?)\s*\}\s*\}": [
-		# 	r"(\n?\s+)any_system_within_border = \{(\1\s*)any_system_planet = \{\1\s*([\w\W]+?)\s*\}\s*\1\}",
-		# 	r"\1any_planet_within_border = {\2\3\1}",
-		# ],
-		r"^((\s+)any_system_within_border = \{\s+any_system_planet = [\s\S]+?)^\2\}": [ # very rare
-			r"(\s+)any_system_within_border = \{\s+any_system_planet = ([\s\S]+?)\1\}\s?$",
-			lambda p: (
-				f"{p.group(1)}any_planet_within_border = {dedent_block(p.group(2))}"
-				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(2), re.M)
-				else None
-			)
-		],
-		r"^(\s+NOT = \{\s+any_\w+ = \{(?:\n?[\t ]+[^#\n]+?){1,4}\s+\})\s+\}": [
-			r"(\s+)NOT = \{(\n?\1\s|\s)any(_\w+ = \{)([^#]+\})$", r"\1count\3 count = 0\2limit = {\4"
-		],
 		# TODO performance: a lot of blind matches
 		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
 			r"days = (\d{2,})\b",
@@ -1789,6 +1773,24 @@ def do_code_cosmetic():
 				)
 			)
 		],
+		r"^((\s+)any_system_within_border = \{(\n?\2\s|( ))any_system_planet = [\s\S]+?(?:^\2|\3)\})$": [ # very rare 
+			r"(\s+)any_system_within_border = \{\s+any_system_planet = ([\s\S]+?)\s+\}\s?$",
+			lambda p: (
+				f"{p.group(1)}any_planet_within_border = {dedent_block(p.group(2))}"
+				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(2), re.M)
+				else p.group(0)
+			)
+		],
+		# ^((\s+)NOT = \{\s+any_\w+ = [\s\S]+?)^\2\} not one liner 
+		r"^((\s+)NOT = \{(?:\n?\2\s|( ))any_\w+ = [\s\S]+?(?:^\2|\3)\})$": [
+			r"(\s+)NOT = \{(\n?\1\s|\s)any(_\w+ = \{)([\s\S]+?\})$",
+			lambda p: (
+				f"{p.group(1)}count{p.group(3)} count = 0{p.group(2)}limit = {{{p.group(4)}"
+				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(4), re.M)
+				else p.group(0)
+			)
+		],
+
 	}
 
 	targets4.update(tar4)
