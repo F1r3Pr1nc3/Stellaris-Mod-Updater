@@ -13,7 +13,7 @@ import argparse
 import datetime
 
 # @Author: FirePrince
-# @Revision: 2025/08/28
+# @Revision: 2025/08/29
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -24,7 +24,7 @@ ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.23' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
-mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.xx_bak" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
+mod_path = "d:/GOG Games/Settings/Stellaris/test" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.xx_bak" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0 # Still Beta
@@ -766,9 +766,9 @@ v3_8 = {
 			+ {"OR": "yes", "NO": "no"}[p.group(1)[0:2].upper()],
 		],
 		# with is_country_type_with_subjects & without AFE but with is_fallen_empire
-		r"\b(?:(?:(?:is_country_type = default|merg_is_default_empire = yes|is_country_type_with_subjects = yes)\s+is_fallen_empire = yes)|(?:is_fallen_empire = yes\s+(?:is_country_type = default|merg_is_default_empire = yes|is_country_type_with_subjects = yes)))\s+": [
-			r"\b((?:is_country_type = default|merg_is_default_empire = yes|is_fallen_empire = yes|is_country_type_with_subjects = yes)(\s+)){2,}",
-			(NO_TRIGGER_FOLDER, r"is_default_or_fallen = yes\2"),
+		r"\s+(?:(?:(?:is_country_type = default|merg_is_default_empire = yes|is_country_type_with_subjects = yes)\s+is_fallen_empire = yes)|(?:is_fallen_empire = yes\s+(?:is_country_type = default|merg_is_default_empire = yes|is_country_type_with_subjects = yes)))": [
+			r"((\s+)(?:is_country_type = default|merg_is_default_empire = yes|is_fallen_empire = yes|is_country_type_with_subjects = yes)){2,3}",
+			(NO_TRIGGER_FOLDER, r"\2is_default_or_fallen = yes"),
 		],
 		r"(\s|\.)(?:owner_)?species = \{\s+(?:has_trait = trait_hive_mind|is_hive_species = yes)\s+\}": (NO_TRIGGER_FOLDER, lambda p: (
 			f" = {{ is_hive_species = yes }}" if p.group(1) == '.'
@@ -1333,7 +1333,11 @@ def dedent_block(block_match):
 	# block_match = block_match.group(2)
 	return re.sub(r'^\t', '', block_match, flags=re.MULTILINE)
 
-# 
+def indent_block(block_match):
+	"Simple block indent"
+	return re.sub(r'^\t', r'\t\t', block_match, flags=re.MULTILINE)
+
+
 if basic_fixes:
 	actuallyTargets = {
 		"targetsR": [
@@ -1384,13 +1388,13 @@ if basic_fixes:
 				r"\1NAND = {\n\2\3\4\5\6\7\8\9\10\11\12\13\14\15",
 			],  # up to 7 items (sub-trigger)
 			# NOR <=> AND = { NOT
-			r"^\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,}\s+\}?": [
+			r"^\s+AND = \{\s(?:\s+NOT = \{\s*(?:[^{}#]+|\w+ = {[^{}#]+\})\s*\}){2,7}\s+\}?": [
 				r"(\n\s+)AND = \{\s*?(?:(\n\s+)NOT = \{\s*([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s+\})(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\4(?(4)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\7(?(7)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\10(?(10)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\13(?(13)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\16(?(16)(?=((\2)?NOT = \{\s+([^{}#]+?|\w+ = \{[^{}#]+\s*\})\s*\})?)\19)?)?)?)?)?\1\}",
 				r"\1NOR = {\2\3\5\6\8\9\11\12\14\15\17\18\20\21\1}",
 			],  # up to 7 items (sub-trigger)
 			# NOR <=> (AND) = { NOT
 			# TODO a lot of BLIND MATCHES
-			r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2,}": [
+			r"(?<![ \t]OR) = \{\s(?:[^{}#\n]+\n)*(?:\s+NO[RT] = \{\s*[^{}#]+?\s*\}){2}": [
 				r"(\n\s+)NO[RT] = \{\s+([^{}#]+?)\s+\}\s+NO[RT] = \{\s*([^{}#]+?)\s+\}", (re.compile(r"^(?!common/governments)\w"),
 				r"\1NOR = {\1\t\2\1\t\3\1}"
 			)],  # only 2 items (sub-trigger)
@@ -1400,7 +1404,7 @@ if basic_fixes:
 				r"\1NAND = {\n\2\3\4\5",
 			],  # only 4 items (sub-trigger)
 			# NOR <=> NOT = { OR (only sure if base is AND)
-			r"^\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,}\}\s*\}": [
+			r"^\s+NO[RT] = \{\s*?OR = \{\s*(?:\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\s+?){2,5}\}\s*\}": [
 				r"\bNO[RT] = \{\n?(\s+?)OR = \{\s*(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)\t(?(3)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(4)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?\t(?(5)(\1\w+ = (?:[^{}#\s=]+|\{[^{}#\s=]+\s*\})\n)?)))\s*\}\s",
 				r"NOR = {\n\2\3\4\5\6",
 			],  # only right indent for 5 items (sub-trigger)
@@ -1497,6 +1501,7 @@ if basic_fixes:
 			# Just add on the first place if there is no is_owned_by
 			# r"(\s+)any_system_colony = \{\1\t?(?!\s*has_owner = yes)([^}#]+\})": r"\1any_system_colony = {\1\thas_owner = yes\1\t\2",
 			# r"\b((?:every|random|count|ordered)_system_colony = \{(\s+)[^}#]*limit = \{)\2(?!\s*has_owner = yes)([^}#]*?\})": r"\1\2\thas_owner = yes\2\3",
+
 			
 		},
 	}
@@ -1624,11 +1629,9 @@ def do_code_cosmetic():
 		targets3[r"\bowner_main_species\b"] = "owner_species"
 		targets4[r"\bresource_stockpile_compare = \{\s+resource = \w+\s+value\s*[<=>]+\s*\d+\s+\}"] = [
 			r"resource_stockpile_compare = \{\s+resource = (\w+)\s+value\s*([<=>]+\s*\d+)\s+\}", r"has_country_resource = { type = \1 amount \2 }"]
-		targets4[r"^((\t+)NOT = \{\s+any_\w+ = {(?:[^#\n]+?\s+|(?:\s\t\t\2[^#\n]+?){1,}\s\t\2)\}\n?\2\})$"] = [
-			r"(\s+)NOT = \{((\1)\s|(\s))any(_\w+ = {)([^#]+)\}(?:\1|\s)\}", r"\1count\5\2count = 0 limit = {\6}\2\3\4}"]
 		targets4[r"\bcount_\w+ = \{\s+limit = \{[^#]+?\}\s+count\s*[<=>]+\s*[^{}\s]+"] = [
 			r"(count_\w+ = \{)(\s+)(limit = \{[^#]+?\})\2(count\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put count first
-		targets4[r"\n{3,}"] = "\n\n" # cosmetic remove surplus lines
+		targets4[r"\n{3,6}"] = "\n\n" # cosmetic remove surplus lines
 
 
 	# NOT NUM triggers.
@@ -1708,7 +1711,7 @@ def do_code_cosmetic():
 		r"^((\s+)N?OR = \{(\s+(?:%s)) = \{\s+[^#\n]+?\s*\}\3 = \{\s+[^#\n]+?\s*\}\3 = \{\s+[^#\n]+?\s*\})\n?\2\}" % SCOPES: [
 			r"(N?OR = \{)(\s+)(%s) = \{\s+([^#\n]+?)\s*\}\s+\3 = \{\s+([^#\n]+?)\s+\}\s+\3 = \{\s+([^#\n]+?)\s+\}" % SCOPES, r"\3 = {\2\1\2\t\4\2\t\5\2\t\6\2}",
 		],
-		r"(?:\s+add_resource = \{\s*\w+ = [^\s{}#]+\s*\}){2,}": [
+		r"(?:\s+add_resource = \{\s*\w+ = [^\s{}#]+\s*\}){2,7}": [
 			r"(\s+)add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\}\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\}(?(3)\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\})?(?(4)\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\})?(?(5)\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\})?(?(6)\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\})?(?(7)\s+add_resource = \{\s*(\w+ = [^\s{}#]+)\s*\})?",
 			# r"\1\2\3\4\5\6\7 }",
 			# r"\1add_resource = {\n\t\1\2\n\t\1\3\n\t\1\4\n\t\1\5\n\t\1\6\n\t\1\7\n\t\1\8\n\1}",
@@ -1792,10 +1795,13 @@ def do_code_cosmetic():
 		r"^((\s+)any_system_within_border = \{\s+any_system_planet = [\s\S]+?)^\2\}": [ # very rare
 			r"(\s+)any_system_within_border = \{\s+any_system_planet = \{([\s\S]+?)\1\}\s?$",
 			lambda p: (
-			    f"{p.group(1)}any_planet_within_border = {dedent_block(p.group(2))}"
-			    if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(2), re.M)
-			    else None
+				f"{p.group(1)}any_planet_within_border = {dedent_block(p.group(2))}"
+				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(2), re.M)
+				else None
 			)
+		],
+		r"^(\s+NOT = \{\s+any_\w+ = \{(?:\n?[\t ]+[^#\n]+?){1,4}\s+\})\s+\}": [
+			r"(\s+)NOT = \{(\n?\1\s|\s)any(_\w+ = \{)([^#]+\})$", r"\1count\3 count = 0\2limit = {\4"
 		],
 		# TODO performance: a lot of blind matches
 		r'\b(?:add_modifier = \{\s*modifier|set_timed_\w+ = \{\s*flag) = "?[\w@.]+"?\s+days = \d{2,}\s*?(?:\#[^\n{}]+\n\s+)?\}': [
@@ -1929,10 +1935,10 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 		if not keep_default_country_trigger:
 			# without is_country_type_with_subjects & without is_fallen_empire = yes
 			tar4[
-				r"\b(?:(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes))|(?:(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = default|merg_is_default_empire = yes))|(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)))"
+				r"\s+(?:(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes))|(?:(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = default|merg_is_default_empire = yes))|(?:(?:is_country_type = default|merg_is_default_empire = yes)\s+(is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)\s+(?:is_country_type = fallen_empire|merg_is_fallen_empire = yes)))"
 			] = [
-				r"\b((?:is_country_type = default|merg_is_default_empire = yes|is_country_type = fallen_empire|merg_is_fallen_empire = yes|is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)(\s+)){2,}",
-				(NO_TRIGGER_FOLDER, r"is_default_or_fallen = yes\2"),
+				r"((\s+)(?:is_country_type = default|merg_is_default_empire = yes|is_country_type = fallen_empire|merg_is_fallen_empire = yes|is_country_type = awakened_fallen_empire|merg_is_awakened_fe = yes)){2,4}",
+				(NO_TRIGGER_FOLDER, r"\2is_default_or_fallen = yes"),
 			]
 	elif not is_subfolder:
 		# triggers_in_mod = extract_scripted_triggers()
@@ -1983,6 +1989,71 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 	targets4.extend(tar4)
 
 	return (targets3, targets4)
+
+
+def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
+	"""
+	Merge multiple `modifier = { factor = 0 ... }` blocks into a single one
+	with an OR = { ... } condition.
+	Works on any scope, not just ai_weight.
+	"""
+	modifier_re = re.compile(r'\t\tmodifier = \{\s+factor = 0(?:\.0+)?\s+(.+?)\n\t\t\}\n', flags=re.DOTALL)
+
+	def repl(match_parent):
+		nonlocal changed
+		block = match_parent.group(1)
+		if not block:
+			return match_parent
+		indent = indent2 = r"\n\t\t"
+		indent2 += r"\t"
+		match_parent = match_parent.group(0)
+		mods = modifier_re.findall(block)
+
+		if len(mods) <= 1:
+			return match_parent
+		else: 
+			changed = True
+
+		# Build merged modifier
+		# For several blocks # merged = "".join(indent2 + "\t + m.rstrip() + indent2 + "\t}" for m in mods) 
+		def is_AND_block(m: str) -> str:
+			comment_match = ""
+			m = m.strip()
+			if m.startswith("#"):
+				comment_match = re.match(r'(#.*?\n)(.*)', m, flags=re.DOTALL)
+				if comment_match:
+					m = comment_match.group(2).strip()
+					comment_match = comment_match.group(1).rstrip() + indent2 + r"\t"
+				else:
+					comment_match = ""
+			if re.search(r'\n', m) and not m.startswith("AND "):
+				if not m.startswith(("NOR ", "OR ")) and re.search(indent2 + r'\w', m):
+					m = "AND = {" + indent2 + "\t\t" + indent_block(m) + indent2 + "\t}"
+			return comment_match + indent_block(m)
+
+		merged = "".join(indent2 + r"\t" + is_AND_block(m) for m in mods)
+		merged = f"{indent}modifier = {{ # Vfix opt{indent2}factor = 0{indent2}OR = {{{merged}{indent2}}}{indent}}}" # \n\t}} 
+		# print(type(merged), isinstance(merged, str))
+		insert_at = re.search(r'\n\t\tmodifier =', match_parent)
+		insert_at = insert_at.start()
+		 
+		# Replace all original modifier = { ... } with merged version
+		match_parent = modifier_re.sub("", match_parent)
+		# Insert merged modifier *before any other modifier*
+		match_parent = f"{match_parent[:insert_at]}{merged}{match_parent[insert_at:]}".encode("utf-8").decode("unicode_escape")
+		# match_parent = re.sub(r"\t+\}$",merged, match_parent, count=1)
+		# print(match_parent)
+		print(f"Merge multiple factor 0 modifier {merged}".encode("utf-8").decode("unicode_escape"))
+		return match_parent
+
+	# Apply recursively to all scopes that might contain modifiers
+	return (re.sub(
+		r'^\t(?:weight(?:_modifier)?|ai_weight|monthly_progress|usage_odds) = \{(.+?)^\t\}',
+		repl,
+		text,
+		flags=re.DOTALL|re.M
+	), changed)
+
 
 # (since v4.0)
 def convert_prescripted_countries_flags():
@@ -2148,7 +2219,7 @@ def convert_prescripted_countries_flags():
 				file_modified_in_this_pass = False		
 
 				for match in block_pattern.finditer(content):
-					block_key = match.group(1)      # e.g. "empire_human_1"
+					block_key = match.group(1)	  # e.g. "empire_human_1"
 					block_body = match.group(2)
 					# Look for flags={...} inside this block
 					flags_match = flag_block_pattern.search(block_body)
@@ -2604,7 +2675,7 @@ def modfix(file_list, is_subfolder=False):
 						continue
 					elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS):
 						lines, valid_lines, changed = transform_add_trait(lines, valid_lines, changed)
-
+	
 				for pattern, repl in tar3:  # new list way
 					folder = False
 					rt = False # check valid folder
@@ -2689,6 +2760,10 @@ def modfix(file_list, is_subfolder=False):
 					# if not file_pattern.search(out):
 					#	 out = '\n' + out
 					#	 changed = True
+
+				# FEXME , "resolutions", "situations" needs test
+				if subfolder.endswith(("technology", "ai_budget", "megastructures", "pop_faction_types", "solar_system_initializers", "tradition_categories")):
+					out, changed = merge_factor0_modifiers(out, changed)
 
 				for pattern, repl in tar4:  # new list way
 					folder = False # check valid folder before loop
