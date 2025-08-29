@@ -24,7 +24,7 @@ ACTUAL_STELLARIS_VERSION_FLOAT = "4.0"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.23' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
-mod_path = "d:/GOG Games/Settings/Stellaris/test" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.xx_bak" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
+mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.0.xx_bak" # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
 code_cosmetic = 0 # Still Beta
