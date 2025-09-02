@@ -1992,41 +1992,54 @@ def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 	with an OR = { ... } condition.
 	Works on any scope, not just ai_weight.
 	"""
-	modifier_re = re.compile(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?\s+(.+?)\n\t\t\}\n', flags=re.DOTALL)
+	mod_zero_re = re.compile(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?\s+(.+?)\n\t\t\}\n', flags=re.DOTALL)
+	mod_all_re = r'\n\t\tmodifier ='
+	ascendancy_rare_tech_re = re.compile(mod_all_re+r' \{\s+factor = @ap_technological_ascendancy_rare_tech\s+(.+?)\n\t\t\}', flags=re.DOTALL)
+	mod_add_re = re.compile(mod_all_re+r' \{\s+add =')
+	mod_all_re = re.compile(mod_all_re)
 
 	def repl(match_parent):
 		nonlocal changed
 		block = match_parent.group(1)
 		if not block:
 			return match_parent
+
 		indent = indent2 = r"\n\t\t"
 		indent2 += r"\t"
 		match_parent = match_parent.group(0)
-		mods = modifier_re.findall(block)
+		insert_at = ascendancy_rare_tech_re.search(block)
 
-		# if len(mods) <= 1:
-		# 	return match_parent
-		if len(mods) < 1:
-			return match_parent
- 
-		mods_match = re.findall(r'\n\t\tmodifier =', block)
+		if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99 and insert_at:
+			abs_match_start = match_parent.start()
+			block_coords = (match_parent.start(1) - abs_match_start, match_parent.end(1) - abs_match_start)
+			block = block[:insert_at.start()] + block[insert_at.end():]
+			match_parent = match_parent[:block_coords[0]] + block + match_parent[block_coords[1]:]
+			logger.info(f"Removed obsolete modifier: {insert_at.group(0)}") #  from '{block}' from '{match_parent}'
+			changed = True
+
+		mods_match = re.findall(mod_all_re, block)
+
 		if len(mods_match) < 2:
+			return match_parent
+
+		mods = mod_zero_re.findall(block)
+		if len(mods) < 1:
 			return match_parent
 
 		# mods_match = re.search(r'^\t\tmodifier = \{\s+(?:factor|mult|add) = ((?:@|value).*?)$', block, flags=re.M)
 		# if mods_match:
 		# 	print("Found special factor value:", mods_match.group(0))
 		# Check if the 0 block is at last
-		mods_match = re.search(r'\n\t\tmodifier = \{\s+(?:factor|mult|add) = \d(?:\.\d+)?', block)
+		# mods_match = re.search(r'\n\t\tmodifier = \{\s+(?:factor|mult|add) = \d(?:\.\d+)?', block)
 		# if not mods_match:
 		# 	logger.debug("No modifier factor found!?", block)
 		# 	return match_parent
-		merged = re.search(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?', block)
-		if mods_match.start() != merged.start():
-			print("It is the first one", block)
-		merged = re.search(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?', mods_match.group(0))
-		if not merged:
-			print("It is not the first one", block)
+		# merged = re.search(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?', block)
+		# if mods_match.start() != merged.start():
+		# 	print("It is the first one", block)
+		# merged = re.search(r'\n\t\tmodifier = \{\s+factor = 0(?:\.0+)?', mods_match.group(0))
+		# if not merged:
+		# 	print("It is not the first one", block)
 		# 	return match_parent
 
 		# Build merged modifier
@@ -2055,14 +2068,14 @@ def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 			merged = f"{indent}modifier = {{{indent2}factor = 0{indent2}{mods[0]}{indent}}}"
 
 		# Replace all original modifier = { ... } with merged version
-		new_content = modifier_re.sub("\n", match_parent)
-		if re.search(r'\n\t\tmodifier = \{\s+add =', new_content):
+		new_content = mod_zero_re.sub("\n", match_parent)
+		if re.search(mod_add_re, new_content):
 			insert_at = "end"
 			# Insert merged modifier *after any other modifier* because weight can also be added after
 			new_content = re.sub(r"\n\t\}$", merged + r'\n\t}', new_content, count=1)
 		else:
 			# Insert merged modifier *before any other modifier*
-			insert_at = re.search(r'\n\t\tmodifier =', match_parent)
+			insert_at = re.search(mod_all_re, new_content)
 			insert_at = insert_at.start()
 			new_content = f"{new_content[:insert_at]}{merged}{new_content[insert_at:]}".encode("utf-8").decode("unicode_escape")
 			insert_at = "start"
