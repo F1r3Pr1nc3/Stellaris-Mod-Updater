@@ -14,28 +14,39 @@ Features:
 - Rename detection with RapidFuzz: scripted_triggers, scripted_effects, modifiers, and traits via content similarity (~75%).
     - Uses block cache for rename-detection to speed up comparisons.
 
-Install: pip install rapidfuzz
+Install:
+    pip install cydifflib
+    
 
 Author: FirePrince with ChatGPT guidance
 GitHub: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 Used by https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/modupdater-v4.0.py
 """
-
 import os
 import re
-# import difflib # slow
-from rapidfuzz import fuzz
+import difflib # slow
 import logging
 import argparse
+# from rapidfuzz import fuzz # pip install rapidfuzz
+try:
+    # Try using the faster C implementation
+    from cydifflib import SequenceMatcher as FastMatcher
+    difflib.SequenceMatcher = FastMatcher
+    print("Using cydifflib for faster diffs")
+except ImportError:
+    # Fall back to the Python stdlib
+    FastMatcher = None
+    print("cydifflib not available, using standard difflib")
 
 # Example usage
-old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris3.14"
-new_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
+old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
+new_version_folder = "d:\\Steam\\steamapps\\common\\Stellaris"
+
 # Add/Remove more categories if needed
 rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", "variables" } # "starbase_buildings", "jobs" , "starbase_modules"
-scan_events = True # False #  Event ID tracking
+scan_events = True # False # Event ID tracking
 scan_common = True # False # Common folder tracking
-debug = False # True #
+debug = False # True # 
 
 # Configure basic logging - this can be overridden by argparse later
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -62,7 +73,7 @@ def parse_args():
 def write_if_not_empty(path, title, lines, info):
     if lines:
         with open(os.path.join(path, file), 'a', encoding='utf-8') as f:
-            f.write(f'\n\n{title}\n\n')
+            f.write(f'\n\n= {title.upper()} =\n\n')
             f.write('\n'.join(lines))
         logger.info(f"{info} written to: {file}")
 
@@ -139,10 +150,10 @@ def extract_all_blocks(folder, pattern):
             blocks[key] = (block_text, file)
     return blocks
 
-def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshold=0.75):
+def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshold=0.6) -> list:
     renames = []
-    matched_new_keys = set()
-    logger.info(f"Starting renamed block detection: {len(removed_keys)} removed keys, {len(added_keys)} added keys")
+    matched_new_keys = {}
+    logger.info(f"⇔ Starting renamed block detection: {len(removed_keys)} removed keys, {len(added_keys)} added keys")
     for old_key in removed_keys:
         if old_key not in old_dict:
             continue
@@ -150,24 +161,41 @@ def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshol
         best_match = None
         best_ratio = threshold
         for new_key in added_keys:
-            if new_key in matched_new_keys or new_key not in new_dict:
+            if new_key not in new_dict:
                 continue
+            # if new_key in matched_new_keys:
+            #     continue We want also check other old_key to this
             new_body = new_dict[new_key][0]
-            ratio = fuzz.ratio(old_body, new_body) / 100
+            # Find similarity:
+            # ratio = fuzz.ratio(old_body, new_body) / 100
+            ratio = difflib.SequenceMatcher(None, old_body, new_body).ratio()
             if ratio > best_ratio:
+                if best_match and debug:
+                    print(f"Found better match for {old_key} ({round(ratio * 100, 3)}) than {round(best_ratio * 100, 3)} for {best_match} now {new_key}")
                 best_match = new_key
                 best_ratio = ratio
+            # or find best match from a list:
+            # best_match = max(choices, key=lambda x: ratio)
 
         if best_match:
-            best_ratio = round(best_ratio * 100, 2)
+            best_ratio = round(best_ratio * 100, 3)
             old_file = old_dict[old_key][1]
             new_file = new_dict[best_match][1]
-            renames.append((old_key, best_match, best_ratio, old_file, new_file))
-            matched_new_keys.add(best_match)
-            logger.info(f"Potentially renamed: {old_key} -> {best_match} ({best_ratio}%)")
-            if debug: print(f"Compare\nOLD ===:\n{new_dict[best_match][0]}\nNEW ===:\n{old_body}")
+            old_key_to_remove = matched_new_keys.get(best_match, False)
+            # if debug and old_key_to_remove:
+            #     print("old_key_to_remove", best_match, old_key_to_remove, best_ratio)
+            if not old_key_to_remove or old_key_to_remove[1] < best_ratio:
+                # Remove the less possible old_key
+                if old_key_to_remove:
+                    old_key_to_remove = old_key_to_remove[0]
+                    print(f"⇔ Compare REPLACE: OLD = {old_key_to_remove} - NEW = {old_key}")
+                    renames = [r for r in renames if r[0] != old_key_to_remove]
+                matched_new_keys[best_match] = (old_key, best_ratio)
+                renames.append((old_key, best_match, best_ratio, old_file, new_file))
+                logger.info(f"Potentially renamed: {old_key} -> {best_match} ({best_ratio}%)")
+            if debug: print(f"Compare\nOLD ===:\n{old_body}\nNEW ===:\n{new_dict[best_match][0]}")
 
-    logger.info(f"Renamed block detection completed: {len(renames)} potentially renamed pairs found")
+    logger.info(f"⇔ Renamed block detection completed: {len(renames)} potentially renamed pairs found")
     return renames
 
 def write_diffs(old_items, new_items, category, old_path, new_path, summary_lines, renamed_pairs=None):
@@ -233,10 +261,10 @@ def compare_stellaris_data(old_path, new_path):
             new_blocks = {k: new_blocks_all[k] for k in added if k in new_blocks_all}
 
             renamed = detect_renamed_blocks(old_blocks, new_blocks, removed, added)
-
-            with open(os.path.join(old_path, f"{cat}_renamed.log"), 'w', encoding='utf-8') as f:
-                for old, new, ratio, old_file, new_file in renamed:
-                    f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
+            if len(renamed) > 0:
+                with open(os.path.join(old_path, f"{cat}_renamed.log"), 'w', encoding='utf-8') as f:
+                    for old, new, ratio, old_file, new_file in renamed:
+                        f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
 
         write_diffs(old_items, new_items, cat, old_path, new_path, summary_lines, renamed)
 
@@ -277,10 +305,10 @@ def compare_stellaris_data(old_path, new_path):
         new_blocks = {k: new_blocks_all[k] for k in added if k in new_blocks_all}
 
         renamed = detect_renamed_blocks(old_blocks, new_blocks, removed, added)
-
-        with open(os.path.join(old_path, "modifiers_renamed.txt"), 'w', encoding='utf-8') as f:
-            for old, new, ratio, old_file, new_file in renamed:
-                f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
+        if len(renamed) > 0:
+            with open(os.path.join(old_path, "modifiers_renamed.txt"), 'w', encoding='utf-8') as f:
+                for old, new, ratio, old_file, new_file in renamed:
+                    f.write(f"{old} ({old_file}) -> {new} ({new_file}) ({ratio}%)\n")
 
     write_diffs(old_items, new_items, "modifiers", old_path, new_path, summary_lines, renamed)
 
