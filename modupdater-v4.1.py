@@ -27,11 +27,11 @@ ACTUAL_STELLARIS_VERSION_FLOAT = "4.1"  #  Should be number string
 FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.3' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
-mod_path = "d:/GOG Games/Settings/Stellaris//Stellaris4.1_upd_test" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stellaris4.1_upd_test
+mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stellaris4.1_upd_test
 # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
-code_cosmetic = 1 # Still Beta
+code_cosmetic = 0 # Still Beta
 also_old = 0
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
 keep_default_country_trigger = 0
@@ -814,7 +814,8 @@ v3_10 = {
 			(("E", re.compile(r"^destroy_space_storm = \{$", re.M)), "destroy_space_storm = yes"),
 		r'\bleader_class = "?commander"?\s+leader_class = "?commander"?\b': "leader_class = commander",
 		# r"^\s+leader_class = \{\s*((?:admiral|scientist|general|governor)\s+){1,4}": [r'(admiral|general|governor)', (["common/traits", "common/governments/councilors"], lambda p: {"governor": "official", "admiral": "commander", "general": "commander" }[p.group(1)])],
-		r"(?:\s+has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3}\s*": (NO_TRIGGER_FOLDER, " is_terraforming_candidate = yes "),# FIXME also no rules folder!?
+		r"((?:(\s+)has_modifier = (?:toxic_|frozen_)?terraforming_candidate){2,3})":
+			(NO_TRIGGER_FOLDER, r"\2is_terraforming_candidate = yes"), # FIXME also no rules folder!?
 	},
 }
 # CAELUM
