@@ -15,7 +15,7 @@ Automate the process of updating a modpack's version metadata. It includes funct
 - Copy or sync mod directories into a new output folder.
 - Update .mod descriptor files, including fields like version, path, and supported_version.
 - Simple syntax-formatter (and so validator).
-- Automatic <b>downgrade</b> function from v4.1 to v4.0, from v4.0 to v3.14 is in work!
+- Automatic <b>downgrade</b> to v4.0 and to v3.14 (WIP)!
 
 ### ⌨️ Example 
 - https://github.com/Coggernaut/Distant-Stars-Overhaul/commit/5b259f82002b4ce993c70179d24c39f996d86d65

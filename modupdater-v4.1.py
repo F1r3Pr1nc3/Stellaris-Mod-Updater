@@ -16,7 +16,7 @@ import time
 from collections import defaultdict
 
 # @Author: FirePrince
-# @Revision: 2025/09/62
+# @Revision: 2025/09/27
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -31,7 +31,7 @@ mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stella
 # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
-code_cosmetic = 0 # Still Beta
+code_cosmetic = 1 # Still Beta
 also_old = 0
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
 keep_default_country_trigger = 0
@@ -71,7 +71,7 @@ def setBoolean(s):
 #   sys.exit(1)
 VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe" # |gestalt_consciousnes
 VANILLA_PREFIXES = r"any|every|random|count|ordered"
-PLANET_MODIFIER = r"jobs|housing|amenities|amenities_no_happiness"
+PLANET_MODIFIER = r"jobs|housing|amenities"
 RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
 # Compare ("T", trigger_key) tuple for just same file exclude
 # NO_EFFECT_FOLDER = re.compile(r"^(?!common/scripted_effects)")
@@ -139,9 +139,9 @@ def multiply_by_hundred(m):
 # targets4 = {}
 
 actuallyTargets = {
-	"targetsR": [],  # Removed syntax on stripped lines # This are only warnings, commands which cannot be easily replaced.
-	"targets3": {},  # Simple syntax (only one-liner) on stripped lines
-	"targets4": {},  # Multiline syntax # key (pre match without group or one group): arr (search, replace) or str (if no group or one group) # re flags=re.I|re.M|re.A
+	"targetsR": [],  # Removed syntax on stripped lines # This are mostly only warnings, commands which cannot be easily replaced.
+	"targets3": {},  # Simple syntax (only one-liner) on stripped lines without comments
+	"targets4": {},  # It is designed to handle multi-line blocks of text. key (pre match without group or one group): arr (search, replace) or str (if no group or one group) # re flags=re.I|re.M|re.A
 }
 # NOTE: Used list_traits_diff.py script for changed traits.
 
@@ -163,7 +163,7 @@ v4_1 = {
 	},
 	"targets4": {
 	r"((\s+)(?:is_mercenary(?:_mindwarden_enclave)? = yes(?:\2(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b){1,2}|(?:(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b\s*){1,2}\s*is_mercenary(?:_mindwarden_enclave)? = yes\b|is_country_type = enclave_mercenary\b))":
-		(("T", "is_mercenary"), r"\2is_mercenary = yes"), 
+		(("T", "is_mercenary"), r"\2is_mercenary = yes"),
 		# Leader Flag replacement
 		r"((\n\t+)NOR = \{(?:\2\t([^{}#]*?))?(?:\2\t(?:is_leader_tier = leader_tier_(?:renowned|legendary)\b|has_leader_flag = (?:renowned|legendary)_leader\b)){2}\s+([^{}#]+|\}))":
 			lambda p: (
@@ -191,10 +191,10 @@ v4_1 = {
 		# create_leader = (\{(?:(?>[^{}]+)|(?R))*\})
 		# r"(create_leader = {(?![\s\S]*?tier = leader_tier_legendary)((\s+)[\s\S]+?)(\3effect = {)([\s\S]*?)\s*set_leader_flag = legendary_leader\s+([\s\S]*?)(\3}))":
 		r"(?s)((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?(?:traits = \{[^{}]*?\}\2)?[^{}]*?\2\teffect = \{\2\t.*?)\2\t\}\2\}": [
-			r"((?:clone|create)_leader = \{(\s+))((?:(?!tier = )[\s\S])*?)(\2effect = \{\2\t[\s\S]*?)\2\tset_leader_flag = (renowned|legendary)_leader\b([\s\S]*)$",
+			r"((?:clone|create)_leader = \{(\s+))((?:(?!tier = )[\s\S])*?)(\2effect = \{[\s\S]*?)\2\tset_leader_flag = (renowned|legendary)_leader\b([\s\S]*)$",
 			lambda p: p.group(1) + (
-				re.sub(r'\b((?:class|name|skill) = \"?\w+\"?)', r"\1"+p.group(2)+"tier = leader_tier_"+p.group(5), p.group(3), count=1) +
-				f"{p.group(2)}{p.group(4)}{p.group(6)}"
+				re.sub(r'\b((?:class|name|skill) = [^\s]+)', fr"\1{p.group(2)}tier = leader_tier_{p.group(5)}", p.group(3), count=1) +
+				f"{p.group(4)}{p.group(6)}"
 				if p.group(3) and p.group(5)
 				else p.group(0)
 			)
@@ -216,7 +216,7 @@ revert_v4_1 = {
 	"targets3": {
 		r"\bis_psionic_species = yes\b": "has_trait = trait_psionic",
 		r"\bis_latent_psionic_species = yes\b": "has_trait = trait_latent_psionic",
-		r"\bis_mercenary = yes\b": "is_country_type = enclave_mercenary", 
+		r"\bis_mercenary = yes\b": "is_country_type = enclave_mercenary",
 		r"\bhas_any_farming_district_or_building\b": "has_any_farming_district_or_buildings",
 		r"\bis_leader_tier = leader_tier_(renowned|legendary)\b": r"has_leader_flag = \1_leader",
 		r"\bupgrade_enclave_starbase\b": "upgrade_mercenary_starbase",
@@ -241,22 +241,25 @@ revert_v4_1 = {
 		# The original code moved a "set_leader_flag" from inside an 'effect' block to a 'tier' attribute outside of it.
 		# This reverse regex finds the 'tier' attribute, removes it, and re-creates the corresponding "set_leader_flag" inside the 'effect' block.
 		r"(?s)((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?tier = leader_tier_\w+\2\t[^{}]*?(?:\2\teffect = \{\2\t.*?\2\t\})?)\2\}": [
-			r'((?:clone|create)_leader = \{(\s+))([^{}]+)\2tier = leader_tier_(renowned|legendary)\2([^{}]*?)(?:effect = \{([\s\S]*?)\2\})?$',
+			r'((?:clone|create)_leader = \{(\s+))([^{}]+)\2tier = leader_tier_(renowned|legendary)\2([\s\S]*?)\2(?:effect = \{([\s\S]+?)\2\})?$',
 			lambda p: (
 				# Group 1: (clone|create)_leader = { and initial whitespace
 				# Group 3: Content before the tier attribute
 				# Group 5: Content between the tier attribute and the effect block
 				f"{p.group(1)}{p.group(3).strip()}{p.group(2)}{p.group(5).strip()}"
-				# Group 6: Original content of the effect block
 				# Group 4: The tier name ('renowned' or 'legendary')
-				# Group 9: The closing brace of the effect block
+				# Group 6: Original content of the effect block
 				f"{p.group(2)}effect = {{"
 				f"{p.group(2)}\tset_leader_flag = {p.group(4)}_leader"
 				f"{p.group(6) if p.group(6) else ''}{p.group(2)}}}"
 			)
-		]
+		], # \1\3\2\5\2effect = {\2\tset_leader_flag = \4_leader\6\2}
 	},
 }
+
+TRAITS_TIER_2_REVERT = r"(adaptable|aggressive|agrarian_upbringing|architectural_interest|army_veteran|bureaucrat|butcher|cautious|eager|engineer|enlister|environmental_engineer|defence_engineer|politician|resilient|restrained|retired_fleet_officer|ruler_fertility_preacher|shipwright|skirmisher|trickster|unyielding)"
+TRAITS_TIER_3_REVERT = r"(annihilator|archaeo_specialization|armada_logistician|artillerist|artillery_specialization|border_guard|carrier_specialization|commanding_presence|conscripter|consul_general|corsair|crew_trainer|crusader|demolisher|dreaded|frontier_spirit|gale_speed|guardian|gunship_specialization|hardy|heavy_hitter|home_guard|interrogator|intimidator|juryrigger|martinet|observant|overseer|reinforcer|rocketry_specialization|ruler_fortifier|ruler_from_the_ranks|ruler_military_pioneer|ruler_recruiter|scout|shadow_broker|shipbreaker|slippery|surgical_bombardment|tuner|warden|wrecker)"
+JOBS_EXCLUSION_LIST = r"(?:calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap|knight_commander)"
 
 # PHONIX (BioGenesis DLC)
 # TODO
@@ -335,10 +338,8 @@ v4_0 = {
 	"targets3": {
 		r"\bdefense_armies_add\b": r"planet_\g<0>",
 		r"\b(?:%s)_species_pop\b" % VANILLA_PREFIXES: r"\g<0>_group",
-		r"\b((?:leader_)?trait_)(adaptable|aggressive|agrarian_upbringing|architectural_interest|army_veteran|bureaucrat|butcher|cautious|eager|engineer|enlister|environmental_engineer|defence_engineer|politician|resilient|restrained|retired_fleet_officer|ruler_fertility_preacher|shipwright|skirmisher|trickster|unyielding)_2":
-			r"\1\2",
-		r"\b((?:leader_)?trait_)(annihilator|archaeo_specialization|armada_logistician|artillerist|artillery_specialization|border_guard|carrier_specialization|commanding_presence|conscripter|consul_general|corsair|crew_trainer|crusader|demolisher|dreaded|frontier_spirit|gale_speed|guardian|gunship_specialization|hardy|heavy_hitter|home_guard|interrogator|intimidator|juryrigger|martinet|observant|overseer|reinforcer|rocketry_specialization|ruler_fortifier|ruler_from_the_ranks|ruler_military_pioneer|ruler_recruiter|scout|shadow_broker|shipbreaker|slippery|surgical_bombardment|tuner|warden|wrecker)_3":
-			r"\1\2_2",
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_2_REVERT}_2": r"\1\2",
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_3_REVERT}_3": r"\1\2_2",
 		r"\bplanet_storm_dancers\b": "planet_entertainers",
 		# r"((?<!_as =)[\s.])planet_owner": r"\1planet.owner",
 		r"\bis_pleasure_seeker\b": "is_pleasure_seeker_empire",
@@ -381,8 +382,7 @@ v4_0 = {
 		# r"\bkill_pop = yes": "kill_all_pop = yes", # "kill_pop_group = { pop_group = this percentage = 1 }"
 		r"\bpop_has_(ethic|trait|happiness)\b":  r"pop_group_has_\1",
 		r"\bpop_percentage\b": "pop_amount_percentage",
-		r"\bhas_skill\b": "has_total_skill",
-		r"\bhas_level\b": "has_base_skill",
+		r"\bhas_(skill|level)\b": lambda m: f"has_{'total' if m.group(1) == 'skill' else 'base'}_skill",
 		r"\bhas_job\b": "has_job_type", # TODO combine with random_owned_pop_job as pop scope is mostly not used
 		# has_job_type -> is_pop_category on pop_group
 		r"\bhas_colony_progress [<=>]+ \d+\b": "colony_age > 0",
@@ -390,7 +390,8 @@ v4_0 = {
 		r"\bcategory = pop\b": "category = pop_group",
 		r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
 		r"\bpop_force_add_ethic = ([\d\w\.:]+)\b":  r"pop_force_add_ethic = { ethic = \1 percentage = 1 }", # AMOUNT = 100
-		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
+		# r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
+		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count = (\d+)": lambda m: f"{m.group(1)}size = {int(m.group(2)) * 100}",
 		r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
 		r"\bis_pop_category = purge\b": (("T", "is_being_purged"), "is_being_purged = yes"),
@@ -425,15 +426,16 @@ v4_0 = {
 		# Modifier trigger
 		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
 		# Modifier effect
-		r"\b(job_(?!calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap|knight_commander)\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
+		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
 		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
 		r"\bentertainer_jobs_bonus_workforce_mult\b": r"influential_jobs_bonus_workforce_mult", # v4.0.23
 		r"\bdistrict_(\w+?)_max\b": r"district_\1_max_add", # v4.0.23 (farming|generator|mining|hab_energy)
 		r"\bpop_workforce_mult\b": r"pop_bonus_workforce_mult", # v4.0.23
-		# Variables TODO
-		# economic_plan_food_target_extra -> economic_plan_trade_target (78.26%)
-		# economic_plan_minerals_target -> economic_plan_mineral_target (95.65%)
-
+		# Variables
+		r"@economic_plan_food_target_extra\b": ("common/economic_plans", r"20"), # 2*
+		r"@economic_plan_minerals_target\b":
+			(["common/economic_plans", "common/scripted_triggers", "common/inline_scripts"],
+			r"@economic_plan_mineral_target"),
 	},
 	"targets4": {
 		r"((\s+)(?:is_elite_category = yes(?:\2is_pop_category = ruler(?:_unemployment)?\b){1,2}|(?:is_pop_category = ruler(?:_unemployment)?\b\s*){1,2}\s*is_elite_category = yes|is_pop_category = ruler)\b)":
@@ -449,8 +451,8 @@ v4_0 = {
 		r"^((\t+)(?:%s)_owned_pop_)group = \{(\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+)kill_(?:single_)?pop = yes\n?\2\}" % VANILLA_PREFIXES:
 			r"\1job = {\3kill_assigned_pop_amount = { percentage = 1 }\n\2}", # TODO: Very specific and limited
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
-		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
-			r"(planet_(?:%s)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b" % PLANET_MODIFIER, multiply_by_hundred
+		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s|amenities_no_happiness|crime)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
+			r"(planet_\w+_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b", multiply_by_hundred
 		],
 		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
 			[r"\bcount\b", "size"],
@@ -524,10 +526,155 @@ v4_0 = {
 		r"((\n\t+)country_event = \{\s*id = first_contact.1060[^{}#]+\})":
 			("events", r"\2if = {\2\tlimit = { very_first_contact_paragon = yes }\2\tset_country_flag = first_contact_protocol_event_happened\2}"),
 		r"((\n\t+)pop_change_ethic = ([\w\.:]+))\b":  r"\2pop_group_transfer_ethic = {\2\tPOP_GROUP = this\2\tETHOS = \3\2\tPERCENTAGE = 1\2}",
-		r"((\n\t+)job_(?:calculator|brain_drone)_add = (-?[1-9]))\b\n?":  
+		r"((\n\t+)job_(?:calculator|brain_drone)_add = (-?[1-9]))\b\n?":
 			lambda m:
 				f"{m.group(2)}job_calculator_physicist_add = {int(m.group(3))*50}{m.group(2)}job_calculator_biologist_add = {int(m.group(3))*20}{m.group(2)}job_calculator_engineer_add = {int(m.group(3))*30}\n",
 	},
+}
+
+def divide_by_hundred(match):
+	"""
+	Takes a regex match object and divides the last captured group by 100.
+	Used to reverse the 'multiply_by_hundred' transformation.
+	"""
+	# Assumes the number is in the last group, and preceding groups form the prefix.
+	# It reconstructs the string with the calculated value.
+	prefix = "".join(match.groups()[:-1])
+	original_value = int(match.groups()[-1])
+	new_value = original_value // 100
+	# Format as an integer if it's a whole number (e.g., 2.0 -> 2)
+	# otherwise, format as a float (e.g., 0.5).
+	if new_value == int(new_value):
+		return f"{prefix}{int(new_value)}"
+	else:
+		return f"{prefix}{new_value}"
+
+# --- The main dictionary with the reverted transformations ---
+revert_v4_0 = {
+	"targets3": {
+		# --- Simple Reversions ---
+		r"\bplanet_(defense_armies_add)\b": r"\1",
+		r"\b((?:(?:pre_)?sapient|robotic|robotic_servitude|robotic_slave|primitive|uplifted)_species_pop)_group\b": r"\1",
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_2_REVERT}\b": r"\1\2_2",
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_3_REVERT}_2\b": r"\1\2_3",
+		r"\bplanet_entertainers\b": "planet_storm_dancers",
+		r"\bis_pleasure_seeker_empire\b": "is_pleasure_seeker",
+		r"\bhas_any_industry_zone\b": "has_any_industry_district",
+		r"\bhas_any_capped_planet_mining_district\b": "has_any_mining_district",
+		r"\bgenerate_civic_secondary_pops\b": "generate_servitor_assmiliator_secondary_pops",
+		r"\bcreate_zombie_pop_group\b": "make_pop_zombie",
+		r"\btrait_cold_planet_preference\b": "trait_frozen_planet_preference",
+		r"\btrait_cyborg_climate_adjustment_cold\b": "trait_cyborg_climate_adjustment_frozen",
+		r"\bis_same_value\b": "is_pop",
+		r"\b(count_owned_pop)_amount\b": r"\1s",
+		r"\bweighted_(random_owned_pop)_group\b": r"\1",
+		r"\b((?:any|every|ordered)_owned_pop|create_pop)_group =": r"\1 =",
+		r"^on_pop_group_(abducted|resettled|added|rights_change)\b": r"on_pop_\1",
+		r"^on_daily_pop_ethics_divergence\b": "on_pop_ethic_changed",
+		r"^([^#]*?)\bplanet_limit\b": r"\1base_cap_amount",
+		r"\buse_ship_main_target\b": "use_ship_kill_target",
+		r"\bkill_single_pop = yes\b": "kill_pop = yes",
+		r"\bpop_group_has_(ethic|trait|happiness)\b": r"pop_has_\1",
+		r"\bpop_amount_percentage\b": "pop_percentage",
+		r"\bhas_total_skill\b": "has_skill",
+		r"\bhas_base_skill\b": "has_level",
+		r"\bhas_job_type\b": "has_job",
+		r"\bcategory = pop_group\b": "category = pop",
+		r"\bcan_harvest_dna = yes\b": "has_active_tradition = tr_genetics_finish_extra_traits",
+		r"\bis_being_purged = yes\b": "is_pop_category = purge",
+		r"\bguardian_opus_sentinel\b": "guardian_warden",
+		r"\bbuilding_medical_2\b": "building_clinic",
+		r"\bjob_biologist_add\b": "job_archaeoengineers_add",
+		r"\bjob_bath_attendant_machine_add\b": "job_archaeo_unit_add",
+		r"\bpop_group_event\b": "pop_event",
+		r"\bjob_trader_add\b": "job_merchant_add",
+		r"\bpop_low_habitability\b": "pop_habitability",
+		r"\bplanet_resettlement_unemployed_mult\b": "pop_growth_from_immigration",
+		r"\bplanet_jobs_trade_produces_(mult|add)\b": r"trade_value_\1",
+		r"\bpop_group_modifier\b": "pop_modifier",
+		r"\bfounder_species_growth_mult\b": "pop_growth_speed",
+		r"\blogistic_growth_mult = -(\d)\b": r"pop_growth_speed_reduction = \1",
+		r"\btrader_jobs_bonus_workforce_(mult|add)\b": r"pop_job_trade_\1",
+		r"\bpop_unemployment_demotion_time_(mult|add)\b": r"pop_demotion_time_\1",
+		r"\bplanet(_defense_armies_(?:mult|add))\b": r"pop\1",
+		r"\bbonus_pop_growth_(mult|add)\b": r"planet_pop_assembly_organic_\1",
+		r"\bworker_and_simple_drone_cat_bonus_workforce_(mult|add)\b": r"planet_jobs_robot_worker_produces_\1",
+		r"\bplanet_doctors_society_research_produces_(mult|add)\b": r"planet_researchers_society_research_produces_\1",
+		r"\binfluential_jobs_bonus_workforce_mult\b": r"entertainer_jobs_bonus_workforce_mult",
+		r"\bdistrict_(\w+?)_max_add\b": r"district_\1_max",
+
+		# --- Reversions with Ambiguity or Information Loss (Defaults chosen) ---
+		r"\bupdate_leader_after_modification\b": "add_leader_traits_after_modification", # NOTE: Could also be 'remove_leader_traits_after_modification'.
+		r"\bcolony_age > 0\b": "has_colony_progress > 0", # NOTE: Original value is lost, defaulting to '> 0'.
+		r"\bcan_talk_to_prethoryn = yes\b": "owner_species = { has_trait = trait_psionic }", # NOTE: Reverting to the most common form.
+		r"\bjob_bureaucrat_add\b": "job_priest_add", # NOTE: Could also be 'death_priest_add' and others.
+		r"\bplanet_bureaucrats_(\w+_(?:mult|add))\s+": r"planet_priests_\1 ", # NOTE: Could also be 'planet_administrators'.
+		r"\bplanet_bureaucrats\b": "planet_priests", # NOTE: Could also be 'planet_administrators'.
+		r"\bpop_bonus_workforce_(mult|add)\b": r"pop_workforce_\1", # NOTE: Conflicts with 'planet_jobs_robotic_produces_...'. Prioritizing this more generic source.
+
+		# --- Reversions Requiring Lambdas/Functions ---
+		r"\b(sapient_pop|pop)_amount\b": r"num_\1s",
+		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)} {int(m.group(3)) // 100}",
+		r"\bpop_force_add_ethic = \{ ethic = ([\d\w\.:]+) percentage = 1 \}": r"pop_force_add_ethic = \1",
+		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )size( = \d+)": lambda m: f"{m.group(1)}count{m.group(2)[:-2] if len(m.group(2)) > 3 else ' = 0'}",
+		r"\b(set|set_timed|has|remove)_pop_group_flag\b": r"\1_pop_flag",
+		r"\bplanet_resettlement_unemployed_destination_(mult|add) = (-?[\d.]+)": lambda m: f"planet_immigration_pull_{m.group(1)} = {float(m.group(2)) / 2}",
+		r"^triggered_planet_(pop_group_modifier)_for_all\b": r"\1",
+
+		# --- Reversions Using the 'divide_by_hundred' Function ---
+		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d+)\b": divide_by_hundred,
+		fr"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d+)\b": divide_by_hundred,
+		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?\d+)\b": divide_by_hundred,
+
+		# --- Un-commenting lines ---
+		r"^# (potential_crossbreeding_chance )": r"\1",
+		r"^# (ship_piracy_suppression_add )": r"\1",
+		r"^# (has_system_trade_value )": r"\1",
+		r"^# (ignores_favorite =)": r"\1",
+		r"^# (monthly_progress|completion_event)": r"\1",
+
+		# --- Irreversible Transformations (omitted) ---
+		# The following original patterns replaced text with an empty string, so the original text cannot be recovered:
+		# r"\btrait_(?:advanced_(...))\b": "",
+		# r"\bstandard_trade_routes_module = {}": "",
+		# r"\bcollects_trade = (yes|no)": "",
+		# r"\bclothes_texture_index = \d+": "",
+		# r"\bclear_pop_category = yes": "",
+	},
+	"targets4": {
+		# Reverts transform_add_leader_trait
+		r'(\b(add_trait) = \{\s+trait( = [\w_]+)\s+\})': r'\2\3',
+		r'(\b(add_trait) = \{\s+trait( = [\w_]+)\s+show_message = no\s+\})': r'\2_no_notify\3',
+		# This pattern finds 'owned_pop' blocks and reverts several changes within them.
+		r"(?s)(\n\t+)(?:any|every|random|ordered)_owned_pop = \{.*?^(?:\2\t[^{}#\n]*?=\s*\{[^{}]*?\}|(?!\2)[\s\S])*?\2\t\}": [
+			# Sub-rule 1: Reverts 'pop_group_*' checks back to their 'pop_*' equivalents inside limit/trigger blocks.
+			(r"\b(limit|trigger) = \{([\s\S]*?(?:pop_group_has_trait|pop_group_has_job|pop_group_is_species)[\s\S]*?)\}",
+			 lambda p: re.sub(r"\bpop_group_(has_trait|has_job|is_species)\b", r"\1", p.group(0), flags=re.I)),
+
+			# Sub-rule 2: Reverts combined enslavement/purge types back to 'change_pc'.
+			# NOTE: This is an information-loss reversion. The original value (e.g., pc_slave) is lost.
+			# We default to 'pc_undesirable_purge' as a safe, explicit choice.
+			(r"\bset_enslavement_type = slavery\s*\n\s*set_purge_type = extermination\b",
+			 r"change_pc = pc_undesirable_purge # NOTE: Reverted from a combined value; original pc_* type must be verified.")
+		],
+
+		# This pattern finds blocks where 'has_job' was replaced with 'pop_group_has_job_type'.
+		r"(?s)(\n\t+)(?:any|every|random|ordered)_owned_pop = \{.*?pop_group_has_job_type.*?\}": [
+			# NOTE: This is an information-loss reversion. The specific job (e.g., 'miner') was lost during the
+			# original transformation. A placeholder is inserted and must be manually corrected.
+			(r"\bpop_group_has_job_type\b", r"has_job = undefined # TODO: Please specify the original job type here.")
+		],
+
+		# This pattern finds 'pop_modifier' blocks to revert 'pop_amount' back to 'num_pops'.
+		# The order of these sub-rules is critical for a correct reversion.
+		r"(?s)(\n\t+)pop_modifier = \{.*?pop_amount.*?\}": [
+			# Sub-rule 1: First, divide the numeric value by 100 to reverse the original multiplication.
+			(r"(\bpop_amount\s*[<=>]+)\s*(-?\d+)", divide_by_hundred),
+
+			# Sub-rule 2: After fixing the value, rename 'pop_amount' back to 'num_pops'.
+			(r"\b(pop_amount)\b", r"num_pops")
+		],
+	}
 }
 
 # Circinus (Grand Archive DLC)
@@ -1927,7 +2074,7 @@ def add_code_cosmetic():
 				f"\n{m.group(2)}\t".join([g for g in m.groups()[1:] if g])+
 				f"\n{m.group(2)}}}"
 			)
-		],  
+		],
 		# UNNECESSARY AND (up to 19 items)
 		r"\b((?:%s) = \{(\s+)(?:AND|this) = \{(?:\2\t[^\n]+){1,19}\2\}\n)" % triggerScopes: [
 			r"(%s) = \{\n(\s+)(?:AND|this) = \{\n\t(\2[^\n]+\n)(?(3)\t)(\2[^\n]+\n)?(?(4)\t)(\2[^\n]+\n)?(?(5)\t)(\2[^\n]+\n)?(?(6)\t)(\2[^\n]+\n)?(?(7)\t)(\2[^\n]+\n)?(?(8)\t)(\2[^\n]+\n)?(?(9)\t)(\2[^\n]+\n)?(?(10)\t)(\2[^\n]+\n)?(?(11)\t)(\2[^\n]+\n)?(?(12)\t)(\2[^\n]+\n)?(?(13)\t)(\2[^\n]+\n)?(?(14)\t)(\2[^\n]+\n)?(?(15)\t)(\2[^\n]+\n)?(?(16)\t)(\2[^\n]+\n)?(?(17)\t)(\2[^\n]+\n)?(?(18)\t)(\2[^\n]+\n)?(?(19)\t)(\2[^\n]+\n)?(?(20)\t)(\2[^\n]+\n)?\2\}\n"
@@ -2645,13 +2792,13 @@ def modfix(file_list, is_subfolder=False):
 	}
 	exclude_files = [
 		"example",
-		"documentation", 
+		"documentation",
 		"DOCUMENTATION",
 		"EXAMPLE",
 		"HOW_TO",
 		"README",
 		# , "test_events.txt", "tutorial_events.txt"
-	] 
+	]
 
 	# Optimized Set-Function (since v4.0)
 	def find_with_set_optimized(lines, valid_lines, changed):
@@ -2730,7 +2877,7 @@ def modfix(file_list, is_subfolder=False):
 					skip_block = False
 				continue
 
-			stripped_len = len(stripped)
+			stripped_len = len(stripped) + 1
 			if stripped_len < 22:
 				continue
 
@@ -3126,7 +3273,7 @@ def modfix(file_list, is_subfolder=False):
 				not 'create_' in content_part
 				):
 				# TODO should be superfluous but it happens
-				if content_part == "has_owner = yes": 
+				if content_part == "has_owner = yes":
 					deleted_lines += 1
 					changed = True
 					continue
@@ -3190,8 +3337,8 @@ def modfix(file_list, is_subfolder=False):
 							write_file()
 						continue
 					# since v4.0.22 optional
-					# elif subfolder.startswith(EFFECT_FOLDERS): # any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS)
-					# 	lines, valid_lines, changed = transform_add_leader_trait(lines, valid_lines, changed)
+					elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS): # subfolder.startswith(EFFECT_FOLDERS)
+						lines, valid_lines, changed = transform_add_leader_trait(lines, valid_lines, changed)
 
 				for pattern, repl in tar3:  # new list way
 					folder = False
@@ -3218,10 +3365,10 @@ def modfix(file_list, is_subfolder=False):
 					else: # isinstance(repl, str) or callable?
 						rt = True
 
-					if rt: 
+					if rt:
 						for l, (i, line, stripped) in enumerate(valid_lines):
 							# m = pattern.search(line) # TODO fully replace all pattern with start spaces
-							m = pattern.search(stripped) 
+							m = pattern.search(stripped)
 							if m:
 								rt = 0
 								line_changed = ""
