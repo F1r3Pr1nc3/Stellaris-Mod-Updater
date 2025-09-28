@@ -16,7 +16,7 @@ import time
 from collections import defaultdict
 
 # @Author: FirePrince
-# @Revision: 2025/09/27
+# @Revision: 2025/09/28
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -118,13 +118,6 @@ EFFECT_FOLDERS = [
 # at top of script (global dict for timing)
 regex_times = defaultdict(float)
 
-def multiply_by_hundred(m):
-	"Multiply regexp str integer by hundred"
-	return f"{m.group(1)} {int(m.group(2))*100}"
-
-# def multiply_by_hundred_float(m):
-#	 return f"{m.group(1)} {int(float(m.group(2))*100)}"
-
 # TODO !? # SUPPORT name="~~Scripted Trigger Undercoat" id="2868680633" dropped due performance reasons
 # 00_undercoat_triggers.txt
 # undercoat_triggers = {
@@ -134,16 +127,63 @@ def multiply_by_hundred(m):
 #   r"\bhas_valid_civic = civic_byzantine_bureaucracy": "has_byzantine_bureaucracy = yes",
 #   r"\bhas_civic = civic_exalted_priesthood": "has_exalted_priesthood = { allow_invalid = yes }",
 # }
-# targetsR = [] # Format: tuple is with folder (folder, regexp/list); list is with a specific message [regexp, msg]
-# targets3 = {}
-# targets4 = {}
 
 actuallyTargets = {
-	"targetsR": [],  # Removed syntax on stripped lines # This are mostly only warnings, commands which cannot be easily replaced.
-	"targets3": {},  # Simple syntax (only one-liner) on stripped lines without comments
-	"targets4": {},  # It is designed to handle multi-line blocks of text. key (pre match without group or one group): arr (search, replace) or str (if no group or one group) # re flags=re.I|re.M|re.A
+	# Warning Removed Syntax:
+	# Format: tuple is with folder (folder, regexp/list); list is with a specific message [regexp, msg]
+	"targetsR": [], # one-liners only (stripped, no indentation, no comments). # For code which cannot be easily replaced.
+	# Simple Replace Syntax:
+	"targets3": {}, # one-liners only (stripped, no indentation, no comments).
+	# Complex Multiline Replace Syntax:
+	"targets4": {}, # full text file (indentation preserved, multi-line context, re flags=re.I|re.M|re.A).
+	# Format: key (pre match with group(0) or group(1) if present): array (search, replace) or str (if no group or one group)
 }
 # NOTE: Used list_traits_diff.py script for changed traits.
+
+# --- Helper Lambda Functions ---
+def multiply_by_100(m):
+	" Multiply regexp string integer by hundred "
+	return f"{m.group(1)} {int(m.group(2))*100}"
+
+# def multiply_by_hundred_float(m):
+#	 return f"{m.group(1)} {int(float(m.group(2))*100)}"
+
+def divide_by_100(m):
+	"""
+	Takes a regex match object or a string.
+	Assumes the number is in the last group, and preceding groups form the prefix.
+	It reconstructs the string with the calculated value.
+	"""
+	if isinstance(m, str):
+		prefix = ""
+		original_value = int(m)
+	else:
+		prefix = "".join(m.groups()[:-1])
+		original_value = int(m.groups()[-1])
+	if original_value % 100 == 0:
+		# new_value = original_value / 100.0 # float division
+		new_value = original_value // 100 # floor division (or integer division), rounds the result down
+	else:
+		new_value = original_value
+	# Format as an integer if it's a whole number (2.0 -> 2) otherwise as float (0.5).
+	return f"{prefix} {int(new_value) if new_value == int(new_value) else new_value}"
+
+def revert_peace_offers(m):
+	" Reconstructs 'allowed_peace_offers' from 'forbidden_peace_offers'. "
+	m = m.group(2)
+	allowed = {"status_quo", "surrender", "demand_surrender"}
+	m = set(re.findall(r'(\w+)\s*=', m))
+	allowed = " ".join(f'{offer} = ""' for offer in sorted(list(allowed - m)))
+	return f"allowed_peace_offers = {{ {(allowed if allowed else '')} }}"
+
+def leader_class_replacement(match):
+	" Takes a match object, translates leader classes, deduplicates them "
+	translation_map = {"governor": "official", "admiral": "commander", "general": "commander"}
+	original_classes = match.group(1).strip().split()
+	translated_classes = [translation_map.get(cls, cls) for cls in original_classes] # Unmapped classes (like 'scientist') are kept as is.
+	unique_classes = list(dict.fromkeys(translated_classes)) # Deduplicate the list while preserving order of first appearance.
+	final_class_string = " ".join(unique_classes)
+	return f"leader_class = {{ {final_class_string} }}"
 
 # LYRA ‘Vela’ (The Shadows of the Shroud DLC)
 # Global potential_shroudwalker_enclave trigger can used as dummy compat. (just used on init)
@@ -354,8 +394,9 @@ v4_0 = {
 		r"\b(count_owned_pop)s?\b": r"\1_amount",
 		r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
 		r"\b((?:any|every|ordered)_owned_pop|create_pop) =": r"\1_group =",
-		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}", # WARNING: has not same functionality anymore (just scripted e.g. for switch)
-		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_hundred),
+		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": # WARNING: has not same functionality anymore (just scripted e.g. for switch, but pop_group_size)
+			lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}", 
+		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_100),
 		r"^on_pop_(abducted|resettled|added|rights_change)\b": ("common/on_actions", r"on_pop_group_\1"),
 		r"^on_pop_ethic_changed\b": ("common/on_actions", "on_daily_pop_ethics_divergence"),
 		r"^([^#]*?)\bbase_cap_amount\b": ("common/buildings", r"\1planet_limit"),
@@ -371,13 +412,13 @@ v4_0 = {
 		# Maybe also check_modifier_value = { modifier = planet_jobs_trade_produces value > 50 }
 		# r"^(has_trade_route =)": r"# \1",
 		r"\btrait_(?:advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic)\b": "",
-		r"\bstandard_trade_routes_module = {}": ("common/country_types", ""),
+		r"\bstandard_trade_routes_module = {}": ("common/country_types", r"# \g<0>"),
 		r"^(monthly_progress|completion_event)": ("common/observation_station_missions", r"# \1"), # Obsolete, causes CTD
-		r"\bcollects_trade = (yes|no)": ("common/starbase_levels", ""),
-		r"\bclothes_texture_index = \d+": (["common/pop_jobs","common/pop_categories"], ""),
+		r"\b(collects_trade = (?:yes|no))": ("common/starbase_levels", r"# \1"),
+		r"\b(clothes_texture_index = \d+)": (["common/pop_jobs","common/pop_categories"], r"# \1"),
 		r"^(ignores_favorite =)": ("common/pop_jobs", r"# \1"),
 		r"\bnum_(sapient_pop|pop)s\b":  r"\1_amount",
-		r"\bclear_pop_category = yes": "",
+		r"\b(clear_pop_category = yes)": r"# \1",
 		r"\bkill_pop = yes": "kill_single_pop = yes", # "kill_pop_group = { pop_group = this amount = 100 }"
 		# r"\bkill_pop = yes": "kill_all_pop = yes", # "kill_pop_group = { pop_group = this percentage = 1 }"
 		r"\bpop_has_(ethic|trait|happiness)\b":  r"pop_group_has_\1",
@@ -390,8 +431,8 @@ v4_0 = {
 		r"\bcategory = pop\b": "category = pop_group",
 		r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
 		r"\bpop_force_add_ethic = ([\d\w\.:]+)\b":  r"pop_force_add_ethic = { ethic = \1 percentage = 1 }", # AMOUNT = 100
-		# r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
-		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )count = (\d+)": lambda m: f"{m.group(1)}size = {int(m.group(2)) * 100}",
+		r"\b(create_pop_group = \{ species = [\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
+		# r"\b(create_pop_group = \{ species = [\w\.:]+ )count = (\d+)": lambda m: f"{m.group(1)}size = {int(m.group(2)) * 100}",
 		r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
 		r"\bis_pop_category = purge\b": (("T", "is_being_purged"), "is_being_purged = yes"),
@@ -406,6 +447,7 @@ v4_0 = {
 		r"\bjob_merchant_add\b": "job_trader_add",
 		## Modifier
 		r"^(?:triggered_)?(pop_group_modifier)\b": ("common/pop_jobs", r"triggered_planet_\1_for_all"), # there is also _for_species
+		r"^(triggered_pop_)(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1group_\2"),
 		r"\bpop_habitability\b": "pop_low_habitability",
 		r"\bpop_growth_from_immigration\b": "planet_resettlement_unemployed_mult",
 		r"\bplanet_immigration_pull_(mult|add) = (-?[\d.]+)": lambda m: f"planet_resettlement_unemployed_destination_{m.group(1)} = {float(m.group(2))*2}",
@@ -424,15 +466,15 @@ v4_0 = {
 		r"\bplanet_researchers_society_research_produces_(mult|add)\b": r"planet_doctors_society_research_produces_\1",
 		# r"\bplanet_districts_(cost|upkeep)_mult\b": r"planet_structures_\1_mult", # still valid just less used
 		# Modifier trigger
-		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_hundred,
+		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_100,
 		# Modifier effect
-		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_hundred, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
-		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_hundred, # |calculator_(?:biologist|physicist|engineer)
+		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_100, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
+		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_100, # |calculator_(?:biologist|physicist|engineer)
 		r"\bentertainer_jobs_bonus_workforce_mult\b": r"influential_jobs_bonus_workforce_mult", # v4.0.23
 		r"\bdistrict_(\w+?)_max\b": r"district_\1_max_add", # v4.0.23 (farming|generator|mining|hab_energy)
 		r"\bpop_workforce_mult\b": r"pop_bonus_workforce_mult", # v4.0.23
 		# Variables
-		r"@economic_plan_food_target_extra\b": ("common/economic_plans", r"20"), # 2*
+		r"@economic_plan_food_target_extra\b": ("common/economic_plans", "20"), # 2*
 		r"@economic_plan_minerals_target\b":
 			(["common/economic_plans", "common/scripted_triggers", "common/inline_scripts"],
 			r"@economic_plan_mineral_target"),
@@ -445,16 +487,16 @@ v4_0 = {
 		# WARNING! ROOT must be country in vanilla trigger (for some dumb reason)
 		r"((\s+)(?:is_enslaved = yes(?:\2is_pop_category = slave(?:_unemployment)?\b){1,2}|(?:is_pop_category = slave(?:_unemployment)?\b\s*){1,2}\s*is_enslaved = yes|is_pop_category = slave)\b)":
 			(("T", "is_enslaved"), r"\2is_enslaved = yes"),
-		# r"(\s+)is_enslaved = yes\b": r"\1is_pop_category = slave\n\1is_pop_category = slave_unemployment", # Temp Revert for now
+		# r"((\n\s+)is_enslaved = yes\b)": r"\2 OR = { is_pop_category = slave\ is_pop_category = slave_unemployment }", # Temp Revert for now
 		r"((\s+)(?:is_civilian_job = yes(?:\2is_pop_category = (?:civilian|maintenance_drone)\b){1,2}|(?:is_pop_category = (?:civilian|maintenance_drone)\b\s*){1,2}\s*is_civilian_job = yes|is_pop_category = civilian)\b)":
 			(("T", "is_civilian_job"), r"\2is_civilian_job = yes"),
 		r"^((\t+)(?:%s)_owned_pop_)group = \{(\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+)kill_(?:single_)?pop = yes\n?\2\}" % VANILLA_PREFIXES:
 			r"\1job = {\3kill_assigned_pop_amount = { percentage = 1 }\n\2}", # TODO: Very specific and limited
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
 		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s|amenities_no_happiness|crime)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
-			r"(planet_\w+_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b", multiply_by_hundred
+			r"(planet_\w+_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b", multiply_by_100
 		],
-		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\d\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\d\w\.:]+)\s*\}":
+		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\w\.:]+)\s*\}":
 			[r"\bcount\b", "size"],
 		r"\s+every_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
 			r"(\s+)every_owned_pop = \{\s+resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
@@ -475,10 +517,10 @@ v4_0 = {
 		],
 		r"\bevent_target:pirate_system = \{\s+trade_intercepted_value\s*([<=>]+)\s*(\d+)\s+(?:trade_intercepted_value\s*[<=>]+\s*\d+\s+)?\}": r"years_passed \1 \2",
 		r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
-		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
-		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_hundred],
-		r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
-			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\d\w\.:]+)\s*?(\sethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\}))?\s*\}\s*\}",
+		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_100],
+		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_100],
+		r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
+			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\w\.:]+)\s*?(\sethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\}))?\s*\}\s*\}",
 			r"create_pop_group = { \g<2> size = \g<1>00\g<3> }"],
 		r"\ballowed_peace_offers = \{\s+(?:(?:status_quo|surrender|demand_surrender)\s+){1,3}\s*\}": [
 			r"allowed_peace_offers = \{\s+(status_quo|surrender|demand_surrender)\s*(status_quo|surrender|demand_surrender)?\s*(status_quo|surrender|demand_surrender)?\s*\}",
@@ -516,12 +558,12 @@ v4_0 = {
 		r"(?:\s+is_reanimator = yes|(?:(\s+)(?:has_(?:valid_)?civic = \"?civic_(?:reanimated_armies|permanent_employment|hive_cordyceptic_drones)\"?|as_ascension_perk = ap_mechromancy)){1,3}){2}": (("T", "is_reanimator"), r"\1is_reanimator = yes"),
 		r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:crafters|corporate_crafters)\"?){2}": (("T", "is_crafter_empire"), r"\1is_crafter_empire = yes"),
 		r"(?:(\s+)has_trait = \"?trait_clone_soldier_infertile(?:_full_potential)?\"?){2}": (("T", "has_infertile_clone_soldier_trait"), r"\1has_infertile_clone_soldier_trait = yes"),
-		r"^\tassign_to_pop\s*=\s*\{[\s\S]+?^\t\}\n": ("common/pop_categories", ""),
+		r"^\tassign_to_pop = \{[\s\S]+?^\t\}\n": ("common/pop_categories", ""),
 		r"\bbuild_outside_gravity_well = yes\b": ("common/megastructures", "build_type = outside_gravity_well"),
 		r"((?:(\s+planet_)(?:buildings|districts)(_cost_mult = [\d.]+)\b){2})": r"\2structures\3",
-		r"^((\ttriggered_planet_modifier\s*=\s*\{\s+potential = \{(\s+))(?:exists = planet\3)?planet = \{(\3| )\s*([\s\S]+?)\s*\4\}\n)":
+		r"^((\ttriggered_planet_modifier = \{\s+potential = \{(\s+))(?:exists = planet\3)?planet = \{(\3| )\s*([\s\S]+?)\s*\4\}\n)":
 			("common/pop_jobs", lambda p: f'{p.group(2)}{dedent_block(p.group(5))}\n'),
-		# r"^((\ttriggered_(?:(planet)?|(country)?)_modifier\s*=\s*\{\s+potential = \{(\s+))(?:exists = (?:\3|owner)\5)?(?(3)\3)(?(4)owner) = \{(\5| )\s*([\s\S]+?)\s*\6\}\n)":	("common/pop_jobs", lambda p: f'{p.group(2)}{dedent_block(p.group(7))}\n'), if country modifier would have country scope
+		# r"^((\ttriggered_(?:(planet)?|(country)?)_modifier = \{\s+potential = \{(\s+))(?:exists = (?:\3|owner)\5)?(?(3)\3)(?(4)owner) = \{(\5| )\s*([\s\S]+?)\s*\6\}\n)":	("common/pop_jobs", lambda p: f'{p.group(2)}{dedent_block(p.group(7))}\n'), if country modifier would have country scope
 		# Normally these are one-liner (but because line-expansion with indention)
 		r"((\n\t+)country_event = \{\s*id = first_contact.1060[^{}#]+\})":
 			("events", r"\2if = {\2\tlimit = { very_first_contact_paragon = yes }\2\tset_country_flag = first_contact_protocol_event_happened\2}"),
@@ -532,29 +574,12 @@ v4_0 = {
 	},
 }
 
-def divide_by_hundred(match):
-	"""
-	Takes a regex match object and divides the last captured group by 100.
-	Used to reverse the 'multiply_by_hundred' transformation.
-	"""
-	# Assumes the number is in the last group, and preceding groups form the prefix.
-	# It reconstructs the string with the calculated value.
-	prefix = "".join(match.groups()[:-1])
-	original_value = int(match.groups()[-1])
-	new_value = original_value // 100
-	# Format as an integer if it's a whole number (e.g., 2.0 -> 2)
-	# otherwise, format as a float (e.g., 0.5).
-	if new_value == int(new_value):
-		return f"{prefix}{int(new_value)}"
-	else:
-		return f"{prefix}{new_value}"
-
-# --- The main dictionary with the reverted transformations ---
+# --- revert dictionary ---
 revert_v4_0 = {
 	"targets3": {
-		# --- Simple Reversions ---
+		# --- Simple one-line Reversions ---
 		r"\bplanet_(defense_armies_add)\b": r"\1",
-		r"\b((?:(?:pre_)?sapient|robotic|robotic_servitude|robotic_slave|primitive|uplifted)_species_pop)_group\b": r"\1",
+		r"\b((?:%s)_species_pop)_group\b" % VANILLA_PREFIXES: r"\1",
 		fr"\b((?:leader_)?trait_){TRAITS_TIER_2_REVERT}\b": r"\1\2_2",
 		fr"\b((?:leader_)?trait_){TRAITS_TIER_3_REVERT}_2\b": r"\1\2_3",
 		r"\bplanet_entertainers\b": "planet_storm_dancers",
@@ -565,15 +590,14 @@ revert_v4_0 = {
 		r"\bcreate_zombie_pop_group\b": "make_pop_zombie",
 		r"\btrait_cold_planet_preference\b": "trait_frozen_planet_preference",
 		r"\btrait_cyborg_climate_adjustment_cold\b": "trait_cyborg_climate_adjustment_frozen",
-		r"\bis_same_value\b": "is_pop",
-		r"\b(count_owned_pop)_amount\b": r"\1s",
+		# r"\b(count_owned_pop)_amount\b": r"\1s", moved to targets4
 		r"\bweighted_(random_owned_pop)_group\b": r"\1",
-		r"\b((?:any|every|ordered)_owned_pop|create_pop)_group =": r"\1 =",
+		r"\b((?:%s)_owned_pop)_group =" % VANILLA_PREFIXES: r"\1 =",
 		r"^on_pop_group_(abducted|resettled|added|rights_change)\b": r"on_pop_\1",
 		r"^on_daily_pop_ethics_divergence\b": "on_pop_ethic_changed",
-		r"^([^#]*?)\bplanet_limit\b": r"\1base_cap_amount",
-		r"\buse_ship_main_target\b": "use_ship_kill_target",
-		r"\bkill_single_pop = yes\b": "kill_pop = yes",
+		r"^([^#]*?)\bplanet_limit\b": ("common/buildings", r"\1base_cap_amount"),
+		r"\buse_ship_main_target\b": ("common/component_templates", "use_ship_kill_target"),
+		r"\bkill_(?:single|all)_pop = yes\b": "kill_pop = yes",
 		r"\bpop_group_has_(ethic|trait|happiness)\b": r"pop_has_\1",
 		r"\bpop_amount_percentage\b": "pop_percentage",
 		r"\bhas_total_skill\b": "has_skill",
@@ -611,69 +635,136 @@ revert_v4_0 = {
 		r"\bplanet_bureaucrats_(\w+_(?:mult|add))\s+": r"planet_priests_\1 ", # NOTE: Could also be 'planet_administrators'.
 		r"\bplanet_bureaucrats\b": "planet_priests", # NOTE: Could also be 'planet_administrators'.
 		r"\bpop_bonus_workforce_(mult|add)\b": r"pop_workforce_\1", # NOTE: Conflicts with 'planet_jobs_robotic_produces_...'. Prioritizing this more generic source.
+		r"^triggered_planet_(pop_group_modifier)_for_all\b": ("common/pop_jobs", r"\1"),
+		r"^(triggered_pop_)group_(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1\2"),
 
 		# --- Reversions Requiring Lambdas/Functions ---
-		r"\b(sapient_pop|pop)_amount\b": r"num_\1s",
 		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)} {int(m.group(3)) // 100}",
 		r"\bpop_force_add_ethic = \{ ethic = ([\d\w\.:]+) percentage = 1 \}": r"pop_force_add_ethic = \1",
-		r"\b(create_pop_group = \{ species = [\d\w\.:]+ )size( = \d+)": lambda m: f"{m.group(1)}count{m.group(2)[:-2] if len(m.group(2)) > 3 else ' = 0'}",
 		r"\b(set|set_timed|has|remove)_pop_group_flag\b": r"\1_pop_flag",
 		r"\bplanet_resettlement_unemployed_destination_(mult|add) = (-?[\d.]+)": lambda m: f"planet_immigration_pull_{m.group(1)} = {float(m.group(2)) / 2}",
-		r"^triggered_planet_(pop_group_modifier)_for_all\b": r"\1",
+		r"\bbuild_type = outside_gravity_well\b":  ("common/megastructures", "build_outside_gravity_well = yes"),
+		# unpack the canonical 'structures' into the two original keys, preserve indentation
+		r"\bplanet_structures_cost_mult": "planet_buildings_cost_mult",
+		r"\bis_robot_pop_group\b": "is_robot_pop",
+		r"\b(trigger(?: = |:))(?:pop_group_size|count_owned_pop_amount)\b": r"\1num_pops",
 
-		# --- Reversions Using the 'divide_by_hundred' Function ---
-		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d+)\b": divide_by_hundred,
-		fr"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d+)\b": divide_by_hundred,
-		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?\d+)\b": divide_by_hundred,
-
-		# --- Un-commenting lines ---
-		r"^# (potential_crossbreeding_chance )": r"\1",
-		r"^# (ship_piracy_suppression_add )": r"\1",
-		r"^# (has_system_trade_value )": r"\1",
-		r"^# (ignores_favorite =)": r"\1",
-		r"^# (monthly_progress|completion_event)": r"\1",
-
-		# --- Irreversible Transformations (omitted) ---
-		# The following original patterns replaced text with an empty string, so the original text cannot be recovered:
-		# r"\btrait_(?:advanced_(...))\b": "",
-		# r"\bstandard_trade_routes_module = {}": "",
-		# r"\bcollects_trade = (yes|no)": "",
-		# r"\bclothes_texture_index = \d+": "",
-		# r"\bclear_pop_category = yes": "",
+		# --- Reversions Using the 'divide_by_100' Function ---
+		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d+)\b": divide_by_100,
+		fr"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d+)\b": divide_by_100,
+		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?\d+)\b": divide_by_100,
+		r"\b((?:pop_group_size|(sapient_)?pop_amount)\s*([<=>]+)\s*([\w@.]+))": lambda m:
+			f"num_{(m.group(2) if m.group(2) else '')}pops {m.group(3)} " + (
+				divide_by_100(m.group(4))
+				if re.match(r"^\d+$", m.group(4)) else m.group(4)
+			),
 	},
+	# --- The main dictionary with the reverted transformations for targets4 ---
+	# This version is updated to use group(1) to isolate the content for modification
+	# in multi-stage patterns, as per the script's processing logic.
 	"targets4": {
 		# Reverts transform_add_leader_trait
-		r'(\b(add_trait) = \{\s+trait( = [\w_]+)\s+\})': r'\2\3',
-		r'(\b(add_trait) = \{\s+trait( = [\w_]+)\s+show_message = no\s+\})': r'\2_no_notify\3',
-		# This pattern finds 'owned_pop' blocks and reverts several changes within them.
-		r"(?s)(\n\t+)(?:any|every|random|ordered)_owned_pop = \{.*?^(?:\2\t[^{}#\n]*?=\s*\{[^{}]*?\}|(?!\2)[\s\S])*?\2\t\}": [
-			# Sub-rule 1: Reverts 'pop_group_*' checks back to their 'pop_*' equivalents inside limit/trigger blocks.
-			(r"\b(limit|trigger) = \{([\s\S]*?(?:pop_group_has_trait|pop_group_has_job|pop_group_is_species)[\s\S]*?)\}",
-			 lambda p: re.sub(r"\bpop_group_(has_trait|has_job|is_species)\b", r"\1", p.group(0), flags=re.I)),
+		r'(\b(add_trait) = \{\s+trait( = \w+)\s+\})': r'\2\3',
+		r'(\b(add_trait) = \{\s+trait( = \w+)\s+show_message = no\s+\})': r'\2_no_notify\3',
 
-			# Sub-rule 2: Reverts combined enslavement/purge types back to 'change_pc'.
-			# NOTE: This is an information-loss reversion. The original value (e.g., pc_slave) is lost.
-			# We default to 'pc_undesirable_purge' as a safe, explicit choice.
-			(r"\bset_enslavement_type = slavery\s*\n\s*set_purge_type = extermination\b",
-			 r"change_pc = pc_undesirable_purge # NOTE: Reverted from a combined value; original pc_* type must be verified.")
+		# --- Keep Category Consolidations ---
+		# NOTE: This needs a manual prepared minimal scripted_triggers stub
+		# r"((\s+)is_elite_category = yes\b)": r"\2is_elite_category = yes\n\2is_pop_category = ruler",
+		# r"((\s+)is_specialist_category = yes\b)": r"\2is_specialist_category = yes\n\2is_pop_category = specialist",
+		# r"((\s+)is_civilian_job = yes\b)": r"\2is_civilian_job = yes\n\2is_pop_category = civilian",
+		# --- Keeping Combined Civic/Trait Triggers ---
+		# NOTE: This needs a manual prepared minimal scripted_triggers stub
+		# r"(\s+)is_pleasure_seeker_empire = yes": r'\1has_valid_civic = "civic_pleasure_seekers"\1has_valid_civic = "civic_corporate_hedonism"',
+		# r"(\s+)has_infertile_clone_soldier_trait = yes": r'\1has_trait = "trait_clone_soldier_infertile"\1has_trait = "trait_clone_soldier_infertile_full_potential"',
+		# TODO create a scripted effect for transfer_pop_amount
+
+		# --- Reverting 'pop_group' block transformations ---
+		r"((\n\t+)(create_pop)_group( = \{(?:\2\t| )(?:[^\d]+?|[^\n]+?)(?:\2| )\}))" : r"\2\3\4",
+		# --- Reverting 'size' back to 'count' ---
+		r"(\bcreate_pop(?:_group)? = \{(?:\s+pop_group\s*=[^\n]+\n)?([^{}]*?)\bsize = ([\w@.]+))":
+			lambda m: f"create_pop = {{{m.group(2)}count = " + (
+				divide_by_100(m.group(3))
+				if re.match(r"^\d+$", m.group(3)) else m.group(3)
+			),
+
+		r"(?s)((\n\t+)create_pop_group = \{(\2\t)(\s*pop_group\s*=[^\n]+\n)?([^{}]*?\3effect = \{.*?(?:\3| )\}))\2\}":
+			r"\2create_pop = {\3\5",
+		r"^((\t+)(?:%s)_owned_pop_(?:job|group) = \{\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+kill_assigned_pop_amount = \{ percentage = 1 \})\n\2\}" % VANILLA_PREFIXES: [
+			r"^(\t+\w+_owned_pop)_(?:job|group) = \{(\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+)kill_assigned_pop_amount = \{ percentage = 1 \}",
+			r"\1 = {\2kill_pop = yes"
 		],
-
-		# This pattern finds blocks where 'has_job' was replaced with 'pop_group_has_job_type'.
-		r"(?s)(\n\t+)(?:any|every|random|ordered)_owned_pop = \{.*?pop_group_has_job_type.*?\}": [
-			# NOTE: This is an information-loss reversion. The specific job (e.g., 'miner') was lost during the
-			# original transformation. A placeholder is inserted and must be manually corrected.
-			(r"\bpop_group_has_job_type\b", r"has_job = undefined # TODO: Please specify the original job type here.")
+		r"((\s+)kill_pop_group = \{[^{}]+\2\})" : "kill_pop = yes",
+		# --- Reverting Multiplied Numeric Values ---
+		r"(?<!\bmodifier = \{\n)\t\t\t((?:planet_(?:%s|amenities_no_happiness|crime)_add =)\s*(-?\d+))\s+?(?!(?:mult =|}\n\t\tmult =))" % PLANET_MODIFIER: [
+			r"(planet_\w+_add =)\s*(-?\d+)", divide_by_100
 		],
-
-		# This pattern finds 'pop_modifier' blocks to revert 'pop_amount' back to 'num_pops'.
-		# The order of these sub-rules is critical for a correct reversion.
-		r"(?s)(\n\t+)pop_modifier = \{.*?pop_amount.*?\}": [
-			# Sub-rule 1: First, divide the numeric value by 100 to reverse the original multiplication.
-			(r"(\bpop_amount\s*[<=>]+)\s*(-?\d+)", divide_by_hundred),
-
-			# Sub-rule 2: After fixing the value, rename 'pop_amount' back to 'num_pops'.
-			(r"\b(pop_amount)\b", r"num_pops")
+		# Capturing content in group(1) for sub-patterns
+		r"\b(count_owned_pop_amount = \{\s*(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*\d+)": [
+			r"(count_owned_pop)_amount( = \{\s*(?:limit = \{[^#]+?\}\s+)?)count\s*([<=>]+)\s*(\d+)",
+			lambda m: f"{m.group(1)}s{m.group(2)}count {m.group(3)} {divide_by_100(m.group(4))}"
 		],
+		# numeric counters back down
+		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}\s]+\s+)?(value\s*[<=>]+\s*\d+00)\b": [
+			r"(value [<=>]+) (\d+00)", divide_by_100
+		],
+		# --- Reverting Resettlement Logic ---
+		r"\b(resettle_pop_group = \{\s+POP_GROUP = ([\d\w\.:]+)\s+PLANET = ([\d\w\.:]+)\s+(?:AMOUNT|PERCENTAGE) = [\d.]+\s+)":
+			r"resettle_pop = { pop = \2 planet = \3 ",
+		# --- Reverting Ethic Change Logic ---
+		r"((\n\t+)pop_group_transfer_ethic = \{\2\t(?:POP_GROUP = \w+\2\t)?ETHOS = (ethic_\w+)\2\t(?:AMOUNT|PERCENTAGE) = [\w.@]+[^\n]*\2\})":
+			r"\2wipe_pop_ethos = yes\2pop_change_ethic = \3",
+		# --- Reverting Trade and Border Logic ---
+		r"\bhas_monthly_income = \{ resource = trade value > 100 \}":
+			"any_system_within_border = { has_trade_route = yes trade_intercepted_value > 0 } # NOTE: Reverted to default value.",
+		r"is_on_border = yes(\s+)any_neighbor_system = \{\1\tNOR = \{ has_owner = yes has_star_flag = guardian \}\1\}":
+			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.",
+		r"\byears_passed ([<=>]+) (\d+)": (
+			re.compile(r"^events/.*pirate.*\.txt$"),
+			r"event_target:pirate_system = { trade_intercepted_value \1 \2 }"
+		), 
+		# --- Un-commenting 'pop_produces_resource' ---
+		r"# (pop_produces_resource) = \{ (type = \w+) (amount\s*[<=>]+\s*[^{}\s]+) \}":
+			r"\1 = { \2 \3 }",
+		# --- Reverting Peace Offer Logic ---
+		r"\b(forbidden_peace_offers = \{([\s\S]+?)\})": ("common/war_goals", revert_peace_offers),
+		# --- Reverting Swappable Data Block ---
+		r"(\tswappable_data = \{\s+default = \{\s*)([\s\S]+?)(\s*\}\s*\})":
+			lambda p: dedent_block(p.group(2)), # just drop wrapper, keep original lines
+
+		# --- Reverting Misc Changes ---
+		r"((\s+planet_)structures(_(?:cost|upkeep)_mult = [\d.]+)\b)": r"\2buildings\3\1\2districts\3",
+		# --- Reverting job_calculator expansion ---
+		# revert the three-specialised job_* lines back into a single job_calculator_add (if they are contiguous)
+		r"((\n\t+)job_calculator_physicist_add = (-?\d+)\2job_calculator_biologist_add = (-?\d+)\2job_calculator_engineer_add = (-?\d+))":
+			lambda m: f"{m.group(2)}job_calculator_add = {(int(m.group(3)) + int(m.group(4)) + int(m.group(5))) // 100}",
+		# --- commented-out → uncomment
+		r"^((\t*?) *#\s*(pop_produces_resource = \{ type = \w+ amount [<=>]+ [^}\s]+ \}))": r"\2\3",
+
+		# --- Un-commenting single lines ---
+		r"( *#[ \t]*(potential_crossbreeding_chance)\b *)": ("common/traits", r"\2 "),
+		r"( *#[ \t]*(ship_piracy_suppression_add)\b *)": ("common/ship_sizes", r"\2 "),
+		r"( *#[ \t]*(ignores_favorite)\b *)": ("common/pop_jobs", r"\2 "),
+		r"( *#[ \t]*(monthly_progress|completion_event)\b *)": ("common/observation_station_missions", r"\2 "),
+		r"( *#[ \t]*(has_system_trade_value|has_trade_route)\b *)": r"\2 ",
+		# --- Irreversible Transformations (omitted single lines) ---
+		# The following original patterns replaced text with an empty string, so the original text can probably not be recovered:
+		r"( *#[ \t]*(trait_(?:advanced_(?:budding|gaseous_byproducts|scintillating|volatile_excretions|phototrophic)|(?:advanced|harvested|lithoid)_radiotrophic))\b *)": r"\2 ",
+		r"( *#[ \t]*(standard_trade_routes_module)\b *)": ("common/country_types", r"\2 "),
+		r"( *#[ \t]*(collects_trade)\b *)": ("common/starbase_levels", r"\2 "),
+		r"( *#[ \t]*(clothes_texture_index)\b *)": (["common/pop_jobs","common/pop_categories"], r"\2 "),
+		r"( *#[ \t]*(clear_pop_category)\b *)": r"\2 ",
+
+		# --- TODO ---
+		# every_job_pop_group
+		# r"(?s)(?:%s)_owned_pop = \{(.*?)\}" % VANILLA_PREFIXES: [
+		# 	(r"\b(limit|trigger) = \{([\s\S]*?(?:pop_group_has_trait|pop_group_has_job|pop_group_is_species)[\s\S]*?)\}",
+		# 	 lambda p: re.sub(r"\bpop_group_(has_trait|has_job|is_species)\b", r"\1", p.group(0), flags=re.I)),
+		# 	(r"\bset_enslavement_type = slavery\s*\n\s*set_purge_type = extermination\b",
+		# 	 r"change_pc = pc_undesirable_purge # NOTE: Reverted from a combined value.")
+		# ],
+		# r"(?s)(?:%s)_owned_pop = \{(.*?pop_group_has_job_type.*?)\}" % VANILLA_PREFIXES: [
+		# 	(r"\bpop_group_has_job_type\b", r"has_job = undefined # TODO: Specify original job type.")
+		# ],
 	}
 }
 
@@ -712,8 +803,8 @@ v3_13 = {
 		# ],
 		r"\bany_owned_pop = \{\s*is_robot(?:_pop|ic) = (?:yes|no)\s*\}": [
 			r"any_owned_pop = \{\s*is_robot(?:_pop|ic)  = (yes|no)\s*\}", (NO_TRIGGER_FOLDER, r"any_owned_species = { is_robotic = \1 }")],
-		r"\bset_faction_hostility = \{(\s+?(?:target = [\d\w\.:]+)?(?:\s+set_(?:hostile|neutral|friendly) = (?:yes|no)){2,3}\s*(?:target = [\d\w\.:]+)?\s*)\}": [
-			r"\s+?(target = [\d\w\.:]+)?\s*(?:\w+ = no\s+){0,2}(set_(?:hostile|neutral|friendly) = yes)\s*?(?:\w+ = no\s+){0,2}\s*(target = [\d\w\.:]+)?\s+$",
+		r"\bset_faction_hostility = \{(\s+?(?:target = [\w\.:]+)?(?:\s+set_(?:hostile|neutral|friendly) = (?:yes|no)){2,3}\s*(?:target = [\w\.:]+)?\s*)\}": [
+			r"\s+?(target = [\w\.:]+)?\s*(?:\w+ = no\s+){0,2}(set_(?:hostile|neutral|friendly) = yes)\s*?(?:\w+ = no\s+){0,2}\s*(target = [\w\.:]+)?\s+$",
 			lambda p: ' ' +
 				(p.group(1) + ' ' if p.group(1) else '') +
 				p.group(2) + ' ' + (p.group(3) + ' ' if p.group(3) else '')
@@ -733,8 +824,8 @@ v3_13 = {
 		#   lambda p: f"is_robotic = {'yes' if p.group(1) == 'OR' else 'no'}"
 		# )],
 		# Outdated count -> size on v4.0
-		# r"\bwhile = \{\s*count = \d+\s+create_pop = \{\s*species = [\d\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
-		#   r"while = \{\s*(count = \d+)\s+create_pop = \{\s*(species = [\d\w\.:]+)(\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
+		# r"\bwhile = \{\s*count = \d+\s+create_pop = \{\s*species = [\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
+		#   r"while = \{\s*(count = \d+)\s+create_pop = \{\s*(species = [\w\.:]+)(\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}",
 		#   r"create_pop = { \2 \1\3 }"],
 	},
 }
@@ -860,6 +951,7 @@ if code_cosmetic and not only_warning and ACTUAL_STELLARIS_VERSION_FLOAT < 4.0: 
 # Removed paragon.5001
 # leader sub-classes merged
 # """
+
 v3_10 = {
 	"targetsR": [
 		[r"\b\w+(skill|weight|agent|frontier)_governor\b",
@@ -929,29 +1021,9 @@ v3_10 = {
 		r"\bassist_research_mult = ([-\d.]+)\b": lambda p: "planet_researchers_produces_mult = "
 		+ str(round(int(p.group(1)) * 0.4, 2)),
 		# r'(\s)num_pops\b': (["common/buildings", "common/decisions", "common/colony_types"], r'\1num_sapient_pops'), # WARNING: only on planet country (num_pops also pop_faction sector) # Not really recommended: needs to be more accurate, replaced in v4.0 with sapient_pop_amount
-		r"^(valid_for_all_(?:ethics|origins)\b.*)": ("common/traits", r"# \1 removed in v3.10", ),
-		r"\bleader_class = \{((?:\s+(?:admiral|general|governor|scientist)){1,4})": (
-			["common/traits", "common/governments/councilors"],
-			lambda p: (
-				p.group(0)
-				if not p.group(1)
-				else "leader_class = {"
-				+ re.sub(
-					r"(admiral|general|governor)",
-					lambda p2: (
-						p2.group(0)
-						if not p2.group(1)
-						else {
-							"governor": "official",
-							"admiral": "commander",
-							"general": "commander",
-						}[p2.group(1)]
-					),
-					p.group(1),
-					count=1,
-					flags=re.A, # |re.M
-				)
-			),
+		r"^(valid_for_all_(?:ethics|origins)\b)": ("common/traits", r"# \1 removed in v3.10", ),
+		r"^leader_class = \{((?:\s+(?:admiral|general|governor|scientist)){1,4})\s+\}": (
+			["common/traits", "common/governments/councilors"], leader_class_replacement
 		),
 	},
 	"targets4": {
@@ -1302,13 +1374,11 @@ v3_3 = {
 		r"\b(country_election_)influence_(cost_mult)": r"\1\2",
 		r"\bwould_work_job": ("common/game_rules", "can_work_specific_job"),
 		r"\bhas_(?:valid_)?civic = civic_reanimated_armies": (NO_TRIGGER_FOLDER, "is_reanimator = yes"),
-		# r"^(?:\t\t| {4,8})value =": ("common/ethics", 'base ='), maybe too cheap
 		# r"\bcountry_admin_cap_mult\b": ("common/**", 'empire_size_colonies_mult'),
 		# r"\bcountry_admin_cap_add\b": ("common/**", 'country_edict_fund_add'),
 		# r"\bcountry_edict_cap_add\b": ("common/**", 'country_power_projection_influence_produces_add'),
 		r"\bjob_administrator": "job_politician",
 		r"\b(has_any_(?:farming|generator)_district)\b": r"\1_or_building",  # 3.3.4 scripted trigger
-		r"^value\b": ("common/ethics", "base"),
 		# Replaces only in filename with species
 		r"^modification = (?:no|yes)\s*?\n": {
 			"species": (
@@ -1320,8 +1390,7 @@ v3_3 = {
 	},
 	"targets4": {
 		r"(?:random_weight|pop_attraction(_tag)?|country_attraction)\s+value =": [
-			r"\bvalue\b",
-			("common/ethics", "base"),
+			r"\bvalue\b", ("common/ethics", "base"),
 		],
 		# r"\n\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}": [r"(\t+)NO[RT] = \{\s*([^{}#\n]+)\s*\}\s*?\n\s*NO[RT] = \{\s*([^{}#\n]+)\s*\}", r"\1NOR = {\n\1\t\2\n\1\t\3\n\1}"], not valid if in OR
 		r"\bany_\w+ = \{[^{}]+?\bcount\s*[<=>]+\s*[^{}\s]+?\s+[^{}]*\}": [
@@ -1645,7 +1714,6 @@ def indent_block(block_match):
 	"Simple block indent"
 	return re.sub(r'^\t', r'\t\t', block_match, flags=re.MULTILINE)
 
-
 if basic_fixes:
 	actuallyTargets = {
 		"targetsR": [],
@@ -1881,7 +1949,7 @@ version_data_sources = [
 ]
 revert_version_data_sources = [
 	(4.1, revert_v4_1),
-	# (4.0, v4_0), TODO
+	(4.0, revert_v4_0),
 ]
 
 # 2. Helper function to apply data to actuallyTargets
@@ -1942,7 +2010,7 @@ def add_code_cosmetic():
 	}
 
 	targetsR.append([r"\bnum_\w+\s*[<=>]+\s*[a-z]+[\s}]", "no scope alone"])  #  [^\d{$@] too rare (could also be auto fixed)
-	targetsR.append([r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT]\s*=\s*\{\s*[^{}#\n]+\s*\}", "can be merged into NOR if not in an OR"])  #  [^\d{$@] too rare (could also be auto fixed)
+	targetsR.append([r"^\s+NO[RT] = \{\s*[^{}#\n]+\s*\}\s*?\n\s*NO[RT] = \{\s*[^{}#\n]+\s*\}", "can be merged into NOR if not in an OR"])  #  [^\d{$@] too rare (could also be auto fixed)
 
 	targets3[r"\b(or|not|nor|and)\s*="] = lambda p: p.group(1).upper() + " ="
 
@@ -1951,8 +2019,8 @@ def add_code_cosmetic():
 		targets3[r"(?:^|[<=>{]\s|\.|\t|PREV|FROM|Prev|From)+(PREV|FROM|ROOT|THIS|Prev|From|Root|This)+\b" ] = lambda p: p.group(0).lower()
 		targets3[r"\b(IF|ELSE|ELSE_IF|Owner|CONTROLLER|Controller|LIMIT)\s*="] = lambda p: p.group(1).lower() + " =" # OWNER
 		targets3[r"\bexists = this\b"] = 'is_scope_valid = yes'
-		targets3[r"\blimit\s*=\s*\{\s*\}"] = "# limit = { }"
-		targets3[r'\bhost_has_dlc\s*=\s*"([\s\w]+)"'] = (
+		targets3[r"\blimit = \{\s*\}"] = "# limit = { }"
+		targets3[r'\bhost_has_dlc = "([\s\w]+)"'] = (
 			re.compile(r"^(?!common/(?:traits|scripted_triggers))"),
 			lambda p: (
 				"has_" + DLC_triggers[p.group(1)] + " = yes"
@@ -2016,14 +2084,14 @@ def add_code_cosmetic():
 				"=": "!=",
 			}[p.group(2)]  ) +" "+ p.group(3) if p.group(2) != "=" or p.group(3)[0] == "@" or p.group(3)[0] == "-" or is_float(p.group(3)) else p.group(0)
 	# targets3[r"(\w+)\s*!=\s*([^\n\s<\=>{}#]+)"] = r"NOT = { \1 = \2 }"
-	targets3[r"\bNOT\s*=\s*\{\s*(num_\w+|\w+?(?:_passed)) = (\d+)\s*\}"] = r"\1 != \2"
-	targets3[r"(^|\s|\.)fleet\s*=\s*\{\s*(destroy|delete)_fleet = this\s*\}"] = lambda p: (
+	targets3[r"\bNOT = \{\s*(num_\w+|\w+?(?:_passed)) = (\d+)\s*\}"] = r"\1 != \2"
+	targets3[r"(^|\s|\.)fleet = \{\s*(destroy|delete)_fleet = this\s*\}"] = lambda p: (
 		f" = {{ {p.group(2)}_fleet = fleet }}" if p.group(1) == '.'
 		else f"{p.group(1)}{p.group(2)}_fleet = fleet")
 	targets3[r"\bchange_all = no"] = ""  # only yes option
 	targets3[r"\b(has_(?:population|migration)_control) = (yes|no)"] = r"\1 = { type = \2 country = prev.owner }"  # NOT SURE
 	# targets3[r"\bNOT = \{\s*has_valid_civic\b"] = "NOT = { has_civic"
-	targets3[re.compile(r"\bNO[RT]\s*=\s*\{\s*((?:%s) = \{)\s*([^\s]+)\s*=\s*yes\s*\}\s*\}" % triggerScopes, re.I )] = r"\1 \2 = no }"
+	targets3[re.compile(r"\bNO[RT] = \{\s*((?:%s) = \{)\s*([^\s]+) = yes\s*\}\s*\}" % triggerScopes, re.I )] = r"\1 \2 = no }"
 	targets3[r"(^|\s|\.)(?:space_)?owner = \{ (?:is_country_type = default|merg_is_default_empire = (yes|no)) \}"] = (NO_TRIGGER_FOLDER, lambda p: (
 		(" = { can_generate_trade_value = " + p.group(2) + " }"
 		if p.group(1) == "."
@@ -2043,9 +2111,9 @@ def add_code_cosmetic():
 
 	tar4 = {
 		r"\s+traits = \{\s*\}": "",
-		r"\b(any_system_planet\s*=\s*\{\s*is_capital\s*=\s*(yes|no)\s*\})": r"is_capital_system = \2",
-		r"(?:species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*[\w\.:]+?\.?species\s*\}": [
-			r"(species|country|ship|pop|leader|army)\s*=\s*\{\s*is_same_value\s*=\s*([\w\.:]+?\.?species)\s*\}",
+		r"\b(any_system_planet = \{\s*is_capital = (yes|no)\s*\})": r"is_capital_system = \2",
+		r"(?:species|country|ship|pop|leader|army) = \{\s*is_same_value = [\w\.:]+?\.?species\s*\}": [
+			r"(species|country|ship|pop|leader|army) = \{\s*is_same_value = ([\w\.:]+?\.?species)\s*\}",
 			r"\1 = { is_same_species = \2 }"
 		],
 		# targets4[r"\n\s+\}\n\s+else": [r"\}\s*else", "} else"],
@@ -2429,8 +2497,8 @@ def convert_prescripted_countries_flags():
 	# Regex to find a 'flags = { ... }' block.
 	# It now captures the leading whitespace (indentation) in the first group.
 	# Using re.MULTILINE to ensure '^' matches the start of each line.
-	flag_block_pattern = re.compile(r"^\s*flags\s*=\s*{([^}]*)}", flags=re.MULTILINE)
-	block_pattern = re.compile(r'^"?(\w+)"?\s*=\s*\{(.+?)^\}$', flags=re.DOTALL|re.MULTILINE)
+	flag_block_pattern = re.compile(r"^\s*flags = {([^}]*)}", flags=re.MULTILINE)
+	block_pattern = re.compile(r'^"?(\w+)"? = \{(.+?)^\}$', flags=re.DOTALL|re.MULTILINE)
 	# A flag to track if we've made any changes at all
 	any_file_changed = False
 	flags_dict = {}
@@ -2477,7 +2545,7 @@ def convert_prescripted_countries_flags():
 			shortname = block_key
 		else:
 			# 2. Try 'name =' inside the block
-			match = re.search(r'name\s*=\s*"?([\w\-\.]+)"?', block_content)
+			match = re.search(r'name = "?([\w\-\.]+)"?', block_content)
 			if match:
 				shortname = match.group(1)
 
@@ -2486,7 +2554,6 @@ def convert_prescripted_countries_flags():
 		if shortname.startswith("empire_"):
 			return shortname
 		return f"empire_{shortname}"
-
 
 	def get_modkey_from_path(filename: str) -> str:
 		"""
@@ -2540,7 +2607,7 @@ def convert_prescripted_countries_flags():
 		if os.path.exists(filename):
 			with open(filename, "r", encoding="utf-8") as f:
 				content = f.read()
-				block_pattern = re.compile(r'(\w+)\s*=\s*\{\s*flags\s*=\s*\{([^}]*)\}\s*\}', re.DOTALL)
+				block_pattern = re.compile(r'(\w+) = \{\s*flags = \{([^}]*)\}\s*\}', re.DOTALL)
 				for match in block_pattern.finditer(content):
 					key = match.group(1)
 					flags = match.group(2).split()
@@ -2617,7 +2684,6 @@ def convert_prescripted_countries_flags():
 	elif flags_dict:
 		generate_prescripted_flags_file(modkey, flags_dict)
 		logger.info("--- v4.0 Flag Conversion Complete ---\n")
-
 
 def parse_dir():
 	global mod_path, mod_outpath, log_file, start_time, exclude_paths #, targets3, targets4
@@ -2769,7 +2835,6 @@ def modfix(file_list, is_subfolder=False):
 		# Cleanup is_country_type = default
 		tar4.append((re.compile(r"((?:%s)_playable_country = \{[^{}#]*?(?:limit = \{\s+)?)is_country_type = default\s*" % VANILLA_PREFIXES), r"\1"))
 
-
 	logger.debug(f"len tar3={len(tar3)} len tar4={len(tar4)}:\n{tar3}")
 	subfolder = ""
 
@@ -2777,10 +2842,10 @@ def modfix(file_list, is_subfolder=False):
 	TARGETS_DEF_R = re.compile(r"(COMBAT_DAYS_BEFORE_TARGET_STICKYNESS|COMBAT_TARGET_STICKYNESS_FACTOR|COMMERCIAL_PACT_VALUE_MULT|FAVORITE_JOB_EMPLOYMENT_BONUS|FORCED_SPECIES_ASSEMBLY_PENALTY|FORCED_SPECIES_GROWTH_PENALTY|HALF_BREED_BASE_CHANCE|HALF_BREED_EXTRA_TRAIT_PICKS|HALF_BREED_EXTRA_TRAIT_POINTS|HALF_BREED_SAME_CLASS_CHANCE_ADD|HALF_BREED_SWAP_BASE_SPECIES_CHANCE|HIGH_PIRACY_RISK|LEADER_ADMIRAL_FLEET_PIRACY_SUPPRESSION_DAILY|MAX_EMIGRATION_PUSH|MAX_GROWTH_FROM_IMMIGRATION|MAX_GROWTH_PENALTY_FROM_EMIGRATION|MAX_NUM_GROWTH_OR_DECLINE_PER_MONTH|MAX_PLANET_POPS|NEW_POP_SPECIES_RANDOMNESS|NON_PARAGON_LEADER_TRAIT_SELECTION_LEVELS|ORBITAL_BOMBARDMENT_COLONY_DMG_SCALE|PIRACY_FULL_GROWTH_DAYS_COUNT|PIRACY_MAX_PIRACY_MULT|PIRACY_SUPPRESSION_RATE|POP_DECLINE_THRESHOLD|REQUIRED_POP_ASSEMBLY|REQUIRED_POP_DECLINE|REQUIRED_POP_GROWTH|SAME_STRATA_EMPLOYMENT_BONUS|SHIP_EXP_GAIN_PIRACY_SUP)\b")
 	# changed by hundred
 	TARGETS_DEF_3 = [
-		(re.compile(r"((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS)\s*=)\s*([1-9](?:\.\d\d?)?)\b"), multiply_by_hundred),
+		(re.compile(r"((?:VOIDWORMS_MAXIMUM_POPS_TO_KILL\w*?|POP_FACTION_MIN_POTENTIAL_MEMBERS|\w+_BUILD_CAP|AI_SLAVE_MARKET_SELL_LIMIT|SLAVE_BUY_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_UNEMPLOYMENT_THRESHOLD|SLAVE_SELL_MIN_POPS)\s*=)\s*([1-9](?:\.\d\d?)?)\b"), multiply_by_100),
 		(re.compile(r"(RESETTLE_UNEMPLOYED_BASE_RATE\s*=)\s*(0\.\d\d?)\b"), lambda p: f"{p.group(1)} {int(float(p.group(2))*100)}"), # multiply_by_hundred_float
 		# POP_FACTION_MIN_POTENTIAL_MEMBERS_FRACTION|?
-		(re.compile(r"(MAX_CARRYING_CAPACITY\s*=)\s*(\d\d\d\d?)\b"), multiply_by_hundred),
+		(re.compile(r"(MAX_CARRYING_CAPACITY\s*=)\s*(\d\d\d\d?)\b"), multiply_by_100),
 		(re.compile(r"(AI_IS_AMENITIES_JOB_FACTOR\s*=)\s*([1-9]\.\d\d?)\b"), lambda m: f"{m.group(1)} {round(float(m.group(2))*0.01, 4)}"), # divided_by_hundred),
 	]
 
@@ -2800,26 +2865,29 @@ def modfix(file_list, is_subfolder=False):
 		# , "test_events.txt", "tutorial_events.txt"
 	]
 
+	### - Helper Functions - ###
 	# Optimized Set-Function (since v4.0)
 	def find_with_set_optimized(lines, valid_lines, changed):
 		""" Finds unique constants in the defines text """
 		# TARGETS_DEF_R = re.compile(r'\b(?:' + '|'.join(c for c in target_strings) + r')\b')
 		# nonlocal lines, valid_lines, changed
 
-		for i, line, stripped in valid_lines:
+		for i, ind, stripped, cmt in valid_lines:
 			if TARGETS_DEF_R.match(stripped):
-				lstrip_len = len(line.lstrip()) # We need with comments
-				lines[i] = line = line[:len(line)-lstrip_len] + '# ' + stripped
+				# lstrip_len = len(line.lstrip()) # We need with comments
+				# lines[i] = line = line[:len(line)-lstrip_len] + '# ' + stripped
+				lines[i] = f"{ind}# {stripped}{cmt}"
 				logger.info(f"\tCommented out obsolete define on file: {basename} on {stripped} (at line {i+1})")
 				changed = True
 			else:
 				for tar, rep in TARGETS_DEF_3:
 					m = tar.match(stripped)
 					if m:
-						lstrip_len = len(line.lstrip()) # We need with comments
-						# print(f"line lengths: {len(line)}, {len(stripped)}, {m.end()}")
-						tar = len(line) - lstrip_len
-						lines[i] = line = line[:tar] + rep(m) + line[tar + m.end():]
+						# lstrip_len = len(line.lstrip()) # We need with comments
+						# # print(f"line lengths: {len(line)}, {len(stripped)}, {m.end()}")
+						# tar = len(line) - lstrip_len
+						# lines[i] = line = line[:tar] + rep(m) + line[tar + m.end():]
+						lines[i] = f"{ind}{rep(m)}{cmt}" # {lines[i][len(ind) + m.end():]} TODO TEST
 						logger.info(f"\tChanged define value by 100 on file: {basename} on {stripped} (at line {i+1})")
 						changed = True
 						break
@@ -2853,14 +2921,14 @@ def modfix(file_list, is_subfolder=False):
 		skip_block = False
 		block_depth = 0
 
-		for l, (i, line, stripped) in enumerate(valid_lines):
+		for l, (i, ind, stripped, cmt) in enumerate(valid_lines):
 			# stripped = line.lstrip()
 			line_changed = False
 
 			# Detect block start
 			# if block_start_pattern.match(stripped):
 			if stripped.startswith('modify_species = {') or stripped.startswith('change_species_characteristics = {'):
-				if not stripped.endswith('}\n'):
+				if not stripped.endswith('}'):
 					skip_block = True
 					block_depth = 1
 				continue
@@ -2889,15 +2957,15 @@ def modfix(file_list, is_subfolder=False):
 				if not 'add_trait = {' in stripped:
 					if stripped.startswith('add_trait'): # and not stripped.endswith('}')
 						if stripped.startswith('add_trait ='):
-							line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[12:]} }}\n'
+							line = f'add_trait = {{ trait = {stripped[12:]} }}'
 							line_changed = True
 						elif stripped.startswith('add_trait_no_notify ='):
-							line = f'{line[:-stripped_len]}add_trait = {{ trait = {stripped[22:]} show_message = no }}\n'
+							line = f'add_trait = {{ trait = {stripped[22:]} show_message = no }}'
 							line_changed = True
 					else:
 						for tar, repl in TARGETS_TRAIT.items():
-							line = tar.sub(repl, line) # , count=1
-							if lines[i] != line:
+							line = tar.sub(repl, stripped) # , count=1
+							if line != stripped:
 								line_changed = True
 								break
 				# else: # Cheap fallback fix # TODO: remove BLIND matches!?
@@ -2909,8 +2977,8 @@ def modfix(file_list, is_subfolder=False):
 				#		 else:
 				#			 logger.debug("BLIND trait match")
 					if line_changed:
-						lines[i] = line
-						valid_lines[l] = (i, line, line.lstrip())
+						lines[i] = f"{ind}{line}{cmt}"
+						valid_lines[l] = (i, ind, line, cmt)
 						changed = True
 						logger.info(
 							   "\tUpdated effect on file: %s on %s (at line %i) with %s\n"
@@ -2918,18 +2986,20 @@ def modfix(file_list, is_subfolder=False):
 								   basename,
 								   stripped,
 								   i,
-								   line_changed,
+								   line,
 							   )
 							)
 
 		return lines, valid_lines, changed
 
-	find_regex_comm = re.compile(r'^(\t)(?:weight(?:_modifier)?|[Aa][Ii]_weight|monthly_progress|usage_odds) = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
+	find_regex_comm = re.compile(
+		r'^(\t)(?:weight(?:_modifier)?|[Aa][Ii]_weight|monthly_progress|usage_odds) = \{(.+?)^\1\}',
+		flags=re.DOTALL|re.M
+	)
 	find_regex_evnt = re.compile(r'^(\t+)random_list = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
 	find_regex_list = re.compile(r'^(\t+)\d+ = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
 	mod_regex_block = re.compile(r'^(\t+)modifier = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
 	# find_regex_list = re.compile(r'^(\t+)\d+ = \{([^{}]*?(?:\{[^{}]*\}[^{}]*?)*?)\}',flags=re.DOTALL)
-
 	def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 		"""
 		Merge multiple `modifier = { factor = 0 ... }` blocks into a single one
@@ -3052,7 +3122,7 @@ def modfix(file_list, is_subfolder=False):
 				if insert_at > 5 and new_line_start > insert_at:
 					# Test for code comment, as it needs to be keept on the right place.
 					for m in re.finditer(r'\n([^\n]+)\n?$', new_content[:insert_at]): # .strip()
-						last_line = m # (?m) inline regex multiline flag
+						last_line = m #  inline regex multiline flag
 					if last_line:
 						new_line_start = last_line.start(1)
 						last_line = last_line.group(1)
@@ -3111,7 +3181,7 @@ def modfix(file_list, is_subfolder=False):
 		if not os.path.exists(structure):
 			os.makedirs(structure)
 			# print('Create folder:', subfolder)
-		open(out_file, "w", encoding="utf-8").write(out)
+		open(out_file, "w", encoding="utf-8").write(out + '\n')
 		txtfile.close()
 
 	def check_folder(folder):
@@ -3205,42 +3275,40 @@ def modfix(file_list, is_subfolder=False):
 			# Skip blank lines, but keep at most one in a row
 			if not stripped_line:
 				if blank_lines < 1:
-					new_lines.append('\n')
+					new_lines.append('')
 				else:
 					deleted_lines += 1
 					# changed = True
 				blank_lines += 1
 				continue
 
+			cmt = ""
 			if stripped_line == '}' and blank_lines > 0:
 				deleted_lines += 1
 				# changed = True
 				content_part = stripped_line
 				del new_lines[-1] # targets4[r"^\t*?\n(\t+\})$"] = r"\1" # cosmetic remove surplus lines
-
 			else:
 				# Isolate content from comments for accurate brace counting
 				content_part = stripped_line.split('#', 1)
 				if len(content_part) > 1 and len(content_part[1]) > 0:
-
-					# "^([^\n#]+)\{\n\t+#", "replace": "\1{\t#"
-
-					stripped_line = content_part[1]
+					cmt = content_part[1]
 					content_part = content_part[0].rstrip()
 					# We have a real separate comment
 					if len(content_part) > 0:
-						if not stripped_line.startswith("#") and not stripped_line.startswith(" "):
-							stripped_line = " " + stripped_line
-						stripped_line = f"{content_part} #{stripped_line}"
+						if not cmt.startswith("#") and not cmt.startswith(" ") and not cmt.startswith("	"):
+							cmt = " " + cmt
+						cmt = "#" + cmt
+						stripped_line = f"{content_part} {cmt}"
 					else:
-						stripped_line = "#" + stripped_line
+						stripped_line = "#" + cmt
 				else:
 					content_part = content_part[0].rstrip()
 
 			blank_lines = 0
 
 			if len(content_part) == 0:
-				new_lines.append(line)
+				new_lines.append(line.rstrip())
 				continue
 
 			open_braces = content_part.count('{')
@@ -3255,7 +3323,8 @@ def modfix(file_list, is_subfolder=False):
 					indent_level = 0
 					break # We need a full break as we don't know the exact missmatch location.
 					return lines, []
-			line = '\t' * indent_level + stripped_line + '\n'
+			ind = '\t' * indent_level
+			line = f"{ind}{stripped_line}"
 			if open_braces > close_braces: # Adjust indent level after writing line if opening brace
 				indent_level += (open_braces - close_braces)
 
@@ -3284,7 +3353,7 @@ def modfix(file_list, is_subfolder=False):
 				# i -= deleted_lines
 				previous_line = content_part
 				num_lines = i - deleted_lines
-				stripped_lines.append((num_lines, line, content_part))
+				stripped_lines.append((num_lines, ind, content_part, cmt))
 			new_lines.append(line)
 
 		# logger.info(f"Indentation correction finished.")
@@ -3295,9 +3364,8 @@ def modfix(file_list, is_subfolder=False):
 			# The last values from the loop (if there is just one empty line the vanilla parser gets crazy)
 			line = lines[-1]
 			# print(f"last line sign'{lines[-1]}' ({len(lines)})")
-			if len(line) > 0 and line[-1] != '\n' and not line.startswith("#") and line != new_lines[-1]:
-				# new_lines.append('\n') already done
-				changed = True # More than cosmetic
+			if len(line) > 0 and line[-1] != '\n' and not line.startswith("#"): #  and line != new_lines[-1]
+				changed = True # More than cosmetic (adds automatically new line)
 				logger.debug(f"Added needed EOF to {subfolder}/{basename}.")
 			# if not re.search(r"^[\s#]", out): should be superfluous
 			#	 out = '\n' + out
@@ -3366,35 +3434,32 @@ def modfix(file_list, is_subfolder=False):
 						rt = True
 
 					if rt:
-						for l, (i, line, stripped) in enumerate(valid_lines):
-							# m = pattern.search(line) # TODO fully replace all pattern with start spaces
+						for l, (i, ind, stripped, cmt) in enumerate(valid_lines):
 							m = pattern.search(stripped)
 							if m:
 								rt = 0
-								line_changed = ""
-								line_changed, rt = pattern.subn(repl, line, count=1)  # , flags=re.I
+								line_changed, rt = pattern.subn(repl, m.group(0), count=1)
 								if rt == 1:
-									if line_changed and line_changed != line:
-										lines[i] = line_changed
-										stripped = line_changed.lstrip()
-										valid_lines[l] = (i, line_changed, stripped)
+									line_changed = f"{stripped[:m.start()]}{line_changed}{stripped[m.end():]}"
+									if line_changed != stripped:
+										lines[i] = f"{ind}{line_changed}{cmt}" 
+										valid_lines[l] = (i, ind, line_changed, cmt)
 										changed = True
 										logger.info(
-											"\tUpdated file: %s on %s (at line %i) with %s\n"
-											% (basename, line.lstrip(), i, stripped)
+											f"\tUpdated file: {basename} on {stripped} (line {i}) with {line_changed}\n"
 										)
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
 										if m.start() <= 6 and m.end() >= len(stripped) - 6:
 											logger.debug("The entire line is matched; no further matches possible.")
 											del valid_lines[l] # just one hit per line
 									else:
-										logger.debug(f"BLIND MATCH tar3: {line}, {pattern}")
+										logger.debug(f"BLIND MATCH (tar3): {stripped}, {pattern}")
 								else:
-									logger.debug(f"BLIND MATCH tar3: {line}, {pattern}")
+									logger.debug(f"BLIND MATCH tar3: {stripped}, {pattern}")
 							# elif debug_mode:
 							# 	print("DEBUG Match tar3:", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
-				out = "".join(lines)
+				out = "\n".join(lines)
 
 				for pattern, msg in targetsR:
 					folder = True
@@ -3402,7 +3467,7 @@ def modfix(file_list, is_subfolder=False):
 						folder, msg = msg
 						folder = check_folder(folder)
 					if folder:
-						for l, (i, line, stripped) in enumerate(valid_lines):
+						for l, (i, ind, stripped, cmt) in enumerate(valid_lines):
 							m = pattern.search(stripped)
 							if m:
 								del valid_lines[l] # just one hit per line
@@ -3468,7 +3533,7 @@ def modfix(file_list, is_subfolder=False):
 						# 	# print(f"tar4: {targets}, {type(targets)}")
 
 						if sr and isinstance(replace[0], str):
-							repl[0] = replace[0] = re.compile(replace[0], flags=re.I | re.A) # re.M |
+							repl[0] = replace[0] = re.compile(replace[0], flags=re.I | re.ASCII)
 							logger.debug(f"Compiled: {tar4[1][0]} - {type(tar4[1][0])}")
 						for t in reversed(list(targets)):
 							repl_str = False
@@ -3665,8 +3730,6 @@ if __name__ == "__main__":
 			if ACTUAL_STELLARIS_VERSION_FLOAT >= version_threshold:
 				_apply_version_data_to_targets(data_dict)
 
-
-
 	targetsR = actuallyTargets["targetsR"]
 	targets3 = actuallyTargets["targets3"]
 	targets4 = actuallyTargets["targets4"]
@@ -3676,10 +3739,10 @@ if __name__ == "__main__":
 		## 2.0
 		# planet trigger fortification_health was removed
 		## 2.2
-		targets3[r"(\s*)planet_unique = yes"] = ("common/buildings", r"\1base_cap_amount = 1")
-		targets3[r"(\s*)empire_unique = yes"] = ("common/buildings", r"\1empire_limit = { base = 1 }")
-		targets3[r"(\s*)is_listed = no"] = ("common/buildings", r"\1can_build = no")
-		targets3[r"\s+(?:outliner_planet_type|tile_set) = \w+\s*"] = ("common/planet_classes", "")
+		targets3[r"\bplanet_unique = yes"] = ("common/buildings", "base_cap_amount = 1")
+		targets3[r"\bempire_unique = yes"] = ("common/buildings", "empire_limit = { base = 1 }")
+		targets3[r"\bis_listed = no"] = ("common/buildings", "can_build = no")
+		targets3[r"^(?:outliner_planet_type|tile_set) = \w+\s*"] = ("common/planet_classes", "")
 		targets3[r"\b(?:add|set)_blocker = \"?tb_(\w+)\"?"] = r"add_deposit = d_\1"  # More concrete? r"add_blocker = { type = d_\1 blocked_deposit = none }"
 		targets3[r"\btb_(\w+)"] = r"d_\1"
 		targets3[r"\b(building_capital)(?:_\d)\b"] = r"\1"
@@ -3697,7 +3760,7 @@ if __name__ == "__main__":
 		targets3[r"\bcountry_resource_(influence|unity)_"] = r"country_base_\1_produces_"
 		targets3[r"\bplanet_unrest_add"] = "planet_stability_add"
 		targets3[r"\bshipclass_military_station_hit_points_"] = "shipclass_military_station_hull_"
-		targets3[r"(.+?)\sorbital_bombardment = (\w{4:})"] = r"\1has_orbital_bombardment_stance = \2" # exclude country_type option
+		targets3[r"(.+?)\borbital_bombardment = (\w{4:})"] = r"\1has_orbital_bombardment_stance = \2" # exclude country_type option
 		targets3[r"\bNAME_Space_Amoeba\b"] = "space_amoeba"
 		targets3[r"\btech_spaceport_(\d)\b"] = r"tech_starbase_\1"
 		targets3[r"\btech_mining_network_(\d)\b"] = r"tech_mining_\1"
