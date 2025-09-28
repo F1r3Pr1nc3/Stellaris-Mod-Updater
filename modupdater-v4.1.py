@@ -16,7 +16,7 @@ import time
 from collections import defaultdict
 
 # @Author: FirePrince
-# @Revision: 2025/09/28
+# @Revision: 2025/09/29
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -31,7 +31,7 @@ mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stella
 # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
-code_cosmetic = 1 # Still Beta
+code_cosmetic = 0 # Still Beta
 also_old = 0
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
 keep_default_country_trigger = 0
@@ -487,9 +487,8 @@ v4_0 = {
 		# WARNING! ROOT must be country in vanilla trigger (for some dumb reason)
 		r"((\s+)(?:is_enslaved = yes(?:\2is_pop_category = slave(?:_unemployment)?\b){1,2}|(?:is_pop_category = slave(?:_unemployment)?\b\s*){1,2}\s*is_enslaved = yes|is_pop_category = slave)\b)":
 			(("T", "is_enslaved"), r"\2is_enslaved = yes"),
-		# r"((\n\s+)is_enslaved = yes\b)": r"\2 OR = { is_pop_category = slave\ is_pop_category = slave_unemployment }", # Temp Revert for now
-		r"((\s+)(?:is_civilian_job = yes(?:\2is_pop_category = (?:civilian|maintenance_drone)\b){1,2}|(?:is_pop_category = (?:civilian|maintenance_drone)\b\s*){1,2}\s*is_civilian_job = yes|is_pop_category = civilian)\b)":
-			(("T", "is_civilian_job"), r"\2is_civilian_job = yes"),
+		# r"((\n\s+)is_enslaved = yes\b)": r"\2OR = { is_pop_category = slave is_pop_category = slave_unemployment }", # Temp Revert
+		# r"((\n\s+)is_civilian_job = yes\b)": r"\2OR = { has_job_category = civilian has_job_category = maintenance_drone }", # Temp Revert
 		r"^((\t+)(?:%s)_owned_pop_)group = \{(\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+)kill_(?:single_)?pop = yes\n?\2\}" % VANILLA_PREFIXES:
 			r"\1job = {\3kill_assigned_pop_amount = { percentage = 1 }\n\2}", # TODO: Very specific and limited
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
@@ -671,7 +670,6 @@ revert_v4_0 = {
 		# NOTE: This needs a manual prepared minimal scripted_triggers stub
 		# r"((\s+)is_elite_category = yes\b)": r"\2is_elite_category = yes\n\2is_pop_category = ruler",
 		# r"((\s+)is_specialist_category = yes\b)": r"\2is_specialist_category = yes\n\2is_pop_category = specialist",
-		# r"((\s+)is_civilian_job = yes\b)": r"\2is_civilian_job = yes\n\2is_pop_category = civilian",
 		# --- Keeping Combined Civic/Trait Triggers ---
 		# NOTE: This needs a manual prepared minimal scripted_triggers stub
 		# r"(\s+)is_pleasure_seeker_empire = yes": r'\1has_valid_civic = "civic_pleasure_seekers"\1has_valid_civic = "civic_corporate_hedonism"',
@@ -1417,7 +1415,6 @@ v3_2 = {
 		r"\bclear_uncharted_space = \{\s*from = ([^\n{}# ])\s*\}": r"clear_uncharted_space = \1",
 		r"\bhomeworld =": ("common/governments/civics", "starting_colony ="),
 		# r"^(parent = planet_jobs)\b": ("common/economic_categories", r"\1_productive"), TODO
-		r"^energy = (\d+|@\w+)": ("common/terraform", r"resources = { category = terraforming cost = { energy = \1 } }"),
 	},
 	"targets4": {
 		r"((?:(\n\t+)is_planet_class = pc_ringworld_habitabl(?:e|e_damaged)\b){2})": r"\2is_ringworld = yes",
@@ -1429,6 +1426,7 @@ v3_2 = {
 			r"(\n\t+)(possible = \{(\1\t)?(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3(?(3).*\3|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)?|\s*?)complex_specialist_job_check_trigger = yes\s*)",
 			("common/pop_jobs", r"\1possible_precalc = can_fill_specialist_job\1\2"),
 		],  # only with 6 possible prior lines
+		r"^((\t)energy = (\d+|@\w+))": ("common/terraform", r"\2resources = {\n\2\tcategory = terraforming\n\2\tcost = { energy = \1 }\n\2}"),
 	},
 }
 # if code_cosmetic and not only_warning:
@@ -2273,8 +2271,8 @@ def add_code_cosmetic():
 		],
 		# ^((\s+)NOT = \{\s+any_\w+ = [\s\S]+?)^\2\} not one liner
 		# FIXME  exclude any_available_random_trait_by_tag_evopred
-		r"(?s)^((\t+)NOT = \{(?:\n?\2\s|( ))any_\w+ = .+?(?:^\2|\3)\})$": [
-			r"(\s+)NOT = \{(\n?\1\s|\s)any(_\w+ = \{)([\s\S]+?\})$", ( "biogenesis_effects.txt" ,
+		r"((\n\t+)NOT = \{( |\2)\t?any_\w+ = \{(?:( )[^\n]+?|(?:\2\t[^\n]+?){1,6})(?(4)\4|\s+)\}\3\})$": [
+			r"(\s+)NOT = \{(\1\s|\s)any(_\w+ = \{)([\s\S]+?\})$", ( "biogenesis_effects.txt" ,
 			lambda p: (
 				f"{p.group(1)}count{p.group(3)} count = 0{p.group(2)}limit = {{{p.group(4)}"
 				if not re.search(r'^'+p.group(1)+r'\t\w+ = \{', p.group(4), re.M)
