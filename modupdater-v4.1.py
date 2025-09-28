@@ -2281,21 +2281,26 @@ def add_code_cosmetic():
 				else p.group(0)
 			))
 		],
-		## Merge last_created_xxx
-		# Dynamic
-		# r"(?s)((\n\t+)create_(%s) = \{\2\t[^{}]*?\2\}\2last_created_\3 = \{\2\t.*?)\2\}" % LAST_CREATED_SCOPES: [
-			# r"((\n\t+)create_\w+ = \{\2[^{}]*?)\2\}\s+last_created_\w+ = \{([\s\S]+)$",
 		# Effect block must be last
 		# FIXME a lot of BLIND MATCHES
 		r"(?s)((\n\t+)create_(?:%s) = \{\2\t[^{}]+?\2\teffect = \{\2\t\t.*?)\2\}" % LAST_CREATED_SCOPES: [
 			r"(?s)((\n\t+)create_\w+ = \{\2\t[^{}]+?)(\2\teffect = \{\2\t\t.*?\2\t\})(.*?)$", # (?:\2\t[^\n]+){1,6}
 			r"\1\4\3"
 		],
-		r"(?s)((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?(?:traits = \{[^{}]+\})?(?:\2\t[^\n{}]+){,5}\s*(?:effect = \{\2\t\t.*?\2\t\}\2)?\}\2last_created_leader = \{\2\t.*?)\2\}": [
-			r"(?s)((\t+)(?:clone|create)_leader = \{\n\2\t[^{}]+?(?:traits = \{[^{}]+\})?(?:\n\2\t[^\n{}]+){,5})\s*?(?:effect = \{(\n\2\t\t.*?)\n\2\t\})?\n\2\}\n\2last_created_leader = \{(\n\2\t.*?)$",
-			lambda p:
-				f"{p.group(1)}\n{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')+indent_block(p.group(4))}\n{p.group(2)}\t}}"
-		], # \1\n\2\teffect = {\3\4\n\2}
+		## Merge last_created_xxx
+		# TODO more Dynamic 
+		r"((\n\t+)create_(%s) = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_\3 = \{( |\2)[\s\S]+?)(?(4)\4)\}" % LAST_CREATED_SCOPES: [
+			r"((\n\t+)create_\w+ = \{\2[^{}]*?)(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+last_created_\w+ = \{\s+([\s\S]+?)\s+\}$", lambda p:
+				f"{p.group(1)}{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')}"
+				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t}}{p.group(2)}}}"
+		], # \1\n\2\teffect = {\3\n\2\t\4\n\2}
+		# FIXME Catastrophic backtracking
+		# r"((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?(?:traits = \{[^{}]+\})?(?:\2\t[^\n{}]+){,5}\s*(?:effect = \{\2\t\t(?:\2\t\t[^\n\t]+){,9}\2\t\}\2)?\}\2last_created_leader = \{[\s\S]+?)\2\}": [
+		r"((\n\t+)(?:clone|create)_leader = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_leader = \{( |\2)[\s\S]+?(?(3)\3)\})": [
+			r"((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?(?:traits = \{[^{}]+\})?(?:\2\t[^{}]+){,5})\s*?(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\2last_created_leader = \{\s+([\s\S]+?)\s+\}$", lambda p:
+				f"{p.group(1)}{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')}"
+				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t}}{p.group(2)}}}"
+		], # \1\n\2\teffect = {\3\n\2\t\4\n\2}
 	}
 
 	targets4.update(tar4)
