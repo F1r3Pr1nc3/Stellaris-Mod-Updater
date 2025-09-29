@@ -14,6 +14,7 @@ import argparse
 # import datetime
 import time
 from collections import defaultdict
+from typing import List, Tuple
 
 # @Author: FirePrince
 # @Revision: 2025/09/29
@@ -168,14 +169,6 @@ def divide_by_100(m):
 	# Format as an integer if it's a whole number (2.0 -> 2) otherwise as float (0.5).
 	return f"{prefix} {int(new_value) if new_value == int(new_value) else new_value}"
 
-def revert_peace_offers(m):
-	" Reconstructs 'allowed_peace_offers' from 'forbidden_peace_offers'. "
-	m = m.group(2)
-	allowed = {"status_quo", "surrender", "demand_surrender"}
-	m = set(re.findall(r'(\w+)\s*=', m))
-	allowed = " ".join(f'{offer} = ""' for offer in sorted(list(allowed - m)))
-	return f"allowed_peace_offers = {{ {(allowed if allowed else '')} }}"
-
 def leader_class_replacement(match):
 	" Takes a match object, translates leader classes, deduplicates them "
 	translation_map = {"governor": "official", "admiral": "commander", "general": "commander"}
@@ -297,8 +290,8 @@ revert_v4_1 = {
 	},
 }
 
-TRAITS_TIER_2_REVERT = r"(adaptable|aggressive|agrarian_upbringing|architectural_interest|army_veteran|bureaucrat|butcher|cautious|eager|engineer|enlister|environmental_engineer|defence_engineer|politician|resilient|restrained|retired_fleet_officer|ruler_fertility_preacher|shipwright|skirmisher|trickster|unyielding)"
-TRAITS_TIER_3_REVERT = r"(annihilator|archaeo_specialization|armada_logistician|artillerist|artillery_specialization|border_guard|carrier_specialization|commanding_presence|conscripter|consul_general|corsair|crew_trainer|crusader|demolisher|dreaded|frontier_spirit|gale_speed|guardian|gunship_specialization|hardy|heavy_hitter|home_guard|interrogator|intimidator|juryrigger|martinet|observant|overseer|reinforcer|rocketry_specialization|ruler_fortifier|ruler_from_the_ranks|ruler_military_pioneer|ruler_recruiter|scout|shadow_broker|shipbreaker|slippery|surgical_bombardment|tuner|warden|wrecker)"
+TRAITS_TIER_2 = r"(adaptable|aggressive|agrarian_upbringing|architectural_interest|army_veteran|bureaucrat|butcher|cautious|eager|engineer|enlister|environmental_engineer|defence_engineer|politician|resilient|restrained|retired_fleet_officer|ruler_fertility_preacher|shipwright|skirmisher|trickster|unyielding)"
+TRAITS_TIER_3 = r"(annihilator|archaeo_specialization|armada_logistician|artillerist|artillery_specialization|border_guard|carrier_specialization|commanding_presence|conscripter|consul_general|corsair|crew_trainer|crusader|demolisher|dreaded|frontier_spirit|gale_speed|guardian|gunship_specialization|hardy|heavy_hitter|home_guard|interrogator|intimidator|juryrigger|martinet|observant|overseer|reinforcer|rocketry_specialization|ruler_fortifier|ruler_from_the_ranks|ruler_military_pioneer|ruler_recruiter|scout|shadow_broker|shipbreaker|slippery|surgical_bombardment|tuner|warden|wrecker)"
 JOBS_EXCLUSION_LIST = r"(?:calculator_biologist|calculator_physicist|calculator_engineer|soldier_stability|researcher_naval_cap|knight_commander)"
 
 # PHONIX (BioGenesis DLC)
@@ -321,7 +314,6 @@ v4_0 = {
 		[r"\bremove_last_built_(building|district)\b", "REMOVED in v4.0"],
 		[r"\breset_decline\b", "REMOVED in v4.0"],
 		[r"\bcan_work_job\b", "REMOVED in v4.0"],
-		# [r"\bcount_owned_pops\b", "REMOVED in v4.0"],
 		[r"\bhas_collected_system_trade_value\b", "REMOVED in v4.0"],
 		# [r"\bhas_system_trade_value\b", "REMOVED in v4.0"],
 		[r"\b(has|num)_trade_route\b", "REMOVED in v4.0"],
@@ -378,8 +370,9 @@ v4_0 = {
 	"targets3": {
 		r"\bdefense_armies_add\b": r"planet_\g<0>",
 		r"\b(?:%s)_species_pop\b" % VANILLA_PREFIXES: r"\g<0>_group",
-		fr"\b((?:leader_)?trait_){TRAITS_TIER_2_REVERT}_2": r"\1\2",
-		fr"\b((?:leader_)?trait_){TRAITS_TIER_3_REVERT}_3": r"\1\2_2",
+		# TODO # Can't be reverted, as this is a downgrade, so revert would be a general upgrade
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_2}_2": r"\1\2", # downgrade
+		fr"\b((?:leader_)?trait_){TRAITS_TIER_3}_3": r"\1\2_2", # downgrade
 		r"\bplanet_storm_dancers\b": "planet_entertainers",
 		# r"((?<!_as =)[\s.])planet_owner": r"\1planet.owner",
 		r"\bis_pleasure_seeker\b": "is_pleasure_seeker_empire",
@@ -466,7 +459,7 @@ v4_0 = {
 		r"\bplanet_researchers_society_research_produces_(mult|add)\b": r"planet_doctors_society_research_produces_\1",
 		# r"\bplanet_districts_(cost|upkeep)_mult\b": r"planet_structures_\1_mult", # still valid just less used
 		# Modifier trigger
-		r"\b((?:num_unemployed|free_(?:%s))\s*[<=>]+)\s*(-?[1-9]\d?)\b" % PLANET_MODIFIER: multiply_by_100,
+		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?[1-9]\d?)\b": multiply_by_100,
 		# Modifier effect
 		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b": multiply_by_100, # Not save when in modifier tag with mult (like on 02_rural_districts.txt line 419)
 		# r"\b((?:planet_(?:%s)|job_(?!calculator)\w+?(?!stability|cap|value))_add =)\s*(-?(?:\d+\.\d+|\d\d?\b))" % PLANET_MODIFIER: multiply_by_100, # |calculator_(?:biologist|physicist|engineer)
@@ -514,34 +507,13 @@ v4_0 = {
 			r"has_trade_route = yes(\s+)(?:trade_intercepted_value > \d+)?",
 			r"is_on_border = yes\1any_neighbor_system = {\1\tNOR = { has_owner = yes has_star_flag = guardian }\1}"
 		],
-		r"\bevent_target:pirate_system = \{\s+trade_intercepted_value\s*([<=>]+)\s*(\d+)\s+(?:trade_intercepted_value\s*[<=>]+\s*\d+\s+)?\}": r"years_passed \1 \2",
+		r"\bevent_target:pirate_system = \{\s+trade_intercepted_value\s*([<=>]+)\s*(\d\d)\s+(?:trade_intercepted_value\s*[<=>]+\s*\d+\s+)?\}": r"years_passed \1 \2",
 		r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
 		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_100],
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_100],
 		r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
 			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\w\.:]+)\s*?(\sethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\}))?\s*\}\s*\}",
 			r"create_pop_group = { \g<2> size = \g<1>00\g<3> }"],
-		r"\ballowed_peace_offers = \{\s+(?:(?:status_quo|surrender|demand_surrender)\s+){1,3}\s*\}": [
-			r"allowed_peace_offers = \{\s+(status_quo|surrender|demand_surrender)\s*(status_quo|surrender|demand_surrender)?\s*(status_quo|surrender|demand_surrender)?\s*\}",
-			("common/war_goals", lambda p: ""
-				if p.group(3)
-				else
-					"forbidden_peace_offers = { " + (
-						{
-							"status_quo": 'surrender = "" demand_surrender = ""',
-							"surrender": 'status_quo = "" demand_surrender = ""',
-							"demand_surrender": 'status_quo = "" surrender = ""'
-						}[p.group(1)]
-						if not p.group(2)
-						else
-							'status_quo = ""'
-							if p.group(1) != "status_quo" and p.group(2) != "status_quo"
-							else
-								'surrender = ""'
-								if p.group(1) != "surrender" and p.group(2) != "surrender"
-								else 'demand_surrender = ""'
-					) + " }"
-			)],
 		r"^(?:\t(?:condition_string|building_icon|icon) = \w+\n){1,3}": [
 			r"(\t(?:condition_string|building_icon|icon) = \w+\n)\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?", ("common/pop_jobs", lambda m:
 				'\tswappable_data = {\n\t\tdefault = {\n\t\t'+m.group(1)+
@@ -575,12 +547,22 @@ v4_0 = {
 
 # --- revert dictionary ---
 revert_v4_0 = {
+	"targetsR": [
+		# compact — one entry for triggers/effects
+		# TRIGGERS (v4.0)
+		[r"\b(?:any_bypass_in_system|any_starbase_in_system|any_trait_available_for_species|any_trait_of_species|bioship_can_grow|capital_tier|city_graphical_culture|count_trait_available_for_species|count_trait_of_species|custom_progress|has_(active_focus|armor_percentage|completed_focus|highest_technology_score|picked_auto_mod_habitability|pop_group_flag|shield_percentage)|hidden_progress|inherits_parent_rights|is_(being_integrated_by|growth_complete|last_acquired_specimen_from_trade|robot_pop_group)|num_(pops_assigned_to_job|zones)|pop_group_(has_ethic|has_happiness|size)|simple_progress|total_(country_workforce_with_job_tag|workforce_with_job_tag)|trait_has_(all_tags|any_tag)|used_defense_platform_capacity_percent|uses_ship_category)\b",
+		 "NATIVE TRIGGER ADDED in v4.0"],
+		# EFFECTS (v4.0)
+		[r"\b(?:add_(ascension_perk|focus_progress|growth|pop_amount|terraformation_total_time_mult|timeline_event|variable|zone)|copy_(ascension_perks_from|traditions_from)|create_pop_group|damage_army|displace_pop_amount|every_trait_(available_for_species|of_species)|integrate_species|kill_(assigned_pop_amount|pop_group)|merge_species|ordered_trait_(available_for_species|of_species)|pop_group_event|propose_resolution|random_trait_(available_for_species|of_species)|refresh_auto_generated_ship_designs|remove_(ascension_perk|pop_amount|pop_group_flag|tradition|tradition_tree|zone)|repair_(amount|armor_amount|shield_amount|shield_percentage)|reset_growth|scale_pop_amount|set_(confused|country_code_flags|faction_auto_delete|faction_needs_colony|habitability_trait|planet_purge_type|pop_group_flag|resource|timed_pop_group_flag|trade_conversions)|transfer_pop_amount|weighted_random_owned_pop_group)\b",
+		 "NATIVE EFFECT ADDED in v4.0"],
+	],
 	"targets3": {
 		# --- Simple one-line Reversions ---
 		r"\bplanet_(defense_armies_add)\b": r"\1",
 		r"\b((?:%s)_species_pop)_group\b" % VANILLA_PREFIXES: r"\1",
-		fr"\b((?:leader_)?trait_){TRAITS_TIER_2_REVERT}\b": r"\1\2_2",
-		fr"\b((?:leader_)?trait_){TRAITS_TIER_3_REVERT}_2\b": r"\1\2_3",
+		# Can't be reverted, as prior was a downgrade, so this would be a general upgrade
+		# fr"\b((?:leader_)?trait_){TRAITS_TIER_2}\b": r"\1\2_2",
+		# fr"\b((?:leader_)?trait_){TRAITS_TIER_3}_2\b": r"\1\2_3",
 		r"\bplanet_entertainers\b": "planet_storm_dancers",
 		r"\bis_pleasure_seeker_empire\b": "is_pleasure_seeker",
 		r"\bhas_any_industry_zone\b": "has_any_industry_district",
@@ -638,7 +620,7 @@ revert_v4_0 = {
 		r"^(triggered_pop_)group_(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1\2"),
 
 		# --- Reversions Requiring Lambdas/Functions ---
-		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)} {int(m.group(3)) // 100}",
+		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)} {divide_by_100(m.group(3))}",
 		r"\bpop_force_add_ethic = \{ ethic = ([\d\w\.:]+) percentage = 1 \}": r"pop_force_add_ethic = \1",
 		r"\b(set|set_timed|has|remove)_pop_group_flag\b": r"\1_pop_flag",
 		r"\bplanet_resettlement_unemployed_destination_(mult|add) = (-?[\d.]+)": lambda m: f"planet_immigration_pull_{m.group(1)} = {float(m.group(2)) / 2}",
@@ -646,10 +628,11 @@ revert_v4_0 = {
 		# unpack the canonical 'structures' into the two original keys, preserve indentation
 		r"\bplanet_structures_cost_mult": "planet_buildings_cost_mult",
 		r"\bis_robot_pop_group\b": "is_robot_pop",
-		r"\b(trigger(?: = |:))(?:pop_group_size|count_owned_pop_amount)\b": r"\1num_pops",
+		r"\b(trigger(?: = |:))(?:pop_group_size|(sapient_)?pop_amount)\b": r"\1num_\2pops", 
+		r"\b(trigger(?: = |:))count_owned_pop_amount\b": r"\1count_owned_pop",
 
 		# --- Reversions Using the 'divide_by_100' Function ---
-		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d+)\b": divide_by_100,
+		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d\d+)\b": divide_by_100,
 		fr"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d+)\b": divide_by_100,
 		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?\d+)\b": divide_by_100,
 		r"\b((?:pop_group_size|(sapient_)?pop_amount)\s*([<=>]+)\s*([\w@.]+))": lambda m:
@@ -657,6 +640,8 @@ revert_v4_0 = {
 				divide_by_100(m.group(4))
 				if re.match(r"^\d+$", m.group(4)) else m.group(4)
 			),
+		# New Features must be commented out
+		r"^\w+ = menp_behemoth.+": r"# \g<0> # since v4.0",
 	},
 	# --- The main dictionary with the reverted transformations for targets4 ---
 	# This version is updated to use group(1) to isolate the content for modification
@@ -699,7 +684,7 @@ revert_v4_0 = {
 		# Capturing content in group(1) for sub-patterns
 		r"\b(count_owned_pop_amount = \{\s*(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*\d+)": [
 			r"(count_owned_pop)_amount( = \{\s*(?:limit = \{[^#]+?\}\s+)?)count\s*([<=>]+)\s*(\d+)",
-			lambda m: f"{m.group(1)}s{m.group(2)}count {m.group(3)} {divide_by_100(m.group(4))}"
+			lambda m: f"{m.group(1)}{m.group(2)}count {m.group(3)} {divide_by_100(m.group(4))}"
 		],
 		# numeric counters back down
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}\s]+\s+)?(value\s*[<=>]+\s*\d+00)\b": [
@@ -716,15 +701,14 @@ revert_v4_0 = {
 			"any_system_within_border = { has_trade_route = yes trade_intercepted_value > 0 } # NOTE: Reverted to default value.",
 		r"is_on_border = yes(\s+)any_neighbor_system = \{\1\tNOR = \{ has_owner = yes has_star_flag = guardian \}\1\}":
 			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.",
-		r"\byears_passed ([<=>]+) (\d+)": (
-			re.compile(r"^events/.*pirate.*\.txt$"),
-			r"event_target:pirate_system = { trade_intercepted_value \1 \2 }"
+		# TODO maybe multiline, as this is VERY UNSURE
+		r"^(limit = { )years_passed ([<=>]+) (\d+)": (
+			re.compile(r"^(?:events|common/scripted_effects)/.*pirate.*\.txt$"),
+			r"\1event_target:pirate_system = { trade_intercepted_value \2 \3 }"
 		), 
 		# --- Un-commenting 'pop_produces_resource' ---
 		r"# (pop_produces_resource) = \{ (type = \w+) (amount\s*[<=>]+\s*[^{}\s]+) \}":
 			r"\1 = { \2 \3 }",
-		# --- Reverting Peace Offer Logic ---
-		r"\b(forbidden_peace_offers = \{([\s\S]+?)\})": ("common/war_goals", revert_peace_offers),
 		# --- Reverting Swappable Data Block ---
 		r"(\tswappable_data = \{\s+default = \{\s*)([\s\S]+?)(\s*\}\s*\})":
 			lambda p: dedent_block(p.group(2)), # just drop wrapper, keep original lines
@@ -2905,6 +2889,139 @@ def modfix(file_list, is_subfolder=False):
 			#		 break
 		return lines, changed
 
+	# Define the canonical order for peace offers. This list controls the output order.
+	PEACE_OFFERS_ORDER = ["status_quo", "surrender", "demand_surrender"]
+	# Define the complete set of all possible peace offers for efficient set operations.
+	ALL_PEACE_OFFERS = set(PEACE_OFFERS_ORDER)
+	# This regex finds all top-level wg_* blocks.
+	wg_block_pattern = re.compile(r"^wg_\w+\s*=\s*\{.+?^\}", flags=re.DOTALL|re.MULTILINE)
+
+	def transform_war_goals_syntax(lines: List[str], valid_lines: List[bool], changed: bool, target_version_is_v4: bool) -> Tuple[List[str], List[bool], bool]:
+	    """
+	    Upgrades or downgrades Stellaris war goal syntax between v3.* and v4.*.
+
+	    This function handles the conversion between 'allowed_peace_offers' (v3)
+	    and 'forbidden_peace_offers' (v4) within each war goal definition (wg_*).
+
+	    It's designed to be part of a larger script, receiving and returning a list
+	    of file lines and a change tracking flag.
+
+	    Args:
+	        lines: A list of strings, where each string is a line from the file.
+	        valid_lines: A list used for tracking, passed through unmodified.
+	        changed: A boolean flag indicating if any changes have been made.
+	        target_version_is_v4: If True, upgrades to v4 syntax. If False, downgrades to v3.
+
+	    Returns:
+	        A tuple containing the (potentially modified) list of lines, the
+	        unmodified valid_lines list, and the updated changed flag.
+	    """
+	    file_content = "\n".join(lines)
+	    forbidden_pattern = re.compile(r"^\tforbidden_peace_offers\s*=\s*\{([^{}]+)\}", re.MULTILINE)
+	    allowed_pattern = re.compile(r"^\tallowed_peace_offers\s*=\s*\{[^{}]*?\}", re.MULTILINE)
+
+	    # --- Replacer function for DOWNGRADING to v3.* ---
+	    def _downgrade_replacer(match: re.Match) -> str:
+	        wg_block_text = match.group(0)
+	        if "allowed_peace_offers" in wg_block_text:
+	            return wg_block_text # Already in v3 format
+
+	        forbidden_match = forbidden_pattern.search(wg_block_text)
+
+	        if forbidden_match:
+	            forbidden_content = forbidden_match.group(1)
+	            forbidden_items = {line.split('=')[0].strip() for line in forbidden_content.splitlines() if line.split('#')[0].strip()}
+	            
+	            allowed_items = ALL_PEACE_OFFERS - forbidden_items
+	            ordered_allowed = [offer for offer in PEACE_OFFERS_ORDER if offer in allowed_items]
+	            
+	            new_block = f"\tallowed_peace_offers = {{ {' '.join(ordered_allowed)} }}"
+	            return forbidden_pattern.sub(new_block, wg_block_text)
+	        else:
+	            # Add default block if none exists, as it's required in v3.
+	            # Insert it at a contextually appropriate location.
+	            block_lines = wg_block_text.splitlines(True) # keepends=True
+	            default_block_line = f"\tallowed_peace_offers = {{ {' '.join(PEACE_OFFERS_ORDER)} }}\n"
+
+	            insertion_index = -1
+	            
+	            # Define a single pattern with all preferred keywords, joined by '|' (OR).
+	            search_after_pattern = re.compile(r'^\t(surrender_acceptance|cede_claims|war_exhaustion|set_defender_wargoal)')
+
+	            # Find the first match from our preferred list.
+	            for i, line in enumerate(block_lines):
+	                if search_after_pattern.match(line):
+	                    insertion_index = i + 1
+	                    break
+	            
+	            # If no preferred line, find the first sub-block (e.g., "potential = {") to insert BEFORE.
+	            if insertion_index == -1:
+	                sub_block_pattern = re.compile(r'^\t\w+\s*=\s*\{')
+	                for i, line in enumerate(block_lines[1:], start=1): # Skip the 'wg_* = {' line.
+	                    if sub_block_pattern.match(line):
+	                        insertion_index = i
+	                        break
+	            
+	            # As a final fallback, insert before the last line (the closing brace).
+	            if insertion_index == -1:
+	                insertion_index = len(block_lines) - 1 if len(block_lines) > 1 else 1
+
+	            block_lines.insert(insertion_index, default_block_line)
+	            return "".join(block_lines)
+
+	    # --- Replacer function for UPGRADING to v4.* ---
+	    def _upgrade_replacer(match: re.Match) -> str:
+	        wg_block_text = match.group(0)
+	        if "forbidden_peace_offers" in wg_block_text:
+	            return wg_block_text # Already in v4 format
+
+	        allowed_match = allowed_pattern.search(wg_block_text)
+
+	        if not allowed_match:
+	            return wg_block_text # No block to convert, which is valid in v4
+
+	        allowed_content = allowed_match.group(0)
+	        # Extract items from between the braces
+	        items_str = allowed_content[allowed_content.find('{')+1:allowed_content.rfind('}')]
+	        allowed_items = set(items_str.strip().split())
+
+	        # If all items are allowed, the v4 syntax is to have no block at all.
+	        if allowed_items == ALL_PEACE_OFFERS:
+	            # Replace the matched 'allowed_peace_offers' block with an empty string, effectively removing it.
+	            # We also strip leading/trailing whitespace from the result to clean up newlines.
+	            return allowed_pattern.sub("", wg_block_text).strip()
+
+	        forbidden_items = ALL_PEACE_OFFERS - allowed_items
+	        ordered_forbidden = [offer for offer in PEACE_OFFERS_ORDER if offer in forbidden_items]
+	        
+	        # Format with keys and empty string values, as is common in v4 files
+	        forbidden_lines = "\n".join([f"\t\t{item} = \"\"" for item in ordered_forbidden])
+	        new_block = f"\tforbidden_peace_offers = {{\n{forbidden_lines}\n\t}}"
+	        return allowed_pattern.sub(new_block, wg_block_text)
+
+	    # --- Main Logic ---
+
+	    # Choose the correct replacer function based on the target version
+	    
+	    if target_version_is_v4:
+	        print(f"--- UPGRADING v3 FILE {basename} TO v4 ---")
+	        replacer_func = _upgrade_replacer
+	    else:
+	        print(f"--- DOWNGRADING v4 FILE {basename} TO v3 ---")
+	        replacer_func = _downgrade_replacer
+
+	    new_file_content = wg_block_pattern.sub(replacer_func, file_content)
+	    # print(f"transform_war_goals_syntax {new_file_content != file_content}")
+
+	    if new_file_content != file_content:
+	        changed = True
+	        # Use splitlines with keepends=True to preserve original line endings
+	        new_lines = new_file_content.splitlines(keepends=False)
+	        return new_lines, valid_lines, changed
+	    
+	    return lines, valid_lines, changed
+
+
 	# (Since v4.0) since v4.0.22 optional
 	def transform_add_leader_trait(lines, valid_lines, changed):
 		"""
@@ -3390,7 +3507,7 @@ def modfix(file_list, is_subfolder=False):
 
 				fullpath = os.path.relpath(_file, mod_path).replace("\\", "/")
 				subfolder, basename = os.path.split(fullpath)
-				# if debug_mode: print(f"subfolder: '{subfolder}', basename: '{basename}'")
+				# print(f"subfolder: '{subfolder}', basename: '{basename}'")
 				# out = ""
 				changed = False
 
@@ -3404,12 +3521,17 @@ def modfix(file_list, is_subfolder=False):
 					if subfolder.endswith("defines"):
 						lines, changed = find_with_set_optimized(lines, valid_lines, changed)
 						if changed and not only_warning:
-							out = "".join(lines)
+							out = "\n".join(lines)
 							write_file()
 						continue
+					elif subfolder.startswith("common/war_goals"):
+						lines, valid_lines, changed = transform_war_goals_syntax(lines, valid_lines, changed, target_version_is_v4=True)
 					# since v4.0.22 optional
 					elif any(subfolder.startswith(ef) for ef in EFFECT_FOLDERS): # subfolder.startswith(EFFECT_FOLDERS)
 						lines, valid_lines, changed = transform_add_leader_trait(lines, valid_lines, changed)
+				elif subfolder.startswith("common/war_goals"):
+					lines, valid_lines, changed = transform_war_goals_syntax(lines, valid_lines, changed, target_version_is_v4=False)
+				# else: print(ACTUAL_STELLARIS_VERSION_FLOAT, subfolder)
 
 				for pattern, repl in tar3:  # new list way
 					folder = False
@@ -3441,15 +3563,15 @@ def modfix(file_list, is_subfolder=False):
 							m = pattern.search(stripped)
 							if m:
 								rt = 0
-								line_changed, rt = pattern.subn(repl, m.group(0), count=1)
-								if rt == 1:
+								line_changed, rt = pattern.subn(repl, m.group(0)) # , count=1
+								if rt > 0:
 									line_changed = f"{stripped[:m.start()]}{line_changed}{stripped[m.end():]}"
 									if line_changed != stripped:
 										lines[i] = f"{ind}{line_changed}{cmt}" 
 										valid_lines[l] = (i, ind, line_changed, cmt)
 										changed = True
 										logger.info(
-											f"\tUpdated file: {basename} on {stripped} (line {i}) with {line_changed}\n"
+											f"\tUpdated file: {basename} on:\n{stripped} (line {i}) with:\n{line_changed}\n"
 										)
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
 										if m.start() <= 6 and m.end() >= len(stripped) - 6:

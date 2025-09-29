@@ -23,7 +23,7 @@ Used by https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/modupdater-v4.0.py
 """
 import os
 import re
-import difflib # slow
+from difflib import SequenceMatcher # slow
 import logging
 import argparse
 from datetime import datetime
@@ -31,7 +31,7 @@ from datetime import datetime
 try:
     # Try using the faster C implementation
     from cydifflib import SequenceMatcher as FastMatcher
-    difflib.SequenceMatcher = FastMatcher
+    SequenceMatcher = FastMatcher
     print("Using cydifflib for faster diffs")
 except ImportError:
     # Fall back to the Python stdlib
@@ -39,11 +39,13 @@ except ImportError:
     print("cydifflib not available, using standard difflib")
 
 # Example usage
-new_version_folder = "d:\\Steam\\steamapps\\common\\Stellaris"
-old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
+# new_version_folder = "d:\\Steam\\steamapps\\common\\Stellaris"
+# old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
+old_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris3.14"
+new_version_folder = "d:\\GOG Games\\Settings\\Stellaris\\Stellaris4.0"
 
 # Add/Remove more categories if needed
-rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", "variables" } # "starbase_buildings", "jobs" , "starbase_modules"
+rename_chk_cats = { "buildings", "triggers", "effects", "traits", "civics", "modifiers", "variables" } # "menace_perks", "starbase_buildings", "jobs" , "starbase_modules"
 scan_events = True # False # Event ID tracking
 scan_common = True # False # Common folder tracking
 debug = False # True # 
@@ -170,7 +172,7 @@ def detect_renamed_blocks(old_dict, new_dict, removed_keys, added_keys, threshol
             new_body = new_dict[new_key][0]
             # Find similarity:
             # ratio = fuzz.ratio(old_body, new_body) / 100
-            ratio = difflib.SequenceMatcher(None, old_body, new_body).ratio()
+            ratio = SequenceMatcher(None, old_body, new_body).ratio()
             if ratio > best_ratio:
                 if best_match and debug:
                     print(f"Found better match for {old_key} ({round(ratio * 100, 3)}) than {round(best_ratio * 100, 3)} for {best_match} now {new_key}")
@@ -238,6 +240,7 @@ def compare_stellaris_data(old_path, new_path):
         "effects":     (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/scripted_effects"),
         "jobs":        (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/pop_jobs"),
         "buildings":   (re.compile(r'^(building_\w+) = \{', re.MULTILINE), "common/buildings"),
+        "menace_perks":   (re.compile(r'^(menp_\w+) = \{', re.MULTILINE), "common/menace_perks"),
         "starbase_buildings": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_buildings"),
         "starbase_modules": (re.compile(r'^(\w+) = \{', re.MULTILINE), "common/starbase_modules"),
         "districts":   (re.compile(r'^(district_\w+) = \{', re.MULTILINE), "common/districts"),

@@ -1,7 +1,16 @@
 import re
-from pathlib import Path
 import os
-from difflib import SequenceMatcher
+from pathlib import Path
+from difflib import SequenceMatcher # slow
+try:
+    # Try using the faster C implementation
+    from cydifflib import SequenceMatcher as FastMatcher
+    SequenceMatcher = FastMatcher
+    print("Using cydifflib for faster diffs")
+except ImportError:
+    # Fall back to the Python stdlib
+    FastMatcher = None
+    print("cydifflib not available, using standard difflib")
 
 ENTRY_REGEX = re.compile(
     r'^(\S+)\s+-\s+[^\n]+\n*?(?:[\w{}<>()=:_\[\]\|\\\/#.!,;\'"\b\d\s+-@]+?)?\n*Supported Scopes:',
@@ -91,6 +100,7 @@ def get_default_script_doc_path() -> Path:
 def main():
     # Input Paths
     base_path = get_default_script_doc_path()  # Base Game logs (treated as NEW)
+    base_path = Path("d:\\GOG Games\\Settings\\Stellaris\\logs\\Stellaris.logs.4.0")  # Base Game logs (treated as NEW)
     mod_path = Path("d:\\GOG Games\\Settings\\Stellaris\\logs\\Stellaris.logs.3.14")  # Mod logs (treated as OLD)
 
     # Extracting blocks:
