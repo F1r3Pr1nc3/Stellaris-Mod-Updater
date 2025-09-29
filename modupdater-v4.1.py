@@ -620,7 +620,7 @@ revert_v4_0 = {
 		r"^(triggered_pop_)group_(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1\2"),
 
 		# --- Reversions Requiring Lambdas/Functions ---
-		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)} {divide_by_100(m.group(3))}",
+		r"\b(sapient_pop|pop)_amount\s*([<=>]+)\s*(\d+)": lambda m: f"num_{m.group(1)}s {m.group(2)}{divide_by_100(m.group(3))}",
 		r"\bpop_force_add_ethic = \{ ethic = ([\d\w\.:]+) percentage = 1 \}": r"pop_force_add_ethic = \1",
 		r"\b(set|set_timed|has|remove)_pop_group_flag\b": r"\1_pop_flag",
 		r"\bplanet_resettlement_unemployed_destination_(mult|add) = (-?[\d.]+)": lambda m: f"planet_immigration_pull_{m.group(1)} = {float(m.group(2)) / 2}",
@@ -636,12 +636,12 @@ revert_v4_0 = {
 		fr"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d+)\b": divide_by_100,
 		fr"\b(job_(?!{JOBS_EXCLUSION_LIST})\w+?_add =)\s*(-?\d+)\b": divide_by_100,
 		r"\b((?:pop_group_size|(sapient_)?pop_amount)\s*([<=>]+)\s*([\w@.]+))": lambda m:
-			f"num_{(m.group(2) if m.group(2) else '')}pops {m.group(3)} " + (
-				divide_by_100(m.group(4))
-				if re.match(r"^\d+$", m.group(4)) else m.group(4)
+			f"num_{(m.group(2) if m.group(2) else '')}pops {m.group(3)}" + (
+				divide_by_100(m.group(4)) if re.match(r"^\d+$", m.group(4)) else m.group(4)
 			),
 		# New Features must be commented out
 		r"^\w+ = menp_behemoth.+": r"# \g<0> # since v4.0",
+		
 	},
 	# --- The main dictionary with the reverted transformations for targets4 ---
 	# This version is updated to use group(1) to isolate the content for modification
@@ -665,7 +665,7 @@ revert_v4_0 = {
 		r"((\n\t+)(create_pop)_group( = \{(?:\2\t| )(?:[^\d]+?|[^\n]+?)(?:\2| )\}))" : r"\2\3\4",
 		# --- Reverting 'size' back to 'count' ---
 		r"(\bcreate_pop(?:_group)? = \{(?:\s+pop_group\s*=[^\n]+\n)?([^{}]*?)\bsize = ([\w@.]+))":
-			lambda m: f"create_pop = {{{m.group(2)}count = " + (
+			lambda m: f"create_pop = {{{m.group(2)}count =" + (
 				divide_by_100(m.group(3))
 				if re.match(r"^\d+$", m.group(3)) else m.group(3)
 			),
@@ -684,7 +684,7 @@ revert_v4_0 = {
 		# Capturing content in group(1) for sub-patterns
 		r"\b(count_owned_pop_amount = \{\s*(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*\d+)": [
 			r"(count_owned_pop)_amount( = \{\s*(?:limit = \{[^#]+?\}\s+)?)count\s*([<=>]+)\s*(\d+)",
-			lambda m: f"{m.group(1)}{m.group(2)}count {m.group(3)} {divide_by_100(m.group(4))}"
+			lambda m: f"{m.group(1)}{m.group(2)}count {m.group(3)}{divide_by_100(m.group(4))}"
 		],
 		# numeric counters back down
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}\s]+\s+)?(value\s*[<=>]+\s*\d+00)\b": [
@@ -697,15 +697,15 @@ revert_v4_0 = {
 		r"((\n\t+)pop_group_transfer_ethic = \{\2\t(?:POP_GROUP = \w+\2\t)?ETHOS = (ethic_\w+)\2\t(?:AMOUNT|PERCENTAGE) = [\w.@]+[^\n]*\2\})":
 			r"\2wipe_pop_ethos = yes\2pop_change_ethic = \3",
 		# --- Reverting Trade and Border Logic ---
+		# A little bit hacky to not be that unsure
+		r"^((\t{5}limit = {\s+)years_passed ([<=>]+) (\d\d?)(\s+\}\n\t{5}create))": (
+			re.compile(r"^(?:events|common/scripted_effects)/.*pirate.*\.txt$"),
+			r"\2event_target:pirate_system = { trade_intercepted_value \3 \4 }\5"
+		),
 		r"\bhas_monthly_income = \{ resource = trade value > 100 \}":
 			"any_system_within_border = { has_trade_route = yes trade_intercepted_value > 0 } # NOTE: Reverted to default value.",
 		r"is_on_border = yes(\s+)any_neighbor_system = \{\1\tNOR = \{ has_owner = yes has_star_flag = guardian \}\1\}":
-			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.",
-		# TODO maybe multiline, as this is VERY UNSURE
-		r"^(limit = { )years_passed ([<=>]+) (\d+)": (
-			re.compile(r"^(?:events|common/scripted_effects)/.*pirate.*\.txt$"),
-			r"\1event_target:pirate_system = { trade_intercepted_value \2 \3 }"
-		), 
+			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.", 
 		# --- Un-commenting 'pop_produces_resource' ---
 		r"# (pop_produces_resource) = \{ (type = \w+) (amount\s*[<=>]+\s*[^{}\s]+) \}":
 			r"\1 = { \2 \3 }",
@@ -2889,138 +2889,137 @@ def modfix(file_list, is_subfolder=False):
 			#		 break
 		return lines, changed
 
-	# Define the canonical order for peace offers. This list controls the output order.
-	PEACE_OFFERS_ORDER = ["status_quo", "surrender", "demand_surrender"]
-	# Define the complete set of all possible peace offers for efficient set operations.
-	ALL_PEACE_OFFERS = set(PEACE_OFFERS_ORDER)
 	# This regex finds all top-level wg_* blocks.
 	wg_block_pattern = re.compile(r"^wg_\w+\s*=\s*\{.+?^\}", flags=re.DOTALL|re.MULTILINE)
 
 	def transform_war_goals_syntax(lines: List[str], valid_lines: List[bool], changed: bool, target_version_is_v4: bool) -> Tuple[List[str], List[bool], bool]:
-	    """
-	    Upgrades or downgrades Stellaris war goal syntax between v3.* and v4.*.
+		"""
+		Upgrades or downgrades Stellaris war goal syntax between v3.* and v4.*.
 
-	    This function handles the conversion between 'allowed_peace_offers' (v3)
-	    and 'forbidden_peace_offers' (v4) within each war goal definition (wg_*).
+		This function handles the conversion between 'allowed_peace_offers' (v3)
+		and 'forbidden_peace_offers' (v4) within each war goal definition (wg_*).
 
-	    It's designed to be part of a larger script, receiving and returning a list
-	    of file lines and a change tracking flag.
+		It's designed to be part of a larger script, receiving and returning a list
+		of file lines and a change tracking flag.
 
-	    Args:
-	        lines: A list of strings, where each string is a line from the file.
-	        valid_lines: A list used for tracking, passed through unmodified.
-	        changed: A boolean flag indicating if any changes have been made.
-	        target_version_is_v4: If True, upgrades to v4 syntax. If False, downgrades to v3.
+		Args:
+			lines: A list of strings, where each string is a line from the file.
+			valid_lines: A list used for tracking, passed through unmodified.
+			changed: A boolean flag indicating if any changes have been made.
+			target_version_is_v4: If True, upgrades to v4 syntax. If False, downgrades to v3.
 
-	    Returns:
-	        A tuple containing the (potentially modified) list of lines, the
-	        unmodified valid_lines list, and the updated changed flag.
-	    """
-	    file_content = "\n".join(lines)
-	    forbidden_pattern = re.compile(r"^\tforbidden_peace_offers\s*=\s*\{([^{}]+)\}", re.MULTILINE)
-	    allowed_pattern = re.compile(r"^\tallowed_peace_offers\s*=\s*\{[^{}]*?\}", re.MULTILINE)
+		Returns:
+			A tuple containing the (potentially modified) list of lines, the
+			unmodified valid_lines list, and the updated changed flag.
+		"""
+		# Define the canonical order for peace offers. This list controls the output order.
+		PEACE_OFFERS_ORDER = ["status_quo", "surrender", "demand_surrender"]
+		# Define the complete set of all possible peace offers for efficient set operations.
+		ALL_PEACE_OFFERS = set(PEACE_OFFERS_ORDER)
+		file_content = "\n".join(lines)
+		forbidden_pattern = re.compile(r"^\tforbidden_peace_offers\s*=\s*\{([^{}]+)\}", re.MULTILINE)
+		allowed_pattern = re.compile(r"^\tallowed_peace_offers\s*=\s*\{[^{}]*?\}", re.MULTILINE)
 
-	    # --- Replacer function for DOWNGRADING to v3.* ---
-	    def _downgrade_replacer(match: re.Match) -> str:
-	        wg_block_text = match.group(0)
-	        if "allowed_peace_offers" in wg_block_text:
-	            return wg_block_text # Already in v3 format
+		def _downgrade_replacer(match: re.Match) -> str:
+			"--- Replacer function for DOWNGRADING to v3.* ---"
+			wg_block_text = match.group(0)
+			if "allowed_peace_offers" in wg_block_text:
+				return wg_block_text # Already in v3 format
 
-	        forbidden_match = forbidden_pattern.search(wg_block_text)
+			forbidden_match = forbidden_pattern.search(wg_block_text)
 
-	        if forbidden_match:
-	            forbidden_content = forbidden_match.group(1)
-	            forbidden_items = {line.split('=')[0].strip() for line in forbidden_content.splitlines() if line.split('#')[0].strip()}
-	            
-	            allowed_items = ALL_PEACE_OFFERS - forbidden_items
-	            ordered_allowed = [offer for offer in PEACE_OFFERS_ORDER if offer in allowed_items]
-	            
-	            new_block = f"\tallowed_peace_offers = {{ {' '.join(ordered_allowed)} }}"
-	            return forbidden_pattern.sub(new_block, wg_block_text)
-	        else:
-	            # Add default block if none exists, as it's required in v3.
-	            # Insert it at a contextually appropriate location.
-	            block_lines = wg_block_text.splitlines(True) # keepends=True
-	            default_block_line = f"\tallowed_peace_offers = {{ {' '.join(PEACE_OFFERS_ORDER)} }}\n"
+			if forbidden_match:
+				forbidden_content = forbidden_match.group(1)
+				forbidden_items = {line.split('=')[0].strip() for line in forbidden_content.splitlines() if line.split('#')[0].strip()}
+				
+				allowed_items = ALL_PEACE_OFFERS - forbidden_items
+				ordered_allowed = [offer for offer in PEACE_OFFERS_ORDER if offer in allowed_items]
+				
+				new_block = f"\tallowed_peace_offers = {{ {' '.join(ordered_allowed)} }}"
+				return forbidden_pattern.sub(new_block, wg_block_text)
+			else:
+				# Add default block if none exists, as it's required in v3.
+				# Insert it at a contextually appropriate location.
+				block_lines = wg_block_text.splitlines(True) # keepends=True
+				default_block_line = f"\tallowed_peace_offers = {{ {' '.join(PEACE_OFFERS_ORDER)} }}\n"
 
-	            insertion_index = -1
-	            
-	            # Define a single pattern with all preferred keywords, joined by '|' (OR).
-	            search_after_pattern = re.compile(r'^\t(surrender_acceptance|cede_claims|war_exhaustion|set_defender_wargoal)')
+				insertion_index = -1
+				
+				# Define a single pattern with all preferred keywords, joined by '|' (OR).
+				search_after_pattern = re.compile(r'^\t(surrender_acceptance|cede_claims|war_exhaustion|set_defender_wargoal)')
 
-	            # Find the first match from our preferred list.
-	            for i, line in enumerate(block_lines):
-	                if search_after_pattern.match(line):
-	                    insertion_index = i + 1
-	                    break
-	            
-	            # If no preferred line, find the first sub-block (e.g., "potential = {") to insert BEFORE.
-	            if insertion_index == -1:
-	                sub_block_pattern = re.compile(r'^\t\w+\s*=\s*\{')
-	                for i, line in enumerate(block_lines[1:], start=1): # Skip the 'wg_* = {' line.
-	                    if sub_block_pattern.match(line):
-	                        insertion_index = i
-	                        break
-	            
-	            # As a final fallback, insert before the last line (the closing brace).
-	            if insertion_index == -1:
-	                insertion_index = len(block_lines) - 1 if len(block_lines) > 1 else 1
+				# Find the first match from our preferred list.
+				for i, line in enumerate(block_lines):
+					if search_after_pattern.match(line):
+						insertion_index = i + 1
+						break
+				
+				# If no preferred line, find the first sub-block (e.g., "potential = {") to insert BEFORE.
+				if insertion_index == -1:
+					sub_block_pattern = re.compile(r'^\t\w+\s*=\s*\{')
+					for i, line in enumerate(block_lines[1:], start=1): # Skip the 'wg_* = {' line.
+						if sub_block_pattern.match(line):
+							insertion_index = i
+							break
+				
+				# As a final fallback, insert before the last line (the closing brace).
+				if insertion_index == -1:
+					insertion_index = len(block_lines) - 1 if len(block_lines) > 1 else 1
 
-	            block_lines.insert(insertion_index, default_block_line)
-	            return "".join(block_lines)
+				block_lines.insert(insertion_index, default_block_line)
+				return "".join(block_lines)
 
-	    # --- Replacer function for UPGRADING to v4.* ---
-	    def _upgrade_replacer(match: re.Match) -> str:
-	        wg_block_text = match.group(0)
-	        if "forbidden_peace_offers" in wg_block_text:
-	            return wg_block_text # Already in v4 format
+		def _upgrade_replacer(match: re.Match) -> str:
+			"--- Replacer function for UPGRADING to v4.* ---"
+			wg_block_text = match.group(0)
+			if "forbidden_peace_offers" in wg_block_text:
+				return wg_block_text # Already in v4 format
 
-	        allowed_match = allowed_pattern.search(wg_block_text)
+			allowed_match = allowed_pattern.search(wg_block_text)
 
-	        if not allowed_match:
-	            return wg_block_text # No block to convert, which is valid in v4
+			if not allowed_match:
+				return wg_block_text # No block to convert, which is valid in v4
 
-	        allowed_content = allowed_match.group(0)
-	        # Extract items from between the braces
-	        items_str = allowed_content[allowed_content.find('{')+1:allowed_content.rfind('}')]
-	        allowed_items = set(items_str.strip().split())
+			allowed_content = allowed_match.group(0)
+			# Extract items from between the braces
+			items_str = allowed_content[allowed_content.find('{')+1:allowed_content.rfind('}')]
+			allowed_items = set(items_str.strip().split())
 
-	        # If all items are allowed, the v4 syntax is to have no block at all.
-	        if allowed_items == ALL_PEACE_OFFERS:
-	            # Replace the matched 'allowed_peace_offers' block with an empty string, effectively removing it.
-	            # We also strip leading/trailing whitespace from the result to clean up newlines.
-	            return allowed_pattern.sub("", wg_block_text).strip()
+			# If all items are allowed, the v4 syntax is to have no block at all.
+			if allowed_items == ALL_PEACE_OFFERS:
+				# Replace the matched 'allowed_peace_offers' block with an empty string, effectively removing it.
+				# We also strip leading/trailing whitespace from the result to clean up newlines.
+				return allowed_pattern.sub("", wg_block_text).strip()
 
-	        forbidden_items = ALL_PEACE_OFFERS - allowed_items
-	        ordered_forbidden = [offer for offer in PEACE_OFFERS_ORDER if offer in forbidden_items]
-	        
-	        # Format with keys and empty string values, as is common in v4 files
-	        forbidden_lines = "\n".join([f"\t\t{item} = \"\"" for item in ordered_forbidden])
-	        new_block = f"\tforbidden_peace_offers = {{\n{forbidden_lines}\n\t}}"
-	        return allowed_pattern.sub(new_block, wg_block_text)
+			forbidden_items = ALL_PEACE_OFFERS - allowed_items
+			ordered_forbidden = [offer for offer in PEACE_OFFERS_ORDER if offer in forbidden_items]
+			
+			# Format with keys and empty string values, as is common in v4 files
+			forbidden_lines = "\n".join([f"\t\t{item} = \"\"" for item in ordered_forbidden])
+			new_block = f"\tforbidden_peace_offers = {{\n{forbidden_lines}\n\t}}"
+			return allowed_pattern.sub(new_block, wg_block_text)
 
-	    # --- Main Logic ---
+		# --- Main Logic ---
+		# Choose the correct replacer function based on the target version
+		if target_version_is_v4:
+			logger.debug(f"--- UPGRADING v3 FILE {basename} TO v4 ---")
+			replacer_func = _upgrade_replacer
+		else:
+			logger.debug(f"--- DOWNGRADING v4 FILE {basename} TO v3 ---")
+			replacer_func = _downgrade_replacer
 
-	    # Choose the correct replacer function based on the target version
-	    
-	    if target_version_is_v4:
-	        print(f"--- UPGRADING v3 FILE {basename} TO v4 ---")
-	        replacer_func = _upgrade_replacer
-	    else:
-	        print(f"--- DOWNGRADING v4 FILE {basename} TO v3 ---")
-	        replacer_func = _downgrade_replacer
+		new_file_content = wg_block_pattern.sub(replacer_func, file_content)
+		# print(f"transform_war_goals_syntax {new_file_content != file_content}")
 
-	    new_file_content = wg_block_pattern.sub(replacer_func, file_content)
-	    # print(f"transform_war_goals_syntax {new_file_content != file_content}")
-
-	    if new_file_content != file_content:
-	        changed = True
-	        # Use splitlines with keepends=True to preserve original line endings
-	        new_lines = new_file_content.splitlines(keepends=False)
-	        return new_lines, valid_lines, changed
-	    
-	    return lines, valid_lines, changed
-
+		if new_file_content != file_content:
+			changed = True
+			# Use splitlines with keepends=True to preserve original line endings
+			new_lines = new_file_content.splitlines(keepends=False)
+			# Refresh valid_lines accordingly
+			new_lines, valid_lines = format_indentation(new_lines)
+			return new_lines, valid_lines, changed
+		
+		return lines, valid_lines, changed
 
 	# (Since v4.0) since v4.0.22 optional
 	def transform_add_leader_trait(lines, valid_lines, changed):
@@ -3112,14 +3111,14 @@ def modfix(file_list, is_subfolder=False):
 
 		return lines, valid_lines, changed
 
-	find_regex_comm = re.compile(
+	find_re_comm = re.compile(
 		r'^(\t)(?:weight(?:_modifier)?|[Aa][Ii]_weight|monthly_progress|usage_odds) = \{(.+?)^\1\}',
 		flags=re.DOTALL|re.M
 	)
-	find_regex_evnt = re.compile(r'^(\t+)random_list = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
-	find_regex_list = re.compile(r'^(\t+)\d+ = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
-	mod_regex_block = re.compile(r'^(\t+)modifier = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
-	# find_regex_list = re.compile(r'^(\t+)\d+ = \{([^{}]*?(?:\{[^{}]*\}[^{}]*?)*?)\}',flags=re.DOTALL)
+	find_re_evnt = re.compile(r'^(\t+)random_list = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
+	find_re_list = re.compile(r'^(\t+)\d+ = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
+	mod_re_block = re.compile(r'^(\t+)modifier = \{(.+?)^\1\}', flags=re.DOTALL|re.M)
+	# find_re_list = re.compile(r'^(\t+)\d+ = \{([^{}]*?(?:\{[^{}]*\}[^{}]*?)*?)\}',flags=re.DOTALL)
 	def merge_factor0_modifiers(text: str, changed: bool) -> tuple:
 		"""
 		Merge multiple `modifier = { factor = 0 ... }` blocks into a single one
@@ -3225,7 +3224,7 @@ def modfix(file_list, is_subfolder=False):
 				# Get the end of the last modifier block
 				insert_at = new_line_start
 				new_line_start = None
-				for m in mod_regex_block.finditer(new_content):
+				for m in mod_re_block.finditer(new_content):
 					new_line_start = m
 				if new_line_start:
 					if new_line_start.end() > insert_at:
@@ -3274,10 +3273,10 @@ def modfix(file_list, is_subfolder=False):
 			Returns list iterator of match objects of block_content.
 			"""
 			new_content = text
-			for list_block in reversed(list(find_regex_evnt.finditer(text))):
-				if find_regex_list.search(list_block.group(2)):
+			for list_block in reversed(list(find_re_evnt.finditer(text))):
+				if find_re_list.search(list_block.group(2)):
 					# print(f"Found random_list content:\n{list_block.group(2)}\n---") # The full matched block, e.g. "random_list = {...}"
-					new_list_block = find_regex_list.sub(repl, list_block.group(2))
+					new_list_block = find_re_list.sub(repl, list_block.group(2))
 					# print(f"{changed} After trying to change random_list content:\n{new_list_block}\n---")
 					# Replace the old block with the new one in the full text
 					new_content = (
@@ -3291,7 +3290,7 @@ def modfix(file_list, is_subfolder=False):
 				changed = True
 			return (new_content, changed)
 		else:
-			return (find_regex_comm.sub(repl, text), changed)
+			return (find_re_comm.sub(repl, text), changed)
 
 	def write_file():
 		structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
@@ -3355,16 +3354,18 @@ def modfix(file_list, is_subfolder=False):
 
 		return rt
 
+	mod_time_re = re.compile(r"((years|months) = (\d+)(?:\s*\})?)\s*#\s*\3\s*\2.*$", re.DOTALL)
+
 	def format_indentation(lines: list[str]) -> tuple[list[str], list[str]]:
 		"""
 		Corrects the indentation of Stellaris code using tabs.
 		It processes the text line by line, adjusting indentation based on curly braces.
 
 		"""
+		nonlocal changed
 		# logger.info("Starting indentation correction...")
 		# lines = [l.replace('    ', '\t') for l in lines] # replace spaces with tabs
 		# BR = '\n' # os.linesep
-		nonlocal changed
 
 		new_lines = []
 		stripped_lines = []
@@ -3416,10 +3417,17 @@ def modfix(file_list, is_subfolder=False):
 					content_part = content_part[0].rstrip()
 					# We have a real separate comment
 					if len(content_part) > 0:
-						if not cmt.startswith("#") and not cmt.startswith(" ") and not cmt.startswith("	"):
-							cmt = " " + cmt
-						cmt = "#" + cmt
-						stripped_line = f"{content_part} {cmt}"
+						if not cmt.startswith("#"):
+							# Cleanup superfluous comments (cosmetic)
+							if mod_time_re.search(stripped_line): # actually just a backfix
+								cmt = ""
+							elif not cmt.startswith(" ") and not cmt.startswith("	"):
+								cmt = " # " + cmt
+							else:
+								cmt = " #" + cmt
+						else:
+							cmt = " #" + cmt
+						stripped_line = f"{content_part}{cmt}"
 					else:
 						stripped_line = "#" + cmt
 				else:
@@ -3433,20 +3441,28 @@ def modfix(file_list, is_subfolder=False):
 
 			open_braces = content_part.count('{')
 			close_braces = content_part.count('}')
+			ind = 0 # current_indent_level
 
 			# Determine indentation for the current line.
 			# Adjust indent level before writing line if closing brace
-			if close_braces > open_braces:
-				indent_level -= (close_braces - open_braces)
-				if indent_level < 0: # Should never happen
-					logger.error(f"⚠ Missmatch BRACKET in line {i} on file {subfolder}/{basename}")
-					indent_level = 0
-					break # We need a full break as we don't know the exact missmatch location.
-					return lines, []
-			ind = '\t' * indent_level
+			if close_braces or open_braces:
+				if close_braces > open_braces:
+					indent_level -= (close_braces - open_braces)
+					if indent_level < 0: # Should never happen
+						logger.error(f"⚠ Missmatch BRACKET in line {i} on file {subfolder}/{basename}")
+						indent_level = 0
+						break # We need a full break as we don't know the exact missmatch location.
+						return lines, []
+				elif open_braces > close_braces: # Adjust indent level after writing line if opening brace
+					ind = (open_braces - close_braces)
+					indent_level += ind
+					ind *= -1
+				elif content_part.startswith("}"):
+					# Handle something like "} else = {", # Either create a new line, or reduce current_indent_level
+					ind = -1
+
+			ind = '\t' * (indent_level + ind)
 			line = f"{ind}{stripped_line}"
-			if open_braces > close_braces: # Adjust indent level after writing line if opening brace
-				indent_level += (open_braces - close_braces)
 
 			# Warn/Skip double line
 			if (
