@@ -17,7 +17,7 @@ from collections import defaultdict
 from typing import List, Tuple
 
 # @Author: FirePrince
-# @Revision: 2025/09/29
+# @Revision: 2025/09/30
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -511,9 +511,10 @@ v4_0 = {
 		r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
 		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_100],
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_100],
-		r"\bwhile = \{\s*count = \d+\s+create_pop_group = \{\s*species = [\w\.:]+(?:\s*ethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\})|\s*)\s*\}\s*\}": [ # TODO count with vars needs to be tested
-			r"while = \{\s*count = (\d+)\s+create_pop_group = \{\s*(species = [\w\.:]+)\s*?(\sethos = (?:[\d\w\.:]+|\{\s*ethic = \w+(?:\s+ethic = \w+)?\s*\}))?\s*\}\s*\}",
-			r"create_pop_group = { \g<2> size = \g<1>00\g<3> }"],
+		r"\b(while = \{\s*count = (\d+)(\s+)create_pop_group = \{\s+(species = [\w\.:]+)(\s+?ethos = (?:[\d\w\.:\"]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\s*\}\s*\})": # TODO count with vars needs to be tested
+			lambda p: f"create_pop_group = {{{p.group(3)}{p.group(4)}{p.group(3)}size = {p.group(2)}00"
+			f"{dedent_block(p.group(5)+p.group(3))}}}",
+			# r"create_pop_group = {\g<3>\g<4>\g<3>size = \g<2>00\g<5>\g<3>}",
 		r"^(?:\t(?:condition_string|building_icon|icon) = \w+\n){1,3}": [
 			r"(\t(?:condition_string|building_icon|icon) = \w+\n)\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?", ("common/pop_jobs", lambda m:
 				'\tswappable_data = {\n\t\tdefault = {\n\t\t'+m.group(1)+
@@ -2174,16 +2175,15 @@ def add_code_cosmetic():
 		# 	r"is_gestalt = \1\2",
 		# ],
 		r"\b(?:is_gestalt = (?:yes|no)\s+is_hive_empire = (?:yes|no)|is_hive_empire = (?:yes|no)\s+is_gestalt = (?:yes|no))": [
-			r"(?:is_gestalt = (yes|no)\s+is_hive_empire = \1|is_hive_empire = (yes|no)\s+is_gestalt = \2)",
-			r"is_gestalt = \1\2",
+			r"(?:is_gestalt = (yes|no)\s+is_hive_empire = \1|is_hive_empire = (yes|no)\s+is_gestalt = \2)", (("T", "is_gestalt"), r"is_gestalt = \1\2"),
 		],
-		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes": "is_fallen_empire_machine = yes",
+		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes": (("T", "is_fallen_empire_machine"), "is_fallen_empire_machine = yes"), 
 		r"\b(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(?:%s)|has_ethic = ethic_fanatic_(?:%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS): [
 			r"(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(%s)|has_ethic = ethic_fanatic_(%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS),
-			r"is_fallen_empire_\1\2 = yes",
+			(NO_TRIGGER_FOLDER, r"is_fallen_empire_\1\2 = yes"),
 		],
 		r'\b(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (?:yes|no)|has_machine_age_dlc = (?:yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")': [
-			r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")',
+			r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")', (NO_TRIGGER_FOLDER, 
 			lambda p: "has_synthetic_dawn_"
 			+ (
 				"not"
@@ -2191,7 +2191,7 @@ def add_code_cosmetic():
 				or (not p.group(1) and p.group(2) == "no")
 				else "and"
 			)
-			+ "_machine_age = yes",
+			+ "_machine_age = yes"),
 		],
 		r"^\w+_event = \{\n\s*#[^\n]+": [r"(\w+_event = \{)\s+(#[^\n]+)", ("events", r"\2\n\1")],
 		r"\bexists = owner\s+can_generate_trade_value = yes": (("T", "can_generate_trade_value"), "can_generate_trade_value = yes"),
@@ -2271,11 +2271,18 @@ def add_code_cosmetic():
 		],
 		## Merge last_created_xxx
 		# TODO more Dynamic 
-		r"((\n\t+)create_(%s) = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_\3 = \{( |\2)[\s\S]+?)(?(4)\4)\}" % LAST_CREATED_SCOPES: [
-			r"((\n\t+)create_\w+ = \{\2[^{}]*?)(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+last_created_\w+ = \{\s+([\s\S]+?)\s+\}$", lambda p:
+		r"((\n\t+)create_(%s) = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_\3 = \{( |\2)[\s\S]+?)(?(4)\4)\}" % LAST_CREATED_SCOPES:[
+			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t[^\n]+){1,18}))(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+last_created_\w+ = \{\s+([\s\S]+?)\s+\}$", lambda p:
 				f"{p.group(1)}{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')}"
-				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t}}{p.group(2)}}}"
-		], # \1\n\2\teffect = {\3\n\2\t\4\n\2}
+				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t\t}}{p.group(2)}\t}}"
+		], # \1\2\teffect = {\3\2\t\4\2}
+		r"((\n\t+)create_pop_group = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2(?:last_created_pop|event_target:last_created_pop_group) = \{( |\2)[\s\S]+?)(?(3)\3)\}": [
+			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t[^\n]+){1,18}))(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+(?:[\w+:]+) = \{\s+([\s\S]+?)\s+\}$", lambda p:
+				f"{p.group(1)}{p.group(2)}\teffect = {{" + (
+					re.sub(r"\s+save_event_target_as = last_created_pop_group", '', p.group(3)) if p.group(3) else ''
+				) +
+				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t\t}}{p.group(2)}\t}}"
+		], # \1\2\teffect = {\3\2\t\4\2}
 		# FIXME Catastrophic backtracking
 		# r"((\n\t+)(?:clone|create)_leader = \{\2\t[^{}]+?(?:traits = \{[^{}]+\})?(?:\2\t[^\n{}]+){,5}\s*(?:effect = \{\2\t\t(?:\2\t\t[^\n\t]+){,9}\2\t\}\2)?\}\2last_created_leader = \{[\s\S]+?)\2\}": [
 		r"((\n\t+)(?:clone|create)_leader = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_leader = \{( |\2)[\s\S]+?(?(3)\3)\})": [
@@ -2491,7 +2498,7 @@ def convert_prescripted_countries_flags():
 	flags_dict = {}
 	modkey = ""
 
-	def extract_empire_shortname(block_key: str, block_content: str, file_path: str, flags: list) -> str:
+	def extract_empire_shortname(block_key: str, block_content: str, flags: list) -> str:
 		"""
 		Derives a shortname for a prescripted empire block.
 		Priority:
@@ -2500,12 +2507,12 @@ def convert_prescripted_countries_flags():
 		Args:
 			block_key (str): The key name before the '=' in the prescripted country file.
 			block_content (str): The full text of the block (inside { ... }).
-			file_path (str): The file this block comes from.
 
 		Returns:
 			str: empire shortname (lowercased, safe for Stellaris).
 		"""
 		best_string = None
+		shortname = block_key
 		# First look for specifc names e.g. the_tau_empire
 		if len(flags) < 3 or any(s.startswith("the") for s in flags):
 			for s in flags:
@@ -2645,8 +2652,8 @@ def convert_prescripted_countries_flags():
 							flags_inside = flags
 						if flags_inside:
 							file_modified_in_this_pass = True
-							shortname = extract_empire_shortname(block_key, block_body, filepath, flags_inside)
-							# print(block_key, shortname, flags_inside)
+							shortname = extract_empire_shortname(block_key, block_body, flags_inside)
+							print(block_key, shortname, flags_inside)
 							flags_dict[shortname] = flags_inside
 							# Replace with new format
 							new_block_body = flag_block_pattern.sub(f"\tflag = {shortname}", block_body, count=1)
@@ -3415,9 +3422,11 @@ def modfix(file_list, is_subfolder=False):
 				content_part = stripped_line.split('#', 1)
 				if len(content_part) > 1 and len(content_part[1]) > 0:
 					cmt = content_part[1]
-					content_part = content_part[0]
+					content_part = content_part[0] 
+
 					# We have a real separate comment
 					if len(content_part.rstrip()) > 0:
+						# No rstrip as we keep original space separator
 						if not content_part.endswith((' ', '\t')):
 							content_part += " " # Needs a space separator
 						if not cmt.startswith("#"):
