@@ -3370,6 +3370,7 @@ def modfix(file_list, is_subfolder=False):
 		new_lines = []
 		stripped_lines = []
 		deleted_lines = 0
+		added_lines = 0 # for warning only
 		indent_level = 0
 		blank_lines = 0 # targets4[r"(\t*?\n){3,6}"] = "\n\n" # cosmetic remove surplus lines
 		# For syntax fix debug
@@ -3414,19 +3415,21 @@ def modfix(file_list, is_subfolder=False):
 				content_part = stripped_line.split('#', 1)
 				if len(content_part) > 1 and len(content_part[1]) > 0:
 					cmt = content_part[1]
-					content_part = content_part[0].rstrip()
+					content_part = content_part[0]
 					# We have a real separate comment
-					if len(content_part) > 0:
+					if len(content_part.rstrip()) > 0:
+						if not content_part.endswith((' ', '\t')):
+							content_part += " " # Needs a space separator
 						if not cmt.startswith("#"):
 							# Cleanup superfluous comments (cosmetic)
 							if mod_time_re.search(stripped_line): # actually just a backfix
 								cmt = ""
-							elif not cmt.startswith(" ") and not cmt.startswith("	"):
-								cmt = " # " + cmt
+							elif not cmt.startswith((' ', '\t')):
+								cmt = "# " + cmt
 							else:
-								cmt = " #" + cmt
+								cmt = "#" + cmt
 						else:
-							cmt = " #" + cmt
+							cmt = "#" + cmt
 						stripped_line = f"{content_part}{cmt}"
 					else:
 						stripped_line = "#" + cmt
@@ -3449,16 +3452,24 @@ def modfix(file_list, is_subfolder=False):
 				if close_braces > open_braces:
 					indent_level -= (close_braces - open_braces)
 					if indent_level < 0: # Should never happen
-						logger.error(f"⚠ Missmatch BRACKET in line {i} on file {subfolder}/{basename}")
+						logger.error(f"⚠ Mismatch BRACKET in line {i} on file {subfolder}/{basename}")
 						indent_level = 0
-						break # We need a full break as we don't know the exact missmatch location.
+						break # We need a full break as we don't know the exact mismatch location.
 						return lines, []
+					# Handle wrong bracket nesting"else = { } }"
+					if open_braces and content_part.endswith("}") and cmt == "" and not content_part.startswith("}"):
+						deleted_lines -= 1
+						added_lines += 1
+						ind = 1
+						stripped_line = '\t' * indent_level
+						stripped_line = f"{content_part[:-1].rstrip()}\n{stripped_line}}}"
+						changed = True
 				elif open_braces > close_braces: # Adjust indent level after writing line if opening brace
 					ind = (open_braces - close_braces)
 					indent_level += ind
 					ind *= -1
-				elif content_part.startswith("}"):
-					# Handle something like "} else = {", # Either create a new line, or reduce current_indent_level
+				elif content_part.startswith("}"): # Handle something like "} else = {"
+					# Either create a new line, or reduce current_indent_level
 					ind = -1
 
 			ind = '\t' * (indent_level + ind)
@@ -3493,8 +3504,8 @@ def modfix(file_list, is_subfolder=False):
 			new_lines.append(line)
 
 		# logger.info(f"Indentation correction finished.")
-		if deleted_lines != len(lines)-len(new_lines): # Should never happen
-			logger.error(f"⚠ Missmatch LINES count at file {subfolder}/{basename} (count {deleted_lines} != {len(lines)-len(new_lines)}).")
+		if deleted_lines + added_lines != len(lines)-len(new_lines): # Should never happen
+			logger.error(f"⚠ Mismatch LINES count at file {subfolder}/{basename} (virtual count {deleted_lines - added_lines} != {len(lines)-len(new_lines)}).")
 
 		if len(new_lines) > 2 and new_lines[-1]: # and "inline_scripts" not in subfolder
 			# The last values from the loop (if there is just one empty line the vanilla parser gets crazy)
