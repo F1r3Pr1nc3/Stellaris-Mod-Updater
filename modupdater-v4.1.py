@@ -17,7 +17,7 @@ from collections import defaultdict
 from typing import List, Tuple
 
 # @Author: FirePrince
-# @Revision: 2025/09/30
+# @Revision: 2025/10/03
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
@@ -32,7 +32,7 @@ mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stella
 # e.g. "c:\\Users\\User\\Documents\\Paradox Interactive\\Stellaris\\mod\\atest\\"   "d:\\Steam\\steamapps\\common\\Stellaris"
 only_warning = 0
 only_actual = 0
-code_cosmetic = 0 # Still Beta
+code_cosmetic = 1 # Still Beta
 also_old = 0
 mergerofrules = 0 # Forced support for compatibility with The Merger of Rules (MoR)
 keep_default_country_trigger = 0
@@ -144,7 +144,17 @@ actuallyTargets = {
 # --- Helper Lambda Functions ---
 def multiply_by_100(m):
 	" Multiply regexp string integer by hundred "
-	return f"{m.group(1)} {int(m.group(2))*100}"
+	if isinstance(m, str):
+		prefix = ""
+		original_value = int(m)
+	else:
+		prefix = "".join(m.groups()[:-1])
+		original_value = int(m.groups()[-1])
+	if original_value < 100:
+		new_value = original_value * 100
+	else:
+		new_value = original_value
+	return f"{prefix} {int(new_value) if new_value == int(new_value) else new_value}"
 
 # def multiply_by_hundred_float(m):
 #	 return f"{m.group(1)} {int(float(m.group(2))*100)}"
@@ -386,9 +396,9 @@ v4_0 = {
 		r"\bis_pop\b": r"is_same_value",
 		r"\b(count_owned_pop)s?\b": r"\1_amount",
 		r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
-		r"\b((?:any|every|ordered)_owned_pop|create_pop) =": r"\1_group =",
+		fr"\b(?:{VANILLA_PREFIXES})_owned_pop =": r"\g<0>_group =",
 		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": # WARNING: has not same functionality anymore (just scripted e.g. for switch, but pop_group_size)
-			lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}", 
+			lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
 		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_100),
 		r"^on_pop_(abducted|resettled|added|rights_change)\b": ("common/on_actions", r"on_pop_group_\1"),
 		r"^on_pop_ethic_changed\b": ("common/on_actions", "on_daily_pop_ethics_divergence"),
@@ -424,7 +434,7 @@ v4_0 = {
 		r"\bcategory = pop\b": "category = pop_group",
 		r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
 		r"\bpop_force_add_ethic = ([\d\w\.:]+)\b":  r"pop_force_add_ethic = { ethic = \1 percentage = 1 }", # AMOUNT = 100
-		r"\b(create_pop_group = \{ species = [\w\.:]+ )count( = \d+)":  r"\g<1>size\g<2>00", # Just cheap pre-fix
+		r"\b(create_pop(?:_group)? = \{ species = [\w\.:]+ )(?:(count)|size)( = \d(?:(?(2)\d*|\d?)))\b":  r"\g<1>size\g<3>00", # Just cheap pre-fix
 		# r"\b(create_pop_group = \{ species = [\w\.:]+ )count = (\d+)": lambda m: f"{m.group(1)}size = {int(m.group(2)) * 100}",
 		r"\b(set|set_timed|has|remove)_pop_flag\b":  r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
@@ -488,8 +498,8 @@ v4_0 = {
 		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s|amenities_no_happiness|crime)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
 			r"(planet_\w+_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b", multiply_by_100
 		],
-		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\w\.:]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\w\.:]+)\s*\}":
-			[r"\bcount\b", "size"],
+		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\w\.:@]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\w\.:@]+)\s*\}":
+			[r"\bcount = ([\w\.@]+)\b", lambda m: "size =" + multiply_by_100(m.group(1))],
 		r"\s+every_owned_pop = \{\s+resettle_pop = \{\s+[^{}#]+\s*\}\s+\}": [
 			r"(\s+)every_owned_pop = \{\s+resettle_pop = \{\s+pop = ([\d\w\.:]+)\s*planet = ([\d\w\.:]+)\s+\}",
 			r"\1resettle_pop_group = {\1\tPOP_GROUP = \2\1\tPLANET = \3\1\tPERCENTAGE = 1"
@@ -511,9 +521,11 @@ v4_0 = {
 		r"\bpop_produces_resource = \{\s+[^{}#]+\}": [r"\(bpop_produces_resource) = \{\s+(type = \w+)\s+(amount\s*[<=>]+\s*[^{}\s]+)\s+\}", r"# \1= { \2 \3 }"], # Comment out
 		r"\bcount_owned_pop_amount = \{\s+(?:limit = \{[^#]+?\}\s+)?count\s*[<=>]+\s*[1-9]\d?\s": [r"\b(count\s*[<=>]+)\s*(\d+)", multiply_by_100],
 		r"\bnum_assigned_jobs = \{\s*(?:job = [^{}#\s]+\s+)?value\s*[<=>]+\s*[1-9]\d?\s": [r"\b(value\s*[<=>]+)\s*(\d+)", multiply_by_100],
-		r"\b(while = \{\s*count = (\d+)(\s+)create_pop_group = \{\s+(species = [\w\.:]+)(\s+?ethos = (?:[\d\w\.:\"]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\s*\}\s*\})": # TODO count with vars needs to be tested
-			lambda p: f"create_pop_group = {{{p.group(3)}{p.group(4)}{p.group(3)}size = {p.group(2)}00"
-			f"{dedent_block(p.group(5)+p.group(3))}}}",
+		r"\b(while = \{\s*count = (\d+)\s*?(\n\t+)create_pop_group = \{\s+(species = [\w\.:]+)(\s+?ethos = (?:[\d\w\.:\"]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\}))?\s*\}\s*\})": # TODO count with vars needs to be tested
+			lambda p:
+				f"create_pop_group = {{{p.group(3)}{p.group(4)}{p.group(3)}size = {p.group(2)}00"
+				f"{dedent_block(p.group(5) or '' +p.group(3))}}}"
+			,
 			# r"create_pop_group = {\g<3>\g<4>\g<3>size = \g<2>00\g<5>\g<3>}",
 		r"^(?:\t(?:condition_string|building_icon|icon) = \w+\n){1,3}": [
 			r"(\t(?:condition_string|building_icon|icon) = \w+\n)\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?\s*?(\t(?:condition_string|building_icon|icon) = \w+\n)?", ("common/pop_jobs", lambda m:
@@ -629,7 +641,7 @@ revert_v4_0 = {
 		# unpack the canonical 'structures' into the two original keys, preserve indentation
 		r"\bplanet_structures_cost_mult": "planet_buildings_cost_mult",
 		r"\bis_robot_pop_group\b": "is_robot_pop",
-		r"\b(trigger(?: = |:))(?:pop_group_size|(sapient_)?pop_amount)\b": r"\1num_\2pops", 
+		r"\b(trigger(?: = |:))(?:pop_group_size|(sapient_)?pop_amount)\b": r"\1num_\2pops",
 		r"\b(trigger(?: = |:))count_owned_pop_amount\b": r"\1count_owned_pop",
 
 		# --- Reversions Using the 'divide_by_100' Function ---
@@ -642,7 +654,7 @@ revert_v4_0 = {
 			),
 		# New Features must be commented out
 		r"^\w+ = menp_behemoth.+": r"# \g<0> # since v4.0",
-		
+
 	},
 	# --- The main dictionary with the reverted transformations for targets4 ---
 	# This version is updated to use group(1) to isolate the content for modification
@@ -670,7 +682,6 @@ revert_v4_0 = {
 				divide_by_100(m.group(3))
 				if re.match(r"^\d+$", m.group(3)) else m.group(3)
 			),
-
 		r"(?s)((\n\t+)create_pop_group = \{(\2\t)(\s*pop_group\s*=[^\n]+\n)?([^{}]*?\3effect = \{.*?(?:\3| )\}))\2\}":
 			r"\2create_pop = {\3\5",
 		r"^((\t+)(?:%s)_owned_pop_(?:job|group) = \{\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+kill_assigned_pop_amount = \{ percentage = 1 \})\n\2\}" % VANILLA_PREFIXES: [
@@ -706,7 +717,7 @@ revert_v4_0 = {
 		r"\bhas_monthly_income = \{ resource = trade value > 100 \}":
 			"any_system_within_border = { has_trade_route = yes trade_intercepted_value > 0 } # NOTE: Reverted to default value.",
 		r"is_on_border = yes(\s+)any_neighbor_system = \{\1\tNOR = \{ has_owner = yes has_star_flag = guardian \}\1\}":
-			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.", 
+			"has_trade_route = yes # NOTE: Reverted from border check; 'trade_intercepted_value' info lost.",
 		# --- Un-commenting 'pop_produces_resource' ---
 		r"# (pop_produces_resource) = \{ (type = \w+) (amount\s*[<=>]+\s*[^{}\s]+) \}":
 			r"\1 = { \2 \3 }",
@@ -1691,11 +1702,11 @@ def dedent_block(block_match):
 	"Simple block dedent"
 	# block_indent = block_match.group(1)
 	# block_match = block_match.group(2)
-	return re.sub(r'^\t', '', block_match, flags=re.MULTILINE)
+	return re.sub(r'^\t', '', block_match, flags=re.M)
 
 def indent_block(block_match):
 	"Simple block indent"
-	return re.sub(r'^\t', r'\t\t', block_match, flags=re.MULTILINE)
+	return re.sub(r'^\t', r'\t\t', block_match, flags=re.M)
 
 if basic_fixes:
 	actuallyTargets = {
@@ -2177,13 +2188,13 @@ def add_code_cosmetic():
 		r"\b(?:is_gestalt = (?:yes|no)\s+is_hive_empire = (?:yes|no)|is_hive_empire = (?:yes|no)\s+is_gestalt = (?:yes|no))": [
 			r"(?:is_gestalt = (yes|no)\s+is_hive_empire = \1|is_hive_empire = (yes|no)\s+is_gestalt = \2)", (("T", "is_gestalt"), r"is_gestalt = \1\2"),
 		],
-		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes": (("T", "is_fallen_empire_machine"), "is_fallen_empire_machine = yes"), 
+		r"\b(?:is_fallen_empire = yes\s+is_machine_empire|is_machine_empire = yes\s+is_fallen_empire|is_fallen_machine_empire) = yes": (("T", "is_fallen_empire_machine"), "is_fallen_empire_machine = yes"),
 		r"\b(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(?:%s)|has_ethic = ethic_fanatic_(?:%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS): [
 			r"(?:is_fallen_empire = yes\s+has_ethic = ethic_fanatic_(%s)|has_ethic = ethic_fanatic_(%s)\s+is_fallen_empire = yes)" % (VANILLA_ETHICS, VANILLA_ETHICS),
 			(NO_TRIGGER_FOLDER, r"is_fallen_empire_\1\2 = yes"),
 		],
 		r'\b(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (?:yes|no)|has_machine_age_dlc = (?:yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")': [
-			r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")', (NO_TRIGGER_FOLDER, 
+			r'(?:host_has_dlc = "Synthetic Dawn Story Pack"\s*has_machine_age_dlc = (yes|no)|has_machine_age_dlc = (yes|no)\s*host_has_dlc = "Synthetic Dawn Story Pack")', (NO_TRIGGER_FOLDER,
 			lambda p: "has_synthetic_dawn_"
 			+ (
 				"not"
@@ -2270,14 +2281,14 @@ def add_code_cosmetic():
 			r"\1\4\3"
 		],
 		## Merge last_created_xxx
-		# TODO more Dynamic 
+		# TODO more Dynamic
 		r"((\n\t+)create_(%s) = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2last_created_\3 = \{( |\2)[\s\S]+?)(?(4)\4)\}" % LAST_CREATED_SCOPES:[
-			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t[^\n]+){1,18}))(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+last_created_\w+ = \{\s+([\s\S]+?)\s+\}$", lambda p:
+			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t(?!effect = \{)[^\t\n]+){1,18}))(?:\2\teffect = \{(\2\t\t[\s\S]*?)\2\t\})?\2\}\s+last_created_\w+ = \{\s+([\s\S]+?)\s+\}$", lambda p:
 				f"{p.group(1)}{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')}"
 				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t\t}}{p.group(2)}\t}}"
 		], # \1\2\teffect = {\3\2\t\4\2}
 		r"((\n\t+)create_pop_group = \{(?:\2\t[^{}]*?|(?:\2\t[^\n]+){1,18})\2\}\2(?:last_created_pop|event_target:last_created_pop_group) = \{( |\2)[\s\S]+?)(?(3)\3)\}": [
-			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t[^\n]+){1,18}))(?:effect = \{(\2\t\t.*?)\2\t\})?\2\}\s+(?:[\w+:]+) = \{\s+([\s\S]+?)\s+\}$", lambda p:
+			r"((\n\t+)create_\w+ = \{(?:\2\t[^{}]+?|(?:\2\t(?!effect = \{)[^\t\n]+){1,18}))(?:\2\teffect = \{(\2\t\t[\s\S]*?)\2\t\})?\2\}\s+(?:[\w+:]+) = \{\s+([\s\S]+?)\s+\}$", lambda p:
 				f"{p.group(1)}{p.group(2)}\teffect = {{" + (
 					re.sub(r"\s+save_event_target_as = last_created_pop_group", '', p.group(3)) if p.group(3) else ''
 				) +
@@ -2345,7 +2356,7 @@ def extract_scripted_triggers() -> list:
 				content = f.read()
 
 				# Regex to find trigger names: a_trigger_name = { ... }
-				found_in_file = re.findall(r"^([a-zA-Z]\w+) = \{", content, re.MULTILINE)
+				found_in_file = re.findall(r"^([a-zA-Z]\w+) = \{", content, re.M)
 
 				if found_in_file:
 					logger.debug(f"Found potential triggers in {filepath}: {found_in_file}")
@@ -2476,12 +2487,12 @@ def apply_merger_of_rules(targets3, targets4, triggers_in_mod, is_subfolder=Fals
 # (since v4.0)
 def convert_prescripted_countries_flags():
 	"""
-	Processes a prescripted_countries file:
+	Upgrades or downgrades Stellaris prescripted_countries `flags` blocks.
 	- Extracts flags={...} blocks for each empire
 	- Replaces them with flag = empire_<shortname>
-	- Collects flags for later writing to prescripted_flags file
+	- Collecting `flags` blocks into separate files in the
+	`common/prescripted_flags` directory and replacing them with a key.
 	"""
-
 	countries_dir = os.path.join(mod_path, 'prescripted_countries')
 	if os.path.isdir(countries_dir):
 		logger.info("\n--- Running v4.0 Flag Conversion for Prescripted Countries ---")
@@ -2490,13 +2501,18 @@ def convert_prescripted_countries_flags():
 
 	# Regex to find a 'flags = { ... }' block.
 	# It now captures the leading whitespace (indentation) in the first group.
-	# Using re.MULTILINE to ensure '^' matches the start of each line.
-	flag_block_pattern = re.compile(r"^\s*flags = {([^}]*)}", flags=re.MULTILINE)
-	block_pattern = re.compile(r'^"?(\w+)"? = \{(.+?)^\}$', flags=re.DOTALL|re.MULTILINE)
+	# Using re.M to ensure '^' matches the start of each line.
+	flag_block_pattern = re.compile(r"^\s*flags\s*=\s*{([^}]*)}", re.M)
+	# This pattern finds the `flag = "key"` lines to replace.
+	flag_key_pattern = re.compile(r'^\s*flag\s*=\s*"([^"\n]+)"', re.M)
+	block_pattern = re.compile(r'^"?(\w+)"? = \{(.+?)^\}$', flags=re.DOTALL|re.M)
 	# A flag to track if we've made any changes at all
 	any_file_changed = False
 	flags_dict = {}
 	modkey = ""
+	# This pattern finds the entire flags = { ... } block.
+	target_is_new_syntax = (ACTUAL_STELLARIS_VERSION_FLOAT > 3.99)
+	prescripted_flags_path = os.path.join(mod_path, "common", "prescripted_flags")
 
 	def extract_empire_shortname(block_key: str, block_content: str, flags: list) -> str:
 		"""
@@ -2581,20 +2597,19 @@ def convert_prescripted_countries_flags():
 		"""
 		Writes all collected flag data to a single prescripted_flags file.
 		"""
-		flags_folder = os.path.join(mod_path, "common", "prescripted_flags")
 		filename = ""
 		candidates = ""
 
-		if os.path.isdir(flags_folder):
+		if os.path.isdir(prescripted_flags_path):
 			# Find existing *_empire_flags.txt files
-			candidates = [f for f in os.listdir(flags_folder) if f.endswith("_empire_flags.txt")]
+			candidates = [f for f in os.listdir(prescripted_flags_path) if f.endswith("_empire_flags.txt")]
 			if candidates:
-				filename = os.path.join(flags_folder, candidates[0])  # pick first existing
+				filename = os.path.join(prescripted_flags_path, candidates[0])  # pick first existing
 		else:
-			os.makedirs(flags_folder, exist_ok=True)
+			os.makedirs(prescripted_flags_path, exist_ok=True)
 
 		if not filename:
-			filename = os.path.join(flags_folder, f"{modkey}_empire_flags.txt")
+			filename = os.path.join(prescripted_flags_path, f"{modkey}_empire_flags.txt")
 
 		# Load existing definitions if any
 		existing_flags = {}
@@ -2607,10 +2622,8 @@ def convert_prescripted_countries_flags():
 					flags = match.group(2).split()
 					existing_flags[key] = flags
 
-		# Merge: existing + new (new overwrites duplicates)
 		merged_flags = {**existing_flags, **flags_dict}
 
-		# Write final merged file
 		with open(filename, "w", encoding="utf-8") as f:
 			f.write(f"# Generated/updated by Stellaris Mod Updater\n\n")
 			for empire in sorted(merged_flags.keys()):
@@ -2622,48 +2635,80 @@ def convert_prescripted_countries_flags():
 		else:
 			print(f"✔ Created new prescripted flags file {filename}")
 
-	# Iterate over every file in the directory
 	for filename in os.listdir(countries_dir):
 		filepath = os.path.join(countries_dir, filename)
-
-		# Ensure we're only processing files
 		if os.path.isfile(filepath):
 			try:
 				with open(filepath, 'r', encoding='utf-8-sig') as f:
 					content = f.read()
-
-				# This flag will be set to True if the replacer function makes a change
 				file_modified_in_this_pass = False
-
-				for match in block_pattern.finditer(content):
-					block_key = match.group(1)	  # e.g. "empire_human_1"
-					block_body = match.group(2)
-					# Look for flags={...} inside this block
-					flags_match = flag_block_pattern.search(block_body)
-					if flags_match:
-						flags_inside = ""
-						flags_match = flags_match.group(1)
-						# flags_inside = re.findall(r'"?([\w\-\.]+)"?', flags_match)
-						flags = [line.strip() for line in flags_match.strip().splitlines()]
-						flags = [line for line in flags if line and not line.startswith('#')]
-						flags = [flag.split('#',1)[0].rstrip() for flag in flags] # Remove comments
-						flags = [flag.strip('"') for flag in flags] # Remove quotes
-						if flags and len(flags) > 0:
-							flags_inside = flags
-						if flags_inside:
-							file_modified_in_this_pass = True
-							shortname = extract_empire_shortname(block_key, block_body, flags_inside)
-							print(block_key, shortname, flags_inside)
-							flags_dict[shortname] = flags_inside
-							# Replace with new format
-							new_block_body = flag_block_pattern.sub(f"\tflag = {shortname}", block_body, count=1)
-							logger.info(f"✔ Converted flags for {shortname} in: {filename}")
+				# --- UPGRADE LOGIC ---
+				if target_is_new_syntax:
+					for match in block_pattern.finditer(content):
+						block_key = match.group(1)	  # e.g. "empire_human_1"
+						block_body = match.group(2)
+						# Look for flags={...} inside this block
+						flags_match = flag_block_pattern.search(block_body)
+						if flags_match:
+							flags_inside = ""
+							flags_match = flags_match.group(1)
+							# flags_inside = re.findall(r'"?([\w\-\.]+)"?', flags_match)
+							flags = [line.strip() for line in flags_match.strip().splitlines()]
+							flags = [line for line in flags if line and not line.startswith('#')]
+							flags = [flag.split('#',1)[0].rstrip() for flag in flags] # Remove comments
+							flags = [flag.strip('"') for flag in flags] # Remove quotes
+							if flags and len(flags) > 0:
+								flags_inside = flags
+							if flags_inside:
+								file_modified_in_this_pass = True
+								shortname = extract_empire_shortname(block_key, block_body, flags_inside)
+								# print(block_key, shortname, flags_inside)
+								flags_dict[shortname] = flags_inside
+								# Replace with new format
+								new_block_body = flag_block_pattern.sub(f"\tflag = {shortname}", block_body, count=1)
+								logger.info(f"✔ Converted flags for {shortname} in: {filename}")
+							else:
+								new_block_body = flag_block_pattern.sub("", block_body, count=1)
+							content = content.replace(match.group(0), f"{block_key} = {{{new_block_body}}}")
+				# --- DOWNGRADE LOGIC ---
+				else:
+					def _downgrade_replacer(match: re.Match) -> str:
+						key = match.group(1)
+						found_flags_block = None
+						if not os.path.isdir(prescripted_flags_path):
+							print(f"Warning: Directory '{prescripted_flags_path}' not found. Cannot perform downgrade.")
+							return match.group(0)
+						for filename in os.listdir(prescripted_flags_path):
+							filepath = os.path.join(prescripted_flags_path, filename)
+							if not os.path.isfile(filepath):
+								continue
+							try:
+								with open(filepath, "r", encoding="utf-8-sig") as f:
+									file_content = f.read()
+								key_block_pattern = re.compile(rf'^{re.escape(key)}\s*=\s*\{{[\s\S]+?^\s*\}}', re.MULTILINE)
+								key_block_match = key_block_pattern.search(file_content)
+								if key_block_match:
+									key_block_content = key_block_match.group(0)
+									flags_match = flag_block_pattern.search(key_block_content)
+									if flags_match:
+										found_flags_block = flags_match.group(0).strip()
+										break  # Found it, no need to search more files
+									else:
+										print(f"Warning: Found key '{key}' in '{filename}' but it had no inner 'flags' block. Skipping.")
+										return match.group(0) # Returning original line to be safe.
+							except IOError as e:
+								print(f"Error: Could not read file '{filepath}'. {e}")
+								continue
+						if found_flags_block:
+							return f"\t{found_flags_block}"
 						else:
-							new_block_body = flag_block_pattern.sub("", block_body, count=1)
+							print(f"Warning: Could not find flag definition for key '{key}' in any file within '{prescripted_flags_path}'. Skipping.")
+							return match.group(0)
 
-						content = content.replace(match.group(0), f"{block_key} = {{{new_block_body}}}")
+					contentif, num_replacements = flag_key_pattern.subn(_downgrade_replacer, content)
+					if num_replacements > 0:
+						file_modified_in_this_pass = True
 
-				# If the file was changed, write the new content back
 				if file_modified_in_this_pass:
 					any_file_changed = True
 					modkey = get_modkey_from_path(filename) # Later, to write the prescripted_flags
@@ -2818,8 +2863,7 @@ def parse_dir():
 def modfix(file_list, is_subfolder=False):
 	logger.debug(f"mod_path: {mod_path}\nmod_outpath: {mod_outpath}\nfile_list: {file_list}")
 
-	if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
-		convert_prescripted_countries_flags()
+	convert_prescripted_countries_flags()
 
 	triggers_in_mod = extract_scripted_triggers()
 	tar3, tar4 = list(targets3), list(targets4)
@@ -2859,8 +2903,77 @@ def modfix(file_list, is_subfolder=False):
 		# , "test_events.txt", "tutorial_events.txt"
 	]
 
-	### - Helper Functions - ###
-	# Optimized Set-Function (since v4.0)
+	### --- --- --- Helper Functions --- --- --- ###
+
+	def clean_by_blanking(original_lines: list[str]) -> str:
+		"""
+		Cleans code by replacing non-code lines with blank lines,
+		preserving the original line count.
+		"""
+		cleaned_lines = []
+		for line in original_lines:
+			if not line.strip() or line.strip().startswith('#'):
+				cleaned_lines.append('')
+			else:
+				code_part = line.split('#', 1)[0].rstrip()
+				cleaned_lines.append(code_part)
+		# if len(original_lines) != after len(cleaned_lines): logger.error(f"cleaned_code for {basename} is not matching")
+		return '\n'.join(cleaned_lines)
+
+	def apply_inline_replacement(match: re.Match, replace: tuple ) -> List[str]:
+		"""
+		Performs a precise, character-based replacement for a given match,
+		preserving indentation and surrounding text.
+		"""
+		nonlocal lines, cleaned_code, changed
+		new_content = ""
+		# Get global character positions from the match
+		if match.groups(): # Does only count capturing groups
+			tar = match.group(1) # Take only first group
+			start_char, end_char = match.span(1)
+			# print(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+		else:
+			tar = match.group(0) # whole match
+			start_char, end_char = match.span()
+
+		# print(replace, match.pattern, type(match))
+		new_content, rt = replace[0].subn(replace[1], tar, count=1)
+		if rt != 1:
+			new_content = False
+		if new_content and (isinstance(new_content, str) and isinstance(tar, str) and tar != new_content):
+			# cleaned_code = cleaned_code[:t_start] + new_content + out[t_end:] old way
+			changed = True
+			logger.info(f"Match clean:\n{tar}\nMultiline replace:\n{new_content}")
+			# It counts the newlines in the substring *before* the character.
+			start_line_idx = cleaned_code[:start_char].count('\n')
+			# For the end character, we look at the character just before it to get the correct line.
+			end_line_idx = cleaned_code[:end_char - 1].count('\n') if end_char > 0 else 0
+			# Find the character index of the start of the lines containing the match
+			start_of_line_char_pos = cleaned_code.rfind('\n', 0, start_char) + 1
+			end_of_line_char_pos = cleaned_code.rfind('\n', 0, end_char) + 1
+			# Calculate the column numbers
+			start_col = start_char - start_of_line_char_pos
+			end_col = end_char - end_of_line_char_pos
+			# print(f"{basename},{len(lines)},{end_line_idx}:\n{new_content}:\n{tar}\n{replace[0].pattern}")
+			# --- Perform the stitching ---
+			if start_line_idx == end_line_idx: # SINGLE-LINE match
+				original_line = lines[start_line_idx]
+				new_line = original_line[:start_col] + new_content + original_line[end_col:]
+				lines = lines[:start_line_idx] + [new_line] + lines[start_line_idx + 1:]
+				# print(f"SINGLE-LINE match {basename} (line {start_line_idx}, {end_line_idx}) ->  {original_line}\n{new_line} ")
+			else: # MULTI-LINE match
+				prefix = lines[start_line_idx][:start_col]
+				suffix = lines[end_line_idx][end_col:]
+				combined_content = prefix + new_content + suffix
+				lines = lines[:start_line_idx] + combined_content.splitlines() + lines[end_line_idx + 1:]
+				# print(f"MULTI-LINE match {basename} (line {start_line_idx}, {end_line_idx}) ->  {new_content}\n{prefix}NEW_CONTENT{suffix}")
+
+		else:
+			logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
+
+		# return lines
+
+	# - Optimized Set-Function (since v4.0) -
 	def find_with_set_optimized(lines, valid_lines, changed):
 		""" Finds unique constants in the defines text """
 		# TARGETS_DEF_R = re.compile(r'\b(?:' + '|'.join(c for c in target_strings) + r')\b')
@@ -2897,7 +3010,7 @@ def modfix(file_list, is_subfolder=False):
 		return lines, changed
 
 	# This regex finds all top-level wg_* blocks.
-	wg_block_pattern = re.compile(r"^wg_\w+\s*=\s*\{.+?^\}", flags=re.DOTALL|re.MULTILINE)
+	wg_block_pattern = re.compile(r"^wg_\w+\s*=\s*\{.+?^\}", flags=re.DOTALL|re.M)
 
 	def transform_war_goals_syntax(lines: List[str], valid_lines: List[bool], changed: bool, target_version_is_v4: bool) -> Tuple[List[str], List[bool], bool]:
 		"""
@@ -2924,8 +3037,8 @@ def modfix(file_list, is_subfolder=False):
 		# Define the complete set of all possible peace offers for efficient set operations.
 		ALL_PEACE_OFFERS = set(PEACE_OFFERS_ORDER)
 		file_content = "\n".join(lines)
-		forbidden_pattern = re.compile(r"^\tforbidden_peace_offers\s*=\s*\{([^{}]+)\}", re.MULTILINE)
-		allowed_pattern = re.compile(r"^\tallowed_peace_offers\s*=\s*\{[^{}]*?\}", re.MULTILINE)
+		forbidden_pattern = re.compile(r"^\tforbidden_peace_offers\s*=\s*\{([^{}]+)\}", re.M)
+		allowed_pattern = re.compile(r"^\tallowed_peace_offers\s*=\s*\{[^{}]*?\}", re.M)
 
 		def _downgrade_replacer(match: re.Match) -> str:
 			"--- Replacer function for DOWNGRADING to v3.* ---"
@@ -2938,10 +3051,10 @@ def modfix(file_list, is_subfolder=False):
 			if forbidden_match:
 				forbidden_content = forbidden_match.group(1)
 				forbidden_items = {line.split('=')[0].strip() for line in forbidden_content.splitlines() if line.split('#')[0].strip()}
-				
+
 				allowed_items = ALL_PEACE_OFFERS - forbidden_items
 				ordered_allowed = [offer for offer in PEACE_OFFERS_ORDER if offer in allowed_items]
-				
+
 				new_block = f"\tallowed_peace_offers = {{ {' '.join(ordered_allowed)} }}"
 				return forbidden_pattern.sub(new_block, wg_block_text)
 			else:
@@ -2951,7 +3064,7 @@ def modfix(file_list, is_subfolder=False):
 				default_block_line = f"\tallowed_peace_offers = {{ {' '.join(PEACE_OFFERS_ORDER)} }}\n"
 
 				insertion_index = -1
-				
+
 				# Define a single pattern with all preferred keywords, joined by '|' (OR).
 				search_after_pattern = re.compile(r'^\t(surrender_acceptance|cede_claims|war_exhaustion|set_defender_wargoal)')
 
@@ -2960,7 +3073,7 @@ def modfix(file_list, is_subfolder=False):
 					if search_after_pattern.match(line):
 						insertion_index = i + 1
 						break
-				
+
 				# If no preferred line, find the first sub-block (e.g., "potential = {") to insert BEFORE.
 				if insertion_index == -1:
 					sub_block_pattern = re.compile(r'^\t\w+\s*=\s*\{')
@@ -2968,7 +3081,7 @@ def modfix(file_list, is_subfolder=False):
 						if sub_block_pattern.match(line):
 							insertion_index = i
 							break
-				
+
 				# As a final fallback, insert before the last line (the closing brace).
 				if insertion_index == -1:
 					insertion_index = len(block_lines) - 1 if len(block_lines) > 1 else 1
@@ -3000,7 +3113,7 @@ def modfix(file_list, is_subfolder=False):
 
 			forbidden_items = ALL_PEACE_OFFERS - allowed_items
 			ordered_forbidden = [offer for offer in PEACE_OFFERS_ORDER if offer in forbidden_items]
-			
+
 			# Format with keys and empty string values, as is common in v4 files
 			forbidden_lines = "\n".join([f"\t\t{item} = \"\"" for item in ordered_forbidden])
 			new_block = f"\tforbidden_peace_offers = {{\n{forbidden_lines}\n\t}}"
@@ -3025,7 +3138,7 @@ def modfix(file_list, is_subfolder=False):
 			# Refresh valid_lines accordingly
 			new_lines, valid_lines = format_indentation(new_lines)
 			return new_lines, valid_lines, changed
-		
+
 		return lines, valid_lines, changed
 
 	# (Since v4.0) since v4.0.22 optional
@@ -3372,7 +3485,6 @@ def modfix(file_list, is_subfolder=False):
 		nonlocal changed
 		# logger.info("Starting indentation correction...")
 		# lines = [l.replace('    ', '\t') for l in lines] # replace spaces with tabs
-		# BR = '\n' # os.linesep
 
 		new_lines = []
 		stripped_lines = []
@@ -3414,15 +3526,15 @@ def modfix(file_list, is_subfolder=False):
 			cmt = ""
 			if stripped_line == '}' and blank_lines > 0:
 				deleted_lines += 1
-				# changed = True
 				content_part = stripped_line
+				# changed = True
 				del new_lines[-1] # targets4[r"^\t*?\n(\t+\})$"] = r"\1" # cosmetic remove surplus lines
 			else:
 				# Isolate content from comments for accurate brace counting
 				content_part = stripped_line.split('#', 1)
 				if len(content_part) > 1 and len(content_part[1]) > 0:
 					cmt = content_part[1]
-					content_part = content_part[0] 
+					content_part = content_part[0]
 
 					# We have a real separate comment
 					if len(content_part.rstrip()) > 0:
@@ -3527,6 +3639,7 @@ def modfix(file_list, is_subfolder=False):
 			#	 out = '\n' + out
 			#	 logger.debug(f"Added empty starting-line at file {subfolder}/{basename}.")
 			#	 changed = True
+
 		return new_lines, stripped_lines
 
 	for _file in file_list:
@@ -3551,6 +3664,8 @@ def modfix(file_list, is_subfolder=False):
 				# if code_cosmetic:
 					# do_code_cosmetic(lines)
 				lines, valid_lines = format_indentation(lines)
+				# Collect aLL matches from ALL rules before changing anything
+				replacements_to_apply: List[Dict[str, Any]] = []
 
 				# Since v4.0
 				if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
@@ -3603,7 +3718,7 @@ def modfix(file_list, is_subfolder=False):
 								if rt > 0:
 									line_changed = f"{stripped[:m.start()]}{line_changed}{stripped[m.end():]}"
 									if line_changed != stripped:
-										lines[i] = f"{ind}{line_changed}{cmt}" 
+										lines[i] = f"{ind}{line_changed}{cmt}"
 										valid_lines[l] = (i, ind, line_changed, cmt)
 										changed = True
 										logger.info(
@@ -3620,8 +3735,6 @@ def modfix(file_list, is_subfolder=False):
 							# elif debug_mode:
 							# 	print("DEBUG Match tar3:", pattern, repl, type(repl), stripped.encode(errors='replace'))
 
-				out = "\n".join(lines)
-
 				for pattern, msg in targetsR:
 					folder = True
 					if isinstance(msg, tuple):
@@ -3635,8 +3748,12 @@ def modfix(file_list, is_subfolder=False):
 								logger.warning(f"Potentially deprecated Syntax ({msg}): {m.group(0)} in line {i} file {basename}\n")
 								break # just one hit per file
 
+				# out = "\n".join(lines)
 				if code_cosmetic and subfolder.endswith(WEIGHT_FOLDERS):
-					out, changed = merge_factor0_modifiers(out, changed)
+					out, changed = merge_factor0_modifiers("\n".join(lines), changed)
+					lines = out.splitlines()
+
+				cleaned_code = clean_by_blanking(lines)
 
 				for pattern, repl in tar4:  # new list way
 					folder = False # check valid folder before loop
@@ -3671,7 +3788,7 @@ def modfix(file_list, is_subfolder=False):
 					else:
 						folder = True
 
-					if not folder or not pattern.search(out):
+					if not folder or not pattern.search(cleaned_code):
 						continue
 
 					if not replace and isinstance(repl, str) or callable(repl): # potential slow down TESTME
@@ -3683,7 +3800,9 @@ def modfix(file_list, is_subfolder=False):
 						# 	targets = pattern.finditer(out) # pattern.findall(out)
 						# else:
 						elapsed = time.perf_counter()
-						targets = pattern.finditer(out)
+						# Use finditer to get all non-overlapping matches for the pattern
+						# targets = pattern.finditer(out) Old limited, due code comments
+						targets = pattern.finditer(cleaned_code)
 						elapsed = time.perf_counter() - elapsed
 						regex_times[pattern] += elapsed
 
@@ -3696,30 +3815,54 @@ def modfix(file_list, is_subfolder=False):
 						if sr and isinstance(replace[0], str):
 							repl[0] = replace[0] = re.compile(replace[0], flags=re.I | re.ASCII)
 							logger.debug(f"Compiled: {tar4[1][0]} - {type(tar4[1][0])}")
-						for t in reversed(list(targets)):
-							repl_str = False
-							if sr and len(t.groups()) > 0: # Does only count capturing groups
-								tar = t.group(1)  # Take only first group
-								t_start, t_end = t.span(1)
-								# logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
-							else:
-								tar = t.group(0) # whole match
-								t_start, t_end = t.span()
-							# print(type(repl), tar, type(tar))
-							repl_str, rt = replace[0].subn(replace[1], tar, count=1)
-							if rt != 1:
-								repl_str = False
+						matches_count = 0
+						# Store the match objects, as we need to manipulate the source file at once
+						for t in targets:
+							replacements_to_apply.append({
+								'match': t,
+								'new_content': replace
+							})
+							matches_count += 1
+						if matches_count:	
+							logger.debug(f"✅ Found {matches_count} total matches for {pattern.pattern} in {basename}.")
 
-							if repl_str and (isinstance(repl_str, str)
-								and isinstance(tar, str) and tar != repl_str):
-								out = out[:t_start] + repl_str + out[t_end:]
-								changed = True
-								logger.info(f"Match:\n{tar}\nMultiline replace:\n{repl_str}")
-							# elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
-							else:
-								logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
+						# Old Limited: just works if we target the original source_text
+						# for t in reversed(list(targets)):
+						# 	repl_str = False
+						# 	if sr and len(t.groups()) > 0: # Does only count capturing groups
+						# 		tar = t.group(1)  # Take only first group
+						# 		t_start, t_end = t.span(1)
+						# 		# logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
+						# 	else:
+						# 		tar = t.group(0) # whole match
+						# 		t_start, t_end = t.span()
+						# 	# print(type(repl), tar, type(tar))
+						# 	repl_str, rt = replace[0].subn(replace[1], tar, count=1)
+						# 	if rt != 1:
+						# 		repl_str = False
+						# 	if repl_str and (isinstance(repl_str, str) and isinstance(tar, str) and tar != repl_str):
+						# 		out = out[:t_start] + repl_str + out[t_end:]
+						# 		changed = True
+						# 		logger.info(f"Match:\n{tar}\nMultiline replace:\n{repl_str}")
+						# 	# elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
+						# 	else:
+						# 		logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
 						logger.warning(f"⚠ SPECIAL TYPE? {type(repl)} {repl}")
+
+				# Sort by the match's starting character position in reverse
+				# This ensures that changes at the end of the file don't affect the indices of changes that need to happen earlier in the file.
+				replacements_to_apply.sort(key=lambda r: r['match'].start(), reverse=True)
+				# if len(replacements_to_apply): print(f"✅ Found {len(replacements_to_apply)} total matches in {basename}.")
+
+				# Apply all changes using a new inline replacement function
+				for replacement in replacements_to_apply:
+					apply_inline_replacement(
+						replacement['match'],
+						replacement['new_content']
+					)
+				out = '\n'.join(lines) # Final result
+
 				if changed and not only_warning:
 					write_file()
 				else:
