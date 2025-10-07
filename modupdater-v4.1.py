@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# @Author: FirePrince
+# @Revision: 2025/10/07
+# @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
+# @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
+# @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
+# Note: If apply the script new, it is recommended to run it twice.
+# Hint: If you get a error, first try with code_cosmetic=0 option.
+# @TODO: replace in *.YML ?
+
 # ============== Import libs Python 3.9 ===============
 import os
 import glob
@@ -16,17 +25,8 @@ import time
 from collections import defaultdict
 from typing import List, Tuple
 
-# @Author: FirePrince
-# @Revision: 2025/10/06
-# @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
-# @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
-# @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
-# Note: If apply the script new, it is recommended to run it twice.
-# Hint: If you get a error, first try with code_cosmetic=0 option.
-# @TODO: replace in *.YML ?
-
 ACTUAL_STELLARIS_VERSION_FLOAT = "4.1"  #  Should be number string
-FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.4' # @last supported sub-version
+FULL_STELLARIS_VERSION = ACTUAL_STELLARIS_VERSION_FLOAT + '.5' # @last supported sub-version
 # Default values
 # mod_path = os.path.dirname(os.getcwd())
 mod_path = "" # "d:/GOG Games/Settings/Stellaris/Stellaris4.1.xx_patch" # Stellaris4.1_upd_test
@@ -74,7 +74,7 @@ def setBoolean(s):
 VANILLA_ETHICS = r"pacifist|militarist|materialist|spiritualist|egalitarian|authoritarian|xenophile|xenophobe" # |gestalt_consciousnes
 VANILLA_PREFIXES = r"any|every|random|count|ordered"
 PLANET_MODIFIER = r"jobs|housing|amenities"
-RESOURCE_ITEMS = r"energy|unity|food|minerals|influence|alloys|consumer_goods|exotic_gases|volatile_motes|rare_crystals|sr_living_metal|sr_dark_matter|sr_zro|(?:physics|society|engineering(?:_research))"
+RESOURCE_ITEMS = r"advanced_logic|alloys|astral_threads|biomass|consumer_goods|energy|exotic_gases|feral_insight|food|influence|menace|minerals|minor_artifacts|nanites|rare_crystals|sr_(?:dark_matter|living_metal|zro)|trade|unity|volatile_motes|(?:physics|society|engineering)_research"
 # Compare ("T", trigger_key) tuple for just same file exclude
 # NO_EFFECT_FOLDER = re.compile(r"^(?!common/scripted_effects)")
 NO_TRIGGER_FOLDER = re.compile(r"^([^_]+)(_(?!trigger)[^/_]+|[^_]*$)(?(2)/([^_]+)_[^/_]+$)?")  # 2lvl, only 1lvl folder: ^([^_]+)(_(?!trigger)[^_]+|[^_]*)$ only
@@ -190,11 +190,13 @@ def leader_class_replacement(match):
 
 # LYRA ‘Vela’ (The Shadows of the Shroud DLC)
 # Global potential_shroudwalker_enclave trigger can used as dummy compat. (just used on init)
+
 v4_1 = {
 	"targetsR": [
 		[r"\bhas_(energy|food|mineral)_upkeep\b", (NO_TRIGGER_FOLDER, "SCRIPTED TRIGGER REMOVED in v4.1")],
 		[r"\babsorbed_consciousness_[1-5]\b", "MODIFIER REMOVED in v4.1"],
 		[r"\bid = (astral_planes.51[012]0|action.455)\b", (EFFECT_FOLDERS,"EVENT REMOVED in v4.1")],
+		[r"\bset_deposit_flag = arc_furnace_deposit\b", (EFFECT_FOLDERS,"FLAG REPLACED in v4.1.5 with d_arc_furnace_x")],
 	],
 	"targets3": {
 		r"\bhas_trait = trait_psionic\b": (("T", "is_psionic_species"), "is_psionic_species = yes"),
@@ -205,7 +207,7 @@ v4_1 = {
 		r"\bhas_leader_flag = (renowned|legendary)_leader\b": r"is_leader_tier = leader_tier_\1",
 	},
 	"targets4": {
-	r"((\s+)(?:is_mercenary(?:_mindwarden_enclave)? = yes(?:\2(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b){1,2}|(?:(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b\s*){1,2}\s*is_mercenary(?:_mindwarden_enclave)? = yes\b|is_country_type = enclave_mercenary\b))":
+		r"((\s+)(?:is_mercenary(?:_mindwarden_enclave)? = yes(?:\2(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b){1,2}|(?:(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b\s*){1,2}\s*is_mercenary(?:_mindwarden_enclave)? = yes\b|is_country_type = enclave_mercenary\b))":
 		(("T", "is_mercenary"), r"\2is_mercenary = yes"),
 		# Leader Flag replacement
 		r"((\n\t+)NOR = \{(?:\2\t([^{}#]*?))?(?:\2\t(?:is_leader_tier = leader_tier_(?:renowned|legendary)\b|has_leader_flag = (?:renowned|legendary)_leader\b)){2}\s+([^{}#]+|\}))":
@@ -315,6 +317,8 @@ JOBS_EXCLUSION_LIST = r"(?:calculator_biologist|calculator_physicist|calculator_
 # added triggered_planet_pop_group_modifier_for_species/triggered_planet_pop_group_modifier_for_all
 # general scope of job modifier now refers to planet
 # native triggers "is_being_purged" and "is_enslaved " are now scripted.
+# in tech prerequisites OR is now allowed
+# on create_leader traits Nr are now level of the leader (not level of the trait)
 v4_0 = {
 	"targetsR": [
 		[r"\bpop_defense_armies_add\b", "REPLACED in v4.0: use planet_defense_armies_add, check scope"],
@@ -462,7 +466,7 @@ v4_0 = {
 		r"\bpop_job_trade_(mult|add)\b": r"trader_jobs_bonus_workforce_\1",
 		r"\bpop_demotion_time_(mult|add)\b": r"pop_unemployment_demotion_time_\1",
 		r"\bpop(_defense_armies_(?:mult|add))\b": r"planet\1",
-		r"\bplanet_(?:priests|administrators)_(\w+_(?:mult|add))\s+": r"planet_bureaucrats_\1 ",
+		fr"\b(planet_)administrators(_(?:{RESOURCE_ITEMS})_(?:produces|upkeep)_(?:mult|add))\s+": r"\1bureaucrats\2 ",
 		r"\bplanet_administrators\b": ("common/pop_jobs", "planet_bureaucrats"), # revert from v3.6
 		r"\bplanet_pop_assembly_organic_(mult|add)\b": r"bonus_pop_growth_\1",
 		r"\bplanet_jobs_robotic_produces_(mult|add)\b": r"pop_bonus_workforce_\1",
@@ -484,6 +488,7 @@ v4_0 = {
 			r"@economic_plan_mineral_target"),
 	},
 	"targets4": {
+		r"\bpop_group(_modifier = {\s+defense_armies_add)\b": r"planet\1", # TODO could be extended with whole block scan 
 		r"((\s+)(?:is_elite_category = yes(?:\2is_pop_category = ruler(?:_unemployment)?\b){1,2}|(?:is_pop_category = ruler(?:_unemployment)?\b\s*){1,2}\s*is_elite_category = yes|is_pop_category = ruler)\b)":
 			(("T", "is_elite_category"), r"\2is_elite_category = yes"),
 		r"((\s+)(?:is_specialist_category = yes(?:\2is_pop_category = (?:dystopian_)?specialist(?:_unemployment)?\b){1,2}|(?:is_pop_category = (?:dystopian_)?specialist(?:_unemployment)?\b\s*){1,2}\s*is_specialist_category = yes|is_pop_category = specialist)\b)":
@@ -626,8 +631,8 @@ revert_v4_0 = {
 		r"\bcolony_age > 0\b": "has_colony_progress > 0", # NOTE: Original value is lost, defaulting to '> 0'.
 		r"\bcan_talk_to_prethoryn = yes\b": "owner_species = { has_trait = trait_psionic }", # NOTE: Reverting to the most common form.
 		r"\bjob_bureaucrat_add\b": "job_priest_add", # NOTE: Could also be 'death_priest_add' and others.
-		r"\bplanet_bureaucrats_(\w+_(?:mult|add))\s+": r"planet_priests_\1 ", # NOTE: Could also be 'planet_administrators'.
-		r"\bplanet_bureaucrats\b": "planet_priests", # NOTE: Could also be 'planet_administrators'.
+		fr"\b(planet_)bureaucrats(_(?:{RESOURCE_ITEMS})_(?:produces|upkeep)_(?:mult|add))\s+": r"\1administrators\2 ", # NOTE: Could also be 'planet_priests'.
+		r"\bplanet_bureaucrats\b": "planet_administrators", # NOTE: Could also be 'planet_priests'.
 		r"\bpop_bonus_workforce_(mult|add)\b": r"pop_workforce_\1", # NOTE: Conflicts with 'planet_jobs_robotic_produces_...'. Prioritizing this more generic source.
 		r"^triggered_planet_(pop_group_modifier)_for_all\b": ("common/pop_jobs", r"\1"),
 		r"^(triggered_pop_)group_(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1\2"),
@@ -667,7 +672,7 @@ revert_v4_0 = {
 		# Reverts transform_add_leader_trait
 		r'(\b(add_trait) = \{\s+trait( = \w+)\s+\})': r'\2\3',
 		r'(\b(add_trait) = \{\s+trait( = \w+)\s+show_message = no\s+\})': r'\2_no_notify\3',
-
+		r"\b(pop_modifier = {\s+)(defense_armies_add)\b": r"\1pop_\2", # TODO could be extended with whole block scan
 		# --- Keep Category Consolidations ---
 		# NOTE: This needs a manual prepared minimal scripted_triggers stub
 		# r"((\s+)is_elite_category = yes\b)": r"\2is_elite_category = yes\n\2is_pop_category = ruler",
@@ -1162,6 +1167,11 @@ v3_8 = {
 		],
 	},
 }
+# revert_v3_8 = {
+# 	"targets4": {
+# 		r"\n\t+traits = \{(?:\n\t+\d = \w+){1,6}": lambda p: re.sub(r"\t\d =", r"\ttrait =", p.group(0)),
+# 	}
+# }
 # """== 3.7 "CANIS MINOR" (First Contact DLC) Quick stats ==
 # All primitive effects/triggers/events renamed/removed.
 # """
@@ -1719,7 +1729,7 @@ if basic_fixes:
 		# }
 		"targets3": {
 			r"\bstatic_rotation = yes\s*": ("common/component_templates", ""),
-			r"\bowner\.species\b": "owner_species",
+			r"\bowner\.(?:owner_)?species\b": "owner_species",
 			r"\bplanet\.owner\b": "planet_owner", # NOTE: Vanilla v4.0 does't use this
 			### < 2.2
 			# r"\bhas_job = unemployed\b": "is_unemployed = yes",
@@ -2099,11 +2109,13 @@ def add_code_cosmetic():
 	))
 
 	if ACTUAL_STELLARIS_VERSION_FLOAT > 3.99:
+		# Put percentage first
 		targets4[r"\bpop_amount_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [
-			r"(\s+)(limit = \{[^#]+?\})\1(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\3\1\2"] # Put percentage first
+			r"(\s+)(limit = \{[^#]+?\})\1(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\3\1\2"]
 	else:
+		# Put percentage first
 		targets4[r"\bpop_percentage = \{\s+limit = \{[^#]+?\}\s+percentage\s*[<=>]+\s*[^{}\s]+"] = [
-			r"(pop_percentage = \{)(\s+)(limit = \{[^#]+?\})\2(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"] # Put percentage first
+			r"(pop_percentage = \{)(\s+)(limit = \{[^#]+?\})\2(percentage\s*[<=>]+\s*[^{}\s]+)", r"\1\2\4\2\3"]
 
 	tar4 = {
 		r"\s+traits = \{\s*\}": "",
@@ -3019,15 +3031,15 @@ def modfix(file_list, is_subfolder=False):
 			# Get the minimal blocks that actually changed
 			original_block_lines = original_block_lines[common_prefix_len : ] # len(original_block_lines)- common_suffix_len # minimal_original_block
 			new_content_lines = new_content_lines[common_prefix_len : ] # len(new_content_lines) - common_suffix_len  # minimal_new_block_lines
-			start_line_idx = start_line_idx + common_prefix_len # final_start_idx
+			start_line_idx += common_prefix_len # final_start_idx
 			# end_line_idx = end_line_idx - common_suffix_len + 1 # slice_to_remove_end_idx
 
 			# Handle the simple case first: a single-line match is purely character-based.
 			if start_line_idx == end_line_idx: # SINGLE-LINE match
-				lines = lines[:start_line_idx] + [new_content] + lines[start_line_idx + 1:]
+				lines = lines[:start_line_idx] + new_content_lines + lines[start_line_idx + 1:]
 				original_block = '\n'.join(original_block_lines)
 				new_content = ''.join(new_content_lines)
-				logger.info(f"SINGLE-LINE match ({start_line_idx}):\n'{original_block}' \u2935\n'{new_content}'")
+				logger.info(f"SINGLE-LINE match ({start_line_idx}):\n'{original_block}' with:\u2935\n'{new_content}'")
 			else: # MULTI-LINE match
 				# --- Comment Preservation Block ---
 				comment_map = {}
@@ -3097,7 +3109,8 @@ def modfix(file_list, is_subfolder=False):
 				# 			break
 				# 	orphan_comments = [f"{indentation} {comment.strip()}" for comment in orphan_comments]
 				new_content = '\n'.join(new_content_lines)
-				logger.info(f"MULTI-LINE match ({start_line_idx}-{end_line_idx})\n{tar} \u2935\n'{new_content}'")
+				original_block = '\n'.join(original_block_lines)
+				logger.info(f"MULTI-LINE match ({start_line_idx}-{end_line_idx})\n{original_block} with:\u2935\n'{new_content}'")
 				# Final assembly: place orphan comments before the modified original line
 				lines = (
 					lines[:start_line_idx] +
@@ -3851,7 +3864,7 @@ def modfix(file_list, is_subfolder=False):
 							m = pattern.search(stripped)
 							if m:
 								rt = 0
-								line_changed, rt = pattern.subn(repl, m.group(0)) # , count=1
+								line_changed, rt = pattern.subn(repl, m.group(0), count=0)
 								if rt > 0:
 									line_changed = f"{stripped[:m.start()]}{line_changed}{stripped[m.end():]}"
 									if line_changed != stripped:
@@ -3864,7 +3877,7 @@ def modfix(file_list, is_subfolder=False):
 										# Check if the match spans the entire line (excluding leading/trailing whitespace)
 										if m.start() <= 6 and m.end() >= len(stripped) - 6:
 											logger.debug("The entire line is matched; no further matches possible.")
-											del valid_lines[l] # just one hit per line
+											# del valid_lines[l] # just one hit per line if count=1
 									else:
 										logger.debug(f"BLIND MATCH (tar3): {stripped}, {pattern}")
 								else:
@@ -3889,10 +3902,10 @@ def modfix(file_list, is_subfolder=False):
 				if code_cosmetic and subfolder.endswith(WEIGHT_FOLDERS):
 					out, changed = merge_factor0_modifiers(out, changed)
 
-				# lines_len_before = len(lines)
+				# lines_len_before = len(lines) # DEBUG
 				# Theoretically we could take the previous lines, but they are possible affected by additional LB
 				cleaned_code, lines = clean_by_blanking(out)
-				# lines_len_after = cleaned_code.count('\n') + 1
+				# lines_len_after = cleaned_code.count('\n') + 1 # DEBUG
 				# if lines_len_after != lines_len_before:
 				# 	logger.warning(
 				# 		f"Mismatch lines for cleaned_code at {basename}\n"
@@ -3963,28 +3976,6 @@ def modfix(file_list, is_subfolder=False):
 							matches_count += 1
 						if matches_count:
 							logger.debug(f"✅ Found {matches_count} total matches for {pattern.pattern} in {basename}.")
-
-						# Old Limited: just works if we target the original source_text
-						# for t in reversed(list(targets)):
-						# 	repl_str = False
-						# 	if sr and len(t.groups()) > 0: # Does only count capturing groups
-						# 		tar = t.group(1)  # Take only first group
-						# 		t_start, t_end = t.span(1)
-						# 		# logger.debug(f"ONLY GROUP1 replace: {type(tar)}, '{tar}' with {type(replace)}, {replace}")
-						# 	else:
-						# 		tar = t.group(0) # whole match
-						# 		t_start, t_end = t.span()
-						# 	# print(type(repl), tar, type(tar))
-						# 	repl_str, rt = replace[0].subn(replace[1], tar, count=1)
-						# 	if rt != 1:
-						# 		repl_str = False
-						# 	if repl_str and (isinstance(repl_str, str) and isinstance(tar, str) and tar != repl_str):
-						# 		out = out[:t_start] + repl_str + out[t_end:]
-						# 		changed = True
-						# 		logger.info(f"Match:\n{tar}\nMultiline replace:\n{repl_str}")
-						# 	# elif not any(tar.startswith(p) for p in ["set_timed", "add_modifier"]):
-						# 	else:
-						# 		logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 					else:
 						logger.warning(f"⚠ SPECIAL TYPE? {type(repl)} {repl}")
 
@@ -3994,8 +3985,22 @@ def modfix(file_list, is_subfolder=False):
 				if replacements_to_apply:
 					logger.debug(f"✅ Found {len(replacements_to_apply)} total matches in {basename}.")
 
-				# Apply all changes using a new inline replacement function
+				# "--- Phase 2.5: Conflict Resolution (Pruning) overlapping matches ---")
+				pruned_replacements: List[Dict[str, Any]] = []
+				last_match_start = float('inf')
 				for replacement in replacements_to_apply:
+					current_match = replacement['match']
+					# If the current match ends before the last-kept match begins, it's safe.
+					if current_match.end() <= last_match_start:
+						pruned_replacements.append(replacement)
+						last_match_start = current_match.start()
+					else:
+						# TODO try another solution 
+						logger.warning(f"-> Discarding nested match at position {current_match.start()} "
+							  f"because it overlaps with a larger one.")
+
+				# "--- Phase 3: Executing (pruned) replacements ---"
+				for replacement in pruned_replacements:
 					apply_inline_replacement(
 						replacement['match'],
 						replacement['new_content'],
