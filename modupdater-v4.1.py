@@ -2970,7 +2970,7 @@ def modfix(file_list, is_subfolder=False):
 			if tar.startswith('\n') and new_content.startswith('\n'):
 				common_prefix_len += 1
 				start_col = "" # we don't need a prefix
-				print("start_col")
+				# print("start_col")
 				new_content = new_content[1:]
 			else:
 				# Find the character index of the start of the lines containing the match
@@ -2983,14 +2983,14 @@ def modfix(file_list, is_subfolder=False):
 			if tar.endswith('\n') and new_content.endswith('\n'):
 				end_char -= 1
 				end_col = "" # we don't need a suffix
-				print("end_col")
+				# print("end_col")
 				new_content = new_content[:-1]
 			else:
 				end_col = cleaned_code.rfind('\n', 0, end_char) + 1
 				end_col = end_char - end_col # Calculate the column numbers
 			# For the end character, we look at the character just before it to get the correct line.
 			end_line_idx = cleaned_code[:end_char - 1].count('\n') if end_char > 0 else 0
-			print(f"{basename} lines {len(lines)} ({start_line_idx}-{end_line_idx}):\n'{tar}':\n'{new_content}'\n{replace[0].pattern}")
+			# print(f"{basename} lines {len(lines)} ({start_line_idx}-{end_line_idx}):\n'{tar}':\n'{new_content}'\n{replace[0].pattern}")
 			changed = True
 
 			# Simultaneously, update the cleaned code with a string slice (OPTIMIZATION: omits steady clean_by_blanking)
@@ -3041,14 +3041,16 @@ def modfix(file_list, is_subfolder=False):
 			start_line_idx += common_prefix_len # final_start_idx
 			# end_line_idx -= common_suffix_len + 1 # slice_to_remove_end_idx
 
+			if len(new_content_lines) > 1 and len(new_content_lines) != len(original_block_lines):
+				need_clean_code = True
+
 			# Handle the simple case first: a single-line match is purely character-based.
 			if start_line_idx == end_line_idx: # SINGLE-LINE match
 				lines = lines[:start_line_idx] + new_content_lines + lines[start_line_idx + 1:]
 				original_block = '\n'.join(original_block_lines)
-				new_content = ''.join(new_content_lines)
+				new_content = '\n'.join(new_content_lines)
 				logger.info(f"SINGLE-LINE match ({start_line_idx}):\n'{original_block}' with:\u2935\n'{new_content}'")
 			else: # MULTI-LINE match
-				need_clean_code = True
 				# --- Comment Preservation Block ---
 				comment_map = {}
 				orphan_comments = []
