@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @Author: FirePrince
-# @Revision: 2025/10/08
+# @Revision: 2025/10/11
+# If you find this tool helpful, consider supporting development:
+# 	Buy me a coffee on Ko-fi https://ko-fi.com/f1r3pr1nc3
+# 	Donate via PayPal https://www.paypal.me/supportfireprinc
 # @Git: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater
 # @Helper-script - creating change-catalogue: https://github.com/F1r3Pr1nc3/Stellaris-Mod-Updater/stellaris_diff_scanner.py
 # @Forum: https://forum.paradoxplaza.com/forum/threads/1491289/
@@ -402,7 +405,7 @@ v4_0 = {
 		r"\bis_pop\b": r"is_same_value",
 		r"\b(count_owned_pop)s?\b": r"\1_amount",
 		r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
-		fr"\b(?:{VANILLA_PREFIXES})_owned_pop\b": r"\g<0>_group",
+		fr"\b(?:(?:{VANILLA_PREFIXES})_owned_pop|create_pop)\b": r"\g<0>_group",
 		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": # WARNING: has not same functionality anymore (just scripted e.g. for switch, but pop_group_size)
 			lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
 		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_100),
@@ -440,8 +443,6 @@ v4_0 = {
 		r"\bcategory = pop\b": "category = pop_group",
 		r"\b(owner_(main_)?)?species = { has_trait = trait_psionic }\b": "can_talk_to_prethoryn = yes",
 		r"\bpop_force_add_ethic = ([\d\w\.:]+)\b": r"pop_force_add_ethic = { ethic = \1 percentage = 1 }", # AMOUNT = 100
-		r"\b(create_pop(?:_group)? = \{ species = [\w\.:]+ )(?:(count)|size)( = \d(?:(?(2)\d*|\d?)))\b": r"\g<1>size\g<3>00", # Just cheap pre-fix
-		# r"\b(create_pop_group = \{ species = [\w\.:]+ )count = (\d+)": lambda m: f"{m.group(1)}size = {int(m.group(2)) * 100}",
 		r"\b(set|set_timed|has|remove)_pop_flag\b": r"\1_pop_group_flag",
 		r"\bhas_active_tradition = tr_genetics_finish_extra_traits\b": "can_harvest_dna = yes",
 		r"\bguardian_warden\b": "guardian_opus_sentinel",
@@ -503,6 +504,10 @@ v4_0 = {
 		r"\bevery_owned_pop_group = \{\s+kill_single_pop = yes\s+\}": "every_owned_pop_group = { kill_all_pop = yes }",
 		r"(?<!\bmodifier = \{\n)\t\t\t(?:planet_(?:%s|amenities_no_happiness|crime)_add =)\s*(-?(?:[1-9]|[1-3]\d?))\s+?(?!(?:mult =|}\n\t\tmult =))[\w}]" % PLANET_MODIFIER: [
 			r"(planet_\w+_add =)\s*(-?(?:[1-9]|[1-3]\d?))\b", multiply_by_100
+		],
+		r"\bcreate_pop((?:_group)? = \{\s+species = [\w\.:]+\s+(?:(count)|size) = \d(?:(?(2)\d*|\d?)))\b": [ # r"\g<1>size\g<3>00", TODO test
+			r"^(?:_group)? = \{(\s+)(species = [\w\.:]+)\s+(?:(count)|size) = (\d(?:(?(3)\d*|\d?)))$",
+			lambda m: f"_group = {{{m.group(1)}{m.group(2)}{m.group(1)}size = {int(m.group(4)) * 100}"
 		],
 		r"\bcreate_pop_group = \{((\s*)(?:species|count) = [\w\.:@]+(?:\2ethos = (?:[\d\w\.:]+|\{\s*ethic = \"?\w+\"?(?:\s+ethic = \"?\w+\"?)?\s*\})|\s*)\2(?:species|count) = [\w\.:@]+)\s*\}":
 			[r"\bcount = ([\w\.@]+)\b", lambda m: "size =" + multiply_by_100(m.group(1))],
@@ -691,8 +696,8 @@ revert_v4_0 = {
 				divide_by_100(m.group(3))
 				if re.match(r"^\d+$", m.group(3)) else m.group(3)
 			),
-		r"(?s)((\n\t+)create_pop_group = \{(\2\t)(\s*pop_group\s*=[^\n]+\n)?([^{}]*?\3effect = \{.*?(?:\3| )\}))\2\}":
-			r"\2create_pop = {\3\5",
+		r"(\n\t+)create_pop_group( = \{(?:\1\t(?!pop_group)\w+ = [^\n]+)*)(\1\t)(\s*pop_group\s*=[^\n]+)$": # just comment out new v4.0 syntax
+			r"\1create_pop\2\3# \4",
 		r"^((\t+)(?:%s)_owned_pop_(?:job|group) = \{\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+kill_assigned_pop_amount = \{ percentage = 1 \})\n\2\}" % VANILLA_PREFIXES: [
 			r"^(\t+\w+_owned_pop)_(?:job|group) = \{(\s+(?:limit = \{\s+)?has_job(?:_type)? = \w+\s+\}\s+)kill_assigned_pop_amount = \{ percentage = 1 \}",
 			r"\1 = {\2kill_pop = yes"
