@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @Author: FirePrince
-# @Revision: 2025/10/11
+# @Revision: 2025/10/16
 # If you find this tool helpful, consider supporting development:
 # 	Buy me a coffee on Ko-fi https://ko-fi.com/f1r3pr1nc3
 # 	Donate via PayPal https://www.paypal.me/supportfireprinc
@@ -208,6 +208,7 @@ v4_1 = {
 		r"\bcreated_merc_number\b": "created_enclave_number", # script_value
 		r"\bupgrade_mercenary_starbase\b": "upgrade_enclave_starbase", # scripted_effect (enclave_effects.txt) TODO parameter
 		r"\bhas_leader_flag = (renowned|legendary)_leader\b": r"is_leader_tier = leader_tier_\1",
+		r"_uncapped(_build_speed_mult)\b": r"\1", # Modifier
 	},
 	"targets4": {
 		r"((\s+)(?:is_mercenary(?:_mindwarden_enclave)? = yes(?:\2(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b){1,2}|(?:(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b\s*){1,2}\s*is_mercenary(?:_mindwarden_enclave)? = yes\b|is_country_type = enclave_mercenary\b))":
@@ -314,7 +315,7 @@ JOBS_EXCLUSION_LIST = r"(?:calculator_biologist|calculator_physicist|calculator_
 # Loc yml job replacement
 # NEW:
 # added @colossus_reactor_cost_1 = 0
-# new general var planet.local_pop_amount and pop_group.local_pop_amount (used in trigger per_100_local_pop_amount)
+# new general var local_pop_amount (used in trigger per_100_local_pop_amount)
 # new complex_trigger per_100_pop_amount (uses scripted trigger pop_amount)
 # starbase scope now supports controller
 # added triggered_planet_pop_group_modifier_for_species/triggered_planet_pop_group_modifier_for_all
@@ -406,7 +407,7 @@ v4_0 = {
 		r"\b(count_owned_pop)s?\b": r"\1_amount",
 		r"\b(random_owned_pop)\b": r"weighted_\1_group", # Weighted on the popgroup size
 		fr"\b(?:(?:{VANILLA_PREFIXES})_owned_pop|create_pop)\b": r"\g<0>_group",
-		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": # WARNING: has not same functionality anymore (just scripted e.g. for switch, but pop_group_size)
+		r"\bnum_(sapient_pop|pop)s\s*([<=>]+)\s*(\d+)": # WARNING: has not same functionality anymore (scripted) count_owned_pop_amount
 			lambda m: f"{m.group(1)}_amount {m.group(2)} {int(m.group(3))*100}",
 		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*([1-9]\d?)\b": ("common/bombardment_stances", multiply_by_100),
 		r"^on_pop_(abducted|resettled|added|rights_change)\b": ("common/on_actions", r"on_pop_group_\1"),
@@ -459,7 +460,7 @@ v4_0 = {
 		r"^(triggered_pop_)(modifier)\b": (["common/pop_categories", "common/inline_scripts", "common/pop_jobs", "common/species_rights", "common/traits"], r"\1group_\2"),
 		r"\bpop_habitability\b": "pop_low_habitability",
 		r"\bpop_growth_from_immigration\b": "planet_resettlement_unemployed_mult",
-		r"\bplanet_immigration_pull_(mult|add) = (-?[\d.]+)": lambda m: f"planet_resettlement_unemployed_destination_{m.group(1)} = {float(m.group(2))*2}",
+		r"\bplanet_immigration_pull_(mult|add) = (-?[\d.]+)": lambda m: f"planet_resettlement_unemployed_destination_mult = {float(m.group(2))* (1.5 if m.group(1) == 'mult' else 0.2)}",
 		r"\btrade_value_(mult|add)\b": r"planet_jobs_trade_produces_\1",
 		r"pop_modifier\b": "pop_group_modifier",
 		r"\bpop_growth_speed\b": "founder_species_growth_mult", # "BIOLOGICAL_bonus_pop_growth_mult", or logistic_growth_mult
@@ -546,7 +547,7 @@ v4_0 = {
 				'\t\t}\n\t}\n'
 			)
 		],
-		r"(group = \{\s+(?:limit = \{\s+)?(?:\bNO[RT] = \{\s+)?)(\b(?:owner_)?species = \{\s+)?is_robotic(?:_species)? = (yes|no)(?(2)\s+\})":
+		r"(group = \{\s+(?:limit = \{\s+)?(?:\bNO[RT] = \{\s+)?)(\b(?:owner_)?species = \{\s+)?is_robot(?:ic|_pop)(?:_species)? = (yes|no)(?(2)\s+\})":
 			r"\1is_robot_pop_group = \3",
 		r"(?:(\s+)pop_group_has_trait = \"?trait_(?:mechanical|machine_unit)\"?){2}": r"\1is_robot_pop_group = yes",
 		r"(?:(\s+)has_(?:valid_)?civic = \"?civic_(?:pleasure_seekers|corporate_hedonism)\"?){2}": (("T", "is_pleasure_seeker_empire"), r"\1is_pleasure_seeker_empire = yes"),
@@ -655,14 +656,14 @@ revert_v4_0 = {
 		# unpack the canonical 'structures' into the two original keys, preserve indentation
 		r"\bplanet_structures_cost_mult": "planet_buildings_cost_mult",
 		r"\bis_robot_pop_group\b": "is_robot_pop",
-		r"\b(trigger(?: = |:))(?:pop_group_size|(sapient_)?pop_amount)\b": r"\1num_\2pops",
+		r"\b(trigger(?: = |:))(sapient_)?pop_amount\b": r"\1num_\2pops",
 		r"\b(trigger(?: = |:))count_owned_pop_amount\b": r"\1count_owned_pop",
 
 		# --- Reversions Using the 'divide_by_100' Function ---
 		fr"\b((?:num_unemployed|free_(?:{PLANET_MODIFIER}))\s*[<=>]+)\s*(-?\d\d+)\b": divide_by_100,
 		r"\b(min_pops_to_kill_pop\s*[<=>]+)\s*(\d{2,6})\b": divide_by_100,
 		r"\b(job_\w+_add =)\s*(-?\d{3,6})\b": divide_by_100,
-		r"\b((?:pop_group_size|(sapient_)?pop_amount)\s*([<=>]+)\s*([\w@.]+))": lambda m:
+		r"\b((sapient_)?pop_amount\s*([<=>]+)\s*([\w@.]+))": lambda m:
 			f"num_{(m.group(2) if m.group(2) else '')}pops {m.group(3)}" + (
 				divide_by_100(m.group(4)) if re.match(r"^\d+$", m.group(4)) else m.group(4)
 			),
@@ -1976,6 +1977,61 @@ def _apply_version_data_to_targets(source_data_dict):
 	if "targets4" in source_data_dict:
 		actuallyTargets["targets4"].update(source_data_dict["targets4"])
 
+def sort_pre_triggers(trigger_block: re.Match) -> str:
+	"""
+	Sorts Stellaris planet pre_triggers based on an estimated priority list.
+	"""
+	# Define the estimated priority of triggers. Lower number = higher priority.
+	# Triggers not in this list will be placed at the end, alphabetically.
+	trigger_suffix = trigger_block.group(1)
+	trigger_block = trigger_block.group(2)
+	priority_list = {
+		'has_owner': 1,
+		'is_homeworld': 2,
+		'is_capital': 3,
+		'original_owner': 4,
+		'is_occupied_flag': 5,
+		'has_ground_combat': 6, # Checks a complex, temporary state
+		'is_ai': 7, # Indirect scope, more expensive
+	}
+	# Priority list for pop/job scopes (possible_pre_triggers)
+	pop_priority_list = {
+		'has_planet': 1,      # Most fundamental check
+		'is_sapient': 2,      # Core species flag
+		'has_owner': 3,       # Possible indirect scope check
+		'is_being_assimilated': 4, # Status, likely simple boolean
+		'is_being_purged': 5, # bad, scripted since v4.0
+		'is_enslaved': 6,     # very bad, scripted since v4.0
+	}
+	# Check for the more specific 'possible_pre_triggers' first
+	if trigger_suffix.startswith("possible_"):
+		priority_list = pop_priority_list
+	elif trigger_suffix.startswith("can_join_"):
+		priority_list = pop_priority_list
+
+	trigger_suffix = f"\t{trigger_suffix} = {{\n"
+	# 1. Extract individual trigger lines like 'key = value'
+	lines = re.findall(r'(\w+ = (?:yes|no)\b)', trigger_block)
+	# 2. Process lines into a structured list of dictionaries ONCE
+	# Each item now contains the pre-calculated key and the original line
+	trigger_data = []
+	for line in lines:
+		# The split and strip operation now happens only ONCE per line
+		key = line.split('=')[0].strip()
+		trigger_data.append({'key': key, 'line': line})
+	# 3. Use the pre-calculated keys for warnings
+	unknown_triggers = [trigger['key'] for trigger in trigger_data if trigger['key'] not in priority_list]
+	if unknown_triggers:
+		logger.warning(f"⚠️The following triggers do not appear to be valid pre-triggers: {unknown_triggers}")
+	# 4. Use the pre-calculated keys for sorting
+	sorted_trigger_data = sorted(trigger_data, key=lambda trigger: (
+		priority_list.get(trigger['key'], 99), 
+		trigger['key']
+	))
+
+	return trigger_suffix + "\n\t\t".join([trigger ['line'] for trigger in sorted_trigger_data]) + "\n\t}"
+
+
 def add_code_cosmetic():
 	global targetsR, targets3, targets4, exclude_paths
 
@@ -2320,6 +2376,7 @@ def add_code_cosmetic():
 				f"{p.group(1)}{p.group(2)}\teffect = {{{(p.group(3) if p.group(3) else '')}"
 				f"{p.group(2)}\t\t{indent_block(p.group(4))}{p.group(2)}\t}}{p.group(2)}}}"
 		], # \1\n\2\teffect = {\3\n\2\t\4\n\2}
+		r"^\t((?:possible_|can_join_)?pre_triggers) = \{\n([^{}]+)\n\t\}": (["events", "pop_jobs", "pop_faction_types", "inline_scripts"], sort_pre_triggers),
 	}
 
 	targets4.update(tar4)
@@ -2924,26 +2981,26 @@ def modfix(file_list, is_subfolder=False):
 
 	### --- --- --- Helper Functions --- --- --- ###
 
-	def clean_by_blanking(original_lines: list[str]) -> Tuple[str, bool]:
+	def clean_by_blanking(lines: list[str]) -> Tuple[list, bool]:
 		"""
 		Cleans code by replacing non-code lines with blank lines,
 		preserving the original line count.
 		"""
 		cleaned_lines = []
-		for line in original_lines:
+		for line in lines:
 			if not line.strip() or line.strip().startswith('#'):
 				cleaned_lines.append('')
 			else:
 				code_part = line.split('#', 1)[0].rstrip()
 				cleaned_lines.append(code_part)
-		return '\n'.join(cleaned_lines), False
+		return cleaned_lines, False
 
 	def apply_inline_replacement(lines: List[str], need_clean_code: bool, match: re.Match, replace: tuple, sr: bool ) -> Tuple[List[str], bool]:
 		"""
 		Performs a precise, character-based replacement for a given match,
 		preserving indentation and surrounding text.
 		"""
-		nonlocal changed
+		nonlocal changed, cleaned_code
 		new_content = ""
 		# Get global character positions from the match
 		if sr and match.groups(): # Does only count capturing groups
@@ -2975,7 +3032,7 @@ def modfix(file_list, is_subfolder=False):
 			if tar.startswith('\n') and new_content.startswith('\n'):
 				common_prefix_len += 1
 				start_col = "" # we don't need a prefix
-				# print("start_col")
+				print("start_col")
 				new_content = new_content[1:]
 			else:
 				# Find the character index of the start of the lines containing the match
@@ -2988,25 +3045,37 @@ def modfix(file_list, is_subfolder=False):
 			if tar.endswith('\n') and new_content.endswith('\n'):
 				end_char -= 1
 				end_col = "" # we don't need a suffix
-				# print("end_col")
+				print("end_col")
 				new_content = new_content[:-1]
 			else:
 				end_col = cleaned_code.rfind('\n', 0, end_char) + 1
 				end_col = end_char - end_col # Calculate the column numbers
 			# For the end character, we look at the character just before it to get the correct line.
 			end_line_idx = cleaned_code[:end_char - 1].count('\n') if end_char > 0 else 0
-			# print(f"{basename} lines {len(lines)} ({start_line_idx}-{end_line_idx}):\n'{tar}':\n'{new_content}'\n{replace[0].pattern}")
+			# print(f"{basename} lines {len(lines)} ({start_line_idx}-{end_line_idx}):\n'{tar}':\n'{new_content}'\n{replace[0].pattern}") # DEBUG
 			changed = True
 
 			# Simultaneously, update the cleaned code with a string slice (OPTIMIZATION: omits steady clean_by_blanking)
-			# TODO not working properly
-			# cleaned_code = cleaned_code[:start_char] + new_content + cleaned_code[end_char:]
+			# TODO FIXME not working properly
+			cleaned_code = cleaned_code[:start_char] + new_content + cleaned_code[end_char:]
 
 			# --- Perform the line stitching ---
 			if end_col != "":
 				end_col = lines[end_line_idx][end_col:]
 			if start_col != "":
 				start_col = lines[start_line_idx][:start_col]
+
+			# # DEBUG
+			# cleaned_lines = cleaned_code.splitlines()
+			# lines_len_before = len(cleaned_lines) # DEBUG
+			# print("lines_len_before",cleaned_code.count('\n') + 1,"==", lines_len_before)
+			# cleaned_lines, need_clean_code = clean_by_blanking(cleaned_lines)
+			# cleaned_code = '\n'.join(cleaned_lines)
+			# lines_len_after = len(cleaned_lines) # DEBUG
+			# print("lines_len_after",cleaned_code.count('\n') + 1,"==", lines_len_after, len(lines))
+			# print("original_block from cleaned code", cleaned_lines[start_line_idx : end_line_idx + 1])
+			# print(f"new_block: '{start_col}' + '{new_content}' + '{end_col}'")
+			# print("original_block",lines[start_line_idx : end_line_idx + 1])
 
 			new_content = start_col + new_content + end_col
 
@@ -3115,24 +3184,34 @@ def modfix(file_list, is_subfolder=False):
 				if orphan_comments:
 					comment_map = '\n\t'.join(orphan_comments)
 					logger.warning(f"Some code comments may lost:\n{comment_map}")
-				# TODO very buggy
-				# 	# Determine indentation for orphan comments from the original block's structure
-				# 	indentation = ''
-				# 	for line in original_block_lines:
-				# 		if line.strip():
-				# 			indentation = line[:len(line) - len(line.lstrip())]
-				# 			break
-				# 	orphan_comments = [f"{indentation} {comment.strip()}" for comment in orphan_comments]
+					# Just put comment on the first line or better before the first line!?
+					if len(orphan_comments) == 1 and new_content_lines[0]:
+						new_content_lines[0] = f"{new_content_lines[0]} {orphan_comments[0]}"
+					else:
+						# TODO very buggy
+						# Determine indentation for orphan comments from the original block's structure
+						indentation = ''
+						need_clean_code = True
+						for line in original_block_lines:
+							if line.strip() and line.startswith("\t"):
+								indentation = line[:len(line) - len(line.lstrip())]
+								break
+						orphan_comments = [f"{indentation} {comment.strip()}" for comment in orphan_comments]
+						new_content_lines = orphan_comments + new_content_lines
+
 				new_content = '\n'.join(new_content_lines)
 				original_block = '\n'.join(original_block_lines)
-				logger.info(f"MULTI-LINE match ({start_line_idx}-{end_line_idx}):\n'{original_block}' with:\u2935\n'{new_content}'")
-				# Final assembly: place orphan comments before the modified original line
-				lines = (
-					lines[:start_line_idx] +
-					new_content_lines +
-					# orphan_comments + # TODO very buggy
-					lines[end_line_idx + 1:]
-				)
+				if new_content != original_block:
+					logger.info(f"MULTI-LINE match ({start_line_idx}-{end_line_idx}):\n'{original_block}' with:\u2935\n'{new_content}'")
+					# Final assembly: place orphan comments before the modified original line
+					lines = (
+						lines[:start_line_idx] +
+						new_content_lines +
+						lines[end_line_idx + 1:]
+					)
+				else:
+					# need_clean_code = False
+					logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
 
 		else:
 			logger.debug(f"BLIND MATCH: '{tar}' {replace} {type(replace)} {basename}")
@@ -3577,6 +3656,7 @@ def modfix(file_list, is_subfolder=False):
 		else:
 			return (find_re_comm.sub(repl, text), changed)
 
+
 	def write_file():
 		structure = os.path.normpath(os.path.join(mod_outpath, subfolder))
 		out_file = os.path.normpath(os.path.join(structure, basename))
@@ -3587,6 +3667,7 @@ def modfix(file_list, is_subfolder=False):
 			# print('Create folder:', subfolder)
 		open(out_file, "w", encoding="utf-8").write(out + '\n')
 		txtfile.close()
+
 
 	def check_folder(folder):
 		# True means passed
@@ -3919,8 +4000,11 @@ def modfix(file_list, is_subfolder=False):
 
 				if changed:
 					lines = out.splitlines() # Theoretically we could take the previous lines, but they are possible affected by additional LB
+				
+				need_clean_code = True
 				# lines_len_before = len(lines) # DEBUG
-				# cleaned_code = clean_by_blanking(lines)
+				# cleaned_code, need_clean_code = clean_by_blanking(lines)
+				# cleaned_code = '\n'.join(cleaned_code)
 				# lines_len_after = cleaned_code.count('\n') + 1 # DEBUG
 				# if lines_len_after != lines_len_before:
 				# 	changed = False
@@ -3928,7 +4012,6 @@ def modfix(file_list, is_subfolder=False):
 				# 		f"Mismatch lines for cleaned_code at {basename}\n"
 				# 		f"lines before {lines_len_before} != {lines_len_after} lines after"
 				# 	)
-				need_clean_code = True
 
 				for pattern, repl in tar4:  # new list way
 					folder = False # check valid folder before loop
@@ -3964,6 +4047,7 @@ def modfix(file_list, is_subfolder=False):
 						continue
 					if need_clean_code:
 						cleaned_code, need_clean_code = clean_by_blanking(lines)
+						cleaned_code = '\n'.join(cleaned_code)
 					if not pattern.search(cleaned_code):
 						continue
 					if not replace and isinstance(repl, str) or callable(repl): # potential slow down TESTME
