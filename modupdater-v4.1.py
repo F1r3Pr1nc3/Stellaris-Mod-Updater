@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @Author: FirePrince
-# @Revision: 2025/10/17
+# @Revision: 2025/10/18
 # If you find this tool helpful, consider supporting development:
 # 	Buy me a coffee on Ko-fi https://ko-fi.com/f1r3pr1nc3
 # 	Donate via PayPal https://www.paypal.me/supportfireprinc
@@ -191,7 +191,6 @@ def leader_class_replacement(match):
 	final_class_string = " ".join(unique_classes)
 	return f"leader_class = {{ {final_class_string} }}"
 
-import re
 
 def flatten_and_comment(match: re.Match) -> str:
 	"""
@@ -229,6 +228,7 @@ v4_1 = {
 		r"\bcreated_merc_number\b": "created_enclave_number", # script_value
 		r"\bupgrade_mercenary_starbase\b": "upgrade_enclave_starbase", # scripted_effect (enclave_effects.txt) TODO parameter
 		r"\bhas_leader_flag = (renowned|legendary)_leader\b": r"is_leader_tier = leader_tier_\1",
+		r"@corporeal_machine_coordinator_effectiveness\b": r"@corporeal_machine_aura_effectiveness", 
 		# Districts
 		r"^is_capped_by_modifier = (yes|no)\b": ("common/districts", lambda p: "is_uncapped = { always = no }" if p.group(1) == "yes" else ""),
 		r"(?i)^(district = \w+)_uncapped$": (["common/decisions", "common/inline_scripts"], r"\1"), 
@@ -236,8 +236,8 @@ v4_1 = {
 		# r".+_uncapped(?: value [<=>]+ \d \}| \})?$": r" # \g<0>", # v4.1.6 catches too unsharp
 		# Modifier
 		r"_uncapped(_build_speed_mult)\b": r"\1", 
-		r"planet_observators_produces_mult\b": r"planet_biologists_produces_mult", 
-		r"@corporeal_machine_coordinator_effectiveness\b": r"@corporeal_machine_aura_effectiveness", 
+		r"\bplanet_observators_produces_mult\b": r"planet_biologists_produces_mult", 
+		r"\b(?:planet_jobs_slave_produces|pop_cat_slave_bonus_workforce)_mult\b": r"pop_slave_bonus_workforce_mult", 
 	},
 	"targets4": {
 		r"((\s+)(?:is_mercenary(?:_mindwarden_enclave)? = yes(?:\2(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b){1,2}|(?:(?:is_country_type = enclave_mercenary|has_civic = civic_mercenary_enclave)\b\s*){1,2}\s*is_mercenary(?:_mindwarden_enclave)? = yes\b|is_country_type = enclave_mercenary\b))":
@@ -2039,7 +2039,7 @@ def sort_pre_triggers(trigger_block: re.Match) -> str:
 	elif trigger_suffix.startswith("can_join_"):
 		priority_list = pop_priority_list
 
-	trigger_suffix = f"\t{trigger_suffix} = {{\n"
+	trigger_suffix = f"\t{trigger_suffix} = {{\n\t\t"
 	# 1. Extract individual trigger lines like 'key = value'
 	lines = re.findall(r'(\w+ = (?:yes|no)\b)', trigger_block)
 	# 2. Process lines into a structured list of dictionaries ONCE
@@ -2064,7 +2064,7 @@ def sort_pre_triggers(trigger_block: re.Match) -> str:
 		# Use Counter to show how many of each were removed
 		removed_counts = Counter(removed_duplicates)
 		for line, count in removed_counts.items():
-			 logger.info(f"HINT: Removed {count} identical duplicate trigger(s): '{line}'")
+			 logger.info(f"‼️ HINT: Removed {count} identical duplicate trigger(s): '{line}'")
 
 	# Now, perform checks on the cleaned data
 	all_keys = [trigger['key'] for trigger in unique_trigger_data]
